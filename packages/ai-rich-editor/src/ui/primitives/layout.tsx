@@ -20,8 +20,6 @@ export interface TextProps extends HTMLAttributes<HTMLSpanElement> {
   tone?: Tone;
   /** 字号档位 */
   size?: 'xs' | 'sm' | 'md';
-  /** 加粗强调 */
-  strong?: boolean;
   /** 块级展示 */
   block?: boolean;
 }
@@ -30,7 +28,6 @@ export interface TextProps extends HTMLAttributes<HTMLSpanElement> {
 export function Text({
   tone = 'default',
   size = 'md',
-  strong,
   block,
   className,
   ...rest
@@ -41,7 +38,6 @@ export function Text({
         'easyx-ai-rich-editor__text',
         tone !== 'default' && `easyx-ai-rich-editor__text--${tone}`,
         size !== 'md' && `easyx-ai-rich-editor__text--${size}`,
-        strong && 'easyx-ai-rich-editor__text--strong',
         block && 'easyx-ai-rich-editor__text--block',
         className,
       )}
@@ -58,9 +54,7 @@ export interface StackProps extends HTMLAttributes<HTMLDivElement> {
   /** 允许换行（横向排列时） */
   wrap?: boolean;
   /** 主轴对齐 */
-  justify?: 'start' | 'between' | 'end';
-  /** 占满剩余空间 */
-  grow?: boolean;
+  justify?: 'start' | 'between';
 }
 
 /** 间隔容器：以 gap 表达间距，替代散落的 margin */
@@ -69,7 +63,6 @@ export function Stack({
   size = 'md',
   wrap,
   justify = 'start',
-  grow,
   className,
   ...rest
 }: StackProps) {
@@ -81,7 +74,6 @@ export function Stack({
         direction === 'row' && 'easyx-ai-rich-editor__stack--row',
         wrap && 'easyx-ai-rich-editor__stack--wrap',
         justify !== 'start' && `easyx-ai-rich-editor__stack--${justify}`,
-        grow && 'easyx-ai-rich-editor__stack--grow',
         className,
       )}
       {...rest}
@@ -115,20 +107,12 @@ export interface FieldProps {
   label?: ReactNode;
   /** 关联控件的 id */
   htmlFor?: string;
-  /** 字段下方的补充说明 */
-  hint?: ReactNode;
   children: ReactNode;
   className?: string;
 }
 
 /** 字段行：标签在上、控件在下 */
-export function Field({
-  label,
-  htmlFor,
-  hint,
-  children,
-  className,
-}: FieldProps) {
+export function Field({ label, htmlFor, children, className }: FieldProps) {
   return (
     <div className={cx('easyx-ai-rich-editor__field', className)}>
       {label !== undefined && (
@@ -137,9 +121,6 @@ export function Field({
         </label>
       )}
       <div className="easyx-ai-rich-editor__field-control">{children}</div>
-      {hint !== undefined && (
-        <span className="easyx-ai-rich-editor__field-hint">{hint}</span>
-      )}
     </div>
   );
 }

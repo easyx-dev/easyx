@@ -30,10 +30,6 @@
   color: var(--easyx-ai-rich-editor-primary);
 }
 
-.easyx-ai-rich-editor__text--strong {
-  font-weight: 600;
-}
-
 .easyx-ai-rich-editor__text--xs {
   font-size: var(--easyx-ai-rich-editor-font-size-xs);
 }
@@ -79,15 +75,6 @@
   justify-content: space-between;
 }
 
-.easyx-ai-rich-editor__stack--end {
-  justify-content: flex-end;
-}
-
-.easyx-ai-rich-editor__stack--grow {
-  flex: 1;
-  min-width: 0;
-}
-
 /* 标签 */
 .easyx-ai-rich-editor__tag {
   display: inline-flex;
@@ -114,14 +101,6 @@
   margin-bottom: 6px;
   font-size: var(--easyx-ai-rich-editor-font-size-sm);
   color: var(--easyx-ai-rich-editor-text);
-}
-
-.easyx-ai-rich-editor__field-hint {
-  display: block;
-  margin-top: 6px;
-  font-size: var(--easyx-ai-rich-editor-font-size-xs);
-  line-height: 1.6;
-  color: var(--easyx-ai-rich-editor-text-tertiary);
 }
 
 /* 按钮 */

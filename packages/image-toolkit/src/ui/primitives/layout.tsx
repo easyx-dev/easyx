@@ -19,21 +19,12 @@ export interface TextProps extends HTMLAttributes<HTMLSpanElement> {
   tone?: Tone;
   /** 字号档位 */
   size?: 'xs' | 'sm' | 'md';
-  /** 加粗强调 */
-  strong?: boolean;
-  /** 块级展示 */
-  block?: boolean;
-  /** 等宽字体 */
-  mono?: boolean;
 }
 
 /** 文本：颜色/字号由语气与档位决定，默认继承父级 */
 export function Text({
   tone = 'default',
   size = 'md',
-  strong,
-  block,
-  mono,
   className,
   ...rest
 }: TextProps) {
@@ -43,9 +34,6 @@ export function Text({
         'easyx-image-toolkit__text',
         tone !== 'default' && `easyx-image-toolkit__text--${tone}`,
         size !== 'md' && `easyx-image-toolkit__text--${size}`,
-        strong && 'easyx-image-toolkit__text--strong',
-        block && 'easyx-image-toolkit__text--block',
-        mono && 'easyx-image-toolkit__text--mono',
         className,
       )}
       {...rest}
@@ -105,10 +93,6 @@ export interface StackProps extends HTMLAttributes<HTMLDivElement> {
   size?: 'xs' | 'sm' | 'md' | 'lg';
   /** 允许换行（横向排列时） */
   wrap?: boolean;
-  /** 主轴对齐 */
-  justify?: 'start' | 'between' | 'end';
-  /** 占满剩余空间 */
-  grow?: boolean;
 }
 
 /** 间隔容器：以 gap 表达间距，替代散落的 margin */
@@ -116,8 +100,6 @@ export function Stack({
   direction = 'column',
   size = 'md',
   wrap,
-  justify = 'start',
-  grow,
   className,
   ...rest
 }: StackProps) {
@@ -128,8 +110,6 @@ export function Stack({
         size !== 'md' && `easyx-image-toolkit__stack--${size}`,
         direction === 'row' && 'easyx-image-toolkit__stack--row',
         wrap && 'easyx-image-toolkit__stack--wrap',
-        justify !== 'start' && `easyx-image-toolkit__stack--${justify}`,
-        grow && 'easyx-image-toolkit__stack--grow',
         className,
       )}
       {...rest}

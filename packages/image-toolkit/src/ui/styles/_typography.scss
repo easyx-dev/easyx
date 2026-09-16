@@ -23,24 +23,12 @@
   color: var(--easyx-image-toolkit-success);
 }
 
-.easyx-image-toolkit__text--strong {
-  font-weight: 600;
-}
-
 .easyx-image-toolkit__text--xs {
   font-size: var(--easyx-image-toolkit-font-size-xs);
 }
 
 .easyx-image-toolkit__text--sm {
   font-size: var(--easyx-image-toolkit-font-size-sm);
-}
-
-.easyx-image-toolkit__text--block {
-  display: block;
-}
-
-.easyx-image-toolkit__text--mono {
-  font-family: var(--easyx-image-toolkit-font-mono);
 }
 
 /* 说明小字：固定为块级小字号，语气决定颜色 */
@@ -142,17 +130,4 @@
 
 .easyx-image-toolkit__stack--wrap {
   flex-wrap: wrap;
-}
-
-.easyx-image-toolkit__stack--between {
-  justify-content: space-between;
-}
-
-.easyx-image-toolkit__stack--end {
-  justify-content: flex-end;
-}
-
-.easyx-image-toolkit__stack--grow {
-  flex: 1;
-  min-width: 0;
 }
