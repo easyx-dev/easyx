@@ -3,6 +3,8 @@
  *
  * 源图由 canvas 现场生成（演示页无服务端），整个处理链路在浏览器内完成：
  * 魔数嗅探 → wasm 引擎加载（含进度）→ 裁切/缩放/编码 → 保存回调。
+ *
+ * 主题无需桥接：演示页把 data-theme 挂在 <html> 上，弹窗渲染在 portal 中也能命中。
  */
 import {
   IMAGE_LIMITS,
@@ -11,9 +13,7 @@ import {
   sniffImage,
 } from '@easyx/image-toolkit';
 import { ImageEditorModal } from '@easyx/image-toolkit/ui';
-import { App as AntdApp, theme as antdTheme, ConfigProvider } from 'antd';
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { useDemoDark } from './use-demo-dark';
+import { useCallback, useEffect, useState } from 'react';
 
 /** 现场生成一张 1600×1000 的渐变 + 几何图形图，模拟「用户上传的照片」 */
 function createSourceBlob(): Promise<Blob> {
@@ -58,37 +58,12 @@ function createSourceBlob(): Promise<Blob> {
 }
 
 export default function ImageToolkitDemo() {
-  const isDark = useDemoDark();
-
-  const themeConfig = useMemo(
-    () => ({
-      algorithm: isDark ? antdTheme.darkAlgorithm : antdTheme.defaultAlgorithm,
-    }),
-    [isDark],
-  );
-
-  return (
-    <ConfigProvider theme={themeConfig}>
-      <AntdApp>
-        <DemoBody />
-      </AntdApp>
-    </ConfigProvider>
-  );
-}
-
-/**
- * 演示主体
- *
- * 必须渲染在 <AntdApp> 之内：App.useApp() 读的是上层 context，
- * 在 provider 之外调用只会拿到 antd 的空默认值（message.success 为 undefined）。
- */
-function DemoBody() {
-  const { message } = AntdApp.useApp();
   const [sourceUrl, setSourceUrl] = useState('');
-  const [sourceSize, setSourceSize] = useState<number | null>(null);
+  const [sourceBytes, setSourceBytes] = useState<number | null>(null);
   const [sniffed, setSniffed] = useState<string>('—');
   const [open, setOpen] = useState(false);
   const [lastResult, setLastResult] = useState<string>('—');
+  const [lastAction, setLastAction] = useState<string>('—');
 
   // 源图在挂载时生成一次，卸载时回收 Object URL
   useEffect(() => {
@@ -96,7 +71,7 @@ function DemoBody() {
     void createSourceBlob().then((blob) => {
       url = URL.createObjectURL(blob);
       setSourceUrl(url);
-      setSourceSize(blob.size);
+      setSourceBytes(blob.size);
       void blob.arrayBuffer().then((buffer) => {
         const info = sniffImage(new Uint8Array(buffer));
         setSniffed(
@@ -158,10 +133,12 @@ function DemoBody() {
           >
             <div>
               源图字节：
-              {sourceSize ? `${Math.round(sourceSize / 1024)} KB` : '—'}
+              {sourceBytes ? `${Math.round(sourceBytes / 1024)} KB` : '—'}
             </div>
             <div>魔数嗅探：{sniffed}</div>
+            {/* 保存回调的结果就地展示（演示页不接服务端，无成功提示可弹） */}
             <div>上次处理结果：{lastResult}</div>
+            <div>最近一次保存：{lastAction}</div>
             <div style={{ marginTop: 8, color: 'var(--demo-text-dim)' }}>
               可处理格式：{PROCESSABLE_FORMATS.join(' / ')}
             </div>
@@ -180,12 +157,12 @@ function DemoBody() {
           fileName="demo.png"
           onReplace={async (result) => {
             describe(result);
-            message.success('已「覆盖原图」（演示仅更新统计，未写回服务端）');
+            setLastAction('已「覆盖原图」（演示仅更新统计，未写回服务端）');
             setOpen(false);
           }}
           onSaveAsNew={async (result) => {
             describe(result);
-            message.success('已「另存为新文件」（演示仅更新统计）');
+            setLastAction('已「另存为新文件」（演示仅更新统计）');
             setOpen(false);
           }}
           onClose={() => setOpen(false)}

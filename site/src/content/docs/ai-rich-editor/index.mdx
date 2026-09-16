@@ -13,7 +13,9 @@ description: AI 驱动的 HTML 片段生产工作台：对话生成、所见即�
 pnpm add @easyx/ai-rich-editor
 ```
 
-`react` / `react-dom` / `antd` / `@ant-design/icons` / `monaco-editor` 为 peer 依赖，需宿主自行安装。
+`react` / `react-dom` / `monaco-editor` 为 peer 依赖，需宿主自行安装；其余运行时依赖随包安装。
+
+界面为包内自研，**除 React 外不依赖任何 UI 库**（弹窗、表单、气泡、输入框、分栏均为自实现）。
 
 ## 快速上手
 
@@ -69,7 +71,7 @@ AI 生成的片段在「应用到编辑器」（含 `autoApply`）时即完成**
 | `autoApply` | AI 回复后自动应用到编辑器 | `true` |
 | `systemPrompt` | 自定义 system 提示词 | 内置模板 |
 | `previewHead` | 预览 `<head>` 附加代码（原始 HTML） | 空 |
-| `notify` | 消息提示回调 | antd 静态提示 |
+| `notify` | 消息提示回调 | 包内置轻提示 |
 
 :::caution
 `config` 为**仅初始值（非受控）**——挂载后改动 `config` 不会生效；运行期请经设置面板修改，如需持久化再用 `onConfigChange` 回写宿主。
@@ -79,12 +81,13 @@ AI 生成的片段在「应用到编辑器」（含 `autoApply`）时即完成**
 
 亮暗判定优先级（与包内样式一致）：
 
-1. 容器 class `easyx-ai-rich-editor-dark`
+1. 令牌作用域上的 class `easyx-ai-rich-editor-scope-dark`
 2. 最近的宿主 `[data-theme]` 祖先（值以 `dark` 结尾，如 `dark`、`admin-dark`）
 3. 两者都没有时跟随系统 `prefers-color-scheme`
 
-Monaco 主题同步跟随上述判定；antd 组件的亮暗由宿主的 `ConfigProvider` 决定。
-所有颜色经 `--easyx-ai-rich-editor-*` CSS 变量控制，可在宿主覆盖。
+Monaco 主题同步跟随上述判定（它读不到 CSS 变量，由包内 hook 转达）。
+
+抽屉、下拉菜单、Tooltip、轻提示等浮层渲染在 portal 中：`data-theme` 挂在 `<html>` 上时第 2 条依然命中，包内还会把触发元素所处的主题一并带到浮层根上，因此浮层不会脱主题。所有颜色经 `--easyx-ai-rich-editor-*` CSS 变量控制，可在宿主覆盖。
 
 ## 安全边界
 

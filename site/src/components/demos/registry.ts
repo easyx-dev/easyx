@@ -5,7 +5,7 @@
  * - 路由：site/src/pages/demos/[slug].astro 由本表生成静态路径
  * - 源码：demo-sources.ts 按 slug 读取同名 .tsx 的文件文本
  *
- * 组件一律通过动态 import 懒加载，避免重依赖（React / antd / wasm 等）进入文档站主包。
+ * 组件一律通过动态 import 懒加载，避免重依赖（React / wasm / Monaco 等）进入文档站主包。
  */
 
 import type { ComponentType } from 'react';

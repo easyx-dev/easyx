@@ -3,11 +3,11 @@
  *
  * 文档站是纯静态站点、没有服务端，因此这里在浏览器侧拦截该端点并回放一段预录的
  * TanStack AI 标准 SSE 流（同样的 chunk 序列，逐字下发），AI 对话链路本身走真实实现。
+ *
+ * 主题无需桥接：演示页把 data-theme 挂在 <html> 上，包内样式直接据此判定。
  */
 import { AiRichEditor, DEFAULT_HTML } from '@easyx/ai-rich-editor';
-import { theme as antdTheme, ConfigProvider } from 'antd';
-import { useEffect, useMemo, useState } from 'react';
-import { useDemoDark } from './use-demo-dark';
+import { useEffect, useState } from 'react';
 
 /** 演示端点：只在本次演示内被拦截，不影响页面其他请求 */
 const MOCK_ENDPOINT = '/__easyx_demo__/ai-chat';
@@ -127,37 +127,26 @@ function installFetchMock(): () => void {
     window.fetch = original;
   };
 }
-
 export default function AiRichEditorDemo() {
-  const isDark = useDemoDark();
   const [html, setHtml] = useState(DEFAULT_HTML);
 
   useEffect(installFetchMock, []);
 
-  const themeConfig = useMemo(
-    () => ({
-      algorithm: isDark ? antdTheme.darkAlgorithm : antdTheme.defaultAlgorithm,
-    }),
-    [isDark],
-  );
-
   return (
-    <ConfigProvider theme={themeConfig}>
-      <div className="demo-editor-container">
-        <div className="demo-control-bar">
-          <span className="demo-control-bar-hint">
-            对话由浏览器侧回放预录 SSE 流，链路走真实实现
-          </span>
-        </div>
-        <div style={{ padding: 16 }}>
-          <AiRichEditor
-            value={html}
-            onChange={setHtml}
-            endpointUrl={MOCK_ENDPOINT}
-            height={620}
-          />
-        </div>
+    <div className="demo-editor-container">
+      <div className="demo-control-bar">
+        <span className="demo-control-bar-hint">
+          对话由浏览器侧回放预录 SSE 流，链路走真实实现
+        </span>
       </div>
-    </ConfigProvider>
+      <div style={{ padding: 16 }}>
+        <AiRichEditor
+          value={html}
+          onChange={setHtml}
+          endpointUrl={MOCK_ENDPOINT}
+          height={620}
+        />
+      </div>
+    </div>
   );
 }

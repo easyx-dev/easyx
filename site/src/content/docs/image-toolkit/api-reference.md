@@ -42,7 +42,7 @@ description: Image Toolkit 两个入口的导出清单、引擎 API 与类型定
 
 `ImageFormat`、`ImageOutputFormat`、`ImageFit`、`ImageCrop`、`ImageResize`、`ImageOperation`、`ImageSize`、`ImageMeta`、`ImageSniffResult`、`ImageProcessResult`、`LosslessFidelity`、`LosslessStrategy`、`ScaleRequest`、`ScaleOptions`。
 
-## 管理端入口（`./ui`）
+## 浏览器侧入口（`./ui`）
 
 ### 引擎 API
 
@@ -90,10 +90,12 @@ description: Image Toolkit 两个入口的导出清单、引擎 API 与类型定
 | `fileName` | `string` | 源文件名（用于生成「另存为」文件名） |
 | `onReplace` | `(result: ImageProcessResult) => Promise<void>` | 覆盖原图，由宿主注入（负责权限与审计） |
 | `onSaveAsNew` | `(result, fileName) => Promise<void>` | 另存为新文件；不传则不展示该选项 |
+| `theme` | `'light' \| 'dark'` | 显式主题；缺省按「宿主 `[data-theme]` 祖先 → 系统偏好」判定（弹窗在 portal 中，宿主把 `data-theme` 挂在 `<html>` 之外的祖先上时继承不到） |
 | `onClose` | `() => void` | 关闭回调 |
 
 ## 包内约定
 
 - `src/limits.ts` 是格式能力的**单一事实来源**，界面的可编辑 / 可输出 / 可无损优化判定都从它派生
 - `src/ui/editor-settings.ts` 是 UI 状态 → 引擎入参的**唯一转换点**（纯逻辑，可单测）
+- `src/ui/primitives/` 是自研 UI 原语，全部基于原生元素（`select` / `range` / `radio` / `checkbox` / `number`）；portal 出的浮层必须在根节点补上 `easyx-image-toolkit` 令牌作用域类
 - 引擎结果必须经 `sniffImage` 校验后才允许流入存储

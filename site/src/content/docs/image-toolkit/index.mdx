@@ -11,7 +11,7 @@ description: 浏览器端图片处理套件：裁切、缩放、格式转换与�
 | 入口 | 内容 | 依赖 |
 |------|------|------|
 | `@easyx/image-toolkit` | 同构纯逻辑：魔数嗅探、格式白名单、操作归一化、缩放换算 | 零重量依赖（服务端可安全引用） |
-| `@easyx/image-toolkit/ui` | 浏览器侧：引擎客户端、React hooks、编辑弹窗组件 | React + antd + wasm 引擎（惰性加载） |
+| `@easyx/image-toolkit/ui` | 浏览器侧：引擎客户端、React hooks、编辑弹窗组件 | React + wasm 引擎（惰性加载），UI 自研 |
 
 :::tip
 根入口**禁止**静态引用引擎，否则 wasm glue 会被打进服务端 bundle —— 服务端做魔数嗅探时只会引入这一层纯逻辑。
@@ -23,7 +23,7 @@ description: 浏览器端图片处理套件：裁切、缩放、格式转换与�
 pnpm add @easyx/image-toolkit
 ```
 
-`react` / `react-dom` / `antd` / `@ant-design/icons` 为 peer 依赖，需宿主自行安装（`./ui` 入口才需要）。
+`react` / `react-dom` 为 peer 依赖，需宿主自行安装（`./ui` 入口才需要）。界面为包内自研，除 React 外不依赖任何 UI 库。
 
 ## 使用
 
@@ -56,6 +56,18 @@ configureImageEngine({ wasmUrl: '/static/magick.wasm' });
 ```
 
 用 `<ImageEngineGate>` 包裹即可获得引擎加载进度、错误与重试，无需各自处理加载态。
+
+### 主题
+
+样式走包内 SCSS + CSS 变量（`--easyx-image-toolkit-*`），编译后内联进 JS，宿主无需单独引入样式文件，覆盖变量即可定制外观。界面除 React 外不依赖任何 UI 库；表单控件基于原生元素，`color-scheme` 随主题切换，系统控件的下拉与滚动条不会与自绘外观割裂。
+
+亮暗判定优先级：
+
+1. 令牌作用域根上的 `easyx-image-toolkit-dark` class
+2. 最近的宿主 `[data-theme]` 祖先（值以 `dark` 结尾，如 `dark`、`admin-dark`）
+3. 两者都没有时跟随系统 `prefers-color-scheme`
+
+编辑弹窗渲染在 portal 中：`data-theme` 挂在 `<html>` 上时第 2 条依然命中；若挂在 `<html>` 之外的祖先上，用 `<ImageEditorModal theme="dark" />` 显式指定。
 
 ## 能力矩阵（实测）
 

@@ -24,7 +24,7 @@ description: AI Rich Editor 组件 Props、配置项与导出清单
 | `autoApply` | `boolean` | `true` | AI 回复后自动应用到编辑器 |
 | `systemPrompt` | `string` | 内置模板 | 自定义 system 提示词 |
 | `previewHead` | `string` | — | 预览 `<head>` 附加代码（原始 HTML） |
-| `notify` | `AiRichNotify` | antd 静态提示 | 消息提示回调 |
+| `notify` | `AiRichNotify` | 包内置轻提示 | 消息提示回调 |
 
 `AiRichNotify` 签名：`(type: 'success' | 'warning' | 'error', content: string) => void`
 
