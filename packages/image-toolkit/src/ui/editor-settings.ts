@@ -33,7 +33,7 @@ export interface EditorSettings {
 }
 
 /** 默认压缩质量 */
-export const DEFAULT_QUALITY = 82;
+const DEFAULT_QUALITY = 82;
 
 /** 生成默认设置（尺寸跟随原图，不做任何处理） */
 export function createDefaultSettings(sourceSize: ImageSize): EditorSettings {

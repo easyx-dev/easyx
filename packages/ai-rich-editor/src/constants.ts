@@ -17,9 +17,6 @@ export const DEFAULT_HTML = `<style>
   <p>在左侧用自然语言生成页面，中间直接编辑代码，右侧实时预览</p>
 </div>`;
 
-/** 对话上下文保留的最大轮次（超出后裁剪最旧中间轮次） */
-export const CHAT_MAX_TURNS = 12;
-
 /** 空编辑器时的提示语 */
 export const EMPTY_PREVIEW_TEXT =
   '左侧让 AI 生成页面，或直接编辑中间的 HTML 代码';

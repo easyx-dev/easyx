@@ -357,4 +357,4 @@ const chatHook = createChatHook({
 }) as unknown as ChatHookBinding;
 
 export const useAppChat = chatHook.useAppChat;
-export const useChatContext = chatHook.useChatContext;
+const useChatContext = chatHook.useChatContext;

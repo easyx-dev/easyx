@@ -9,7 +9,7 @@
 export const SCOPE_CLASS = 'easyx-ai-rich-editor-scope';
 
 /** 显式暗色类名 */
-export const SCOPE_DARK_CLASS = 'easyx-ai-rich-editor-scope-dark';
+const SCOPE_DARK_CLASS = 'easyx-ai-rich-editor-scope-dark';
 
 /** 拼接类名：过滤假值后以空格连接 */
 export function cx(...parts: Array<string | false | null | undefined>): string {

@@ -6,7 +6,7 @@
 import { type RefObject, useEffect } from 'react';
 
 /** 可获得焦点的元素 */
-export const FOCUSABLE_SELECTOR = [
+const FOCUSABLE_SELECTOR = [
   'a[href]',
   'button:not([disabled])',
   'input:not([disabled])',

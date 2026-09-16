@@ -6,7 +6,7 @@
  */
 
 /** 令牌作用域类名 */
-export const SCOPE_CLASS = 'easyx-image-toolkit';
+const SCOPE_CLASS = 'easyx-image-toolkit';
 
 /** 显式暗色类名（宿主未用 data-theme 时的兜底） */
 export const SCOPE_DARK_CLASS = 'easyx-image-toolkit-dark';
