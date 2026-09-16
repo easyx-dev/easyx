@@ -29,6 +29,8 @@ const demoMeta = [
   { slug: 'vanilla-demo', title: '原生 API' },
   { slug: 'table-plus-demo', title: '表格增强套件' },
   { slug: 'height-demo', title: '高度模式' },
+  { slug: 'ai-rich-editor-demo', title: 'AI 富文本工作台' },
+  { slug: 'image-toolkit-demo', title: '图片编辑套件' },
 ];
 
 export const demos: DemoEntry[] = demoMeta.map(({ slug, title }) => {

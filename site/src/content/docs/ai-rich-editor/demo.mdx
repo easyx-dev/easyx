@@ -1,0 +1,26 @@
+---
+title: AI Rich Editor 演示
+description: AI Rich Editor 对话生成 HTML 片段与实时预览完整演示
+---
+
+import IframeDemo from '../../../components/IframeDemo.tsx';
+import { getDemoSource } from '../../../components/demo-sources.ts';
+
+`@easyx/ai-rich-editor` 的完整工作台演示：左侧预览、右侧对话，顶栏可打开 Monaco 代码编辑器。
+
+<IframeDemo slug="ai-rich-editor-demo" sourceCode={getDemoSource('ai-rich-editor-demo')} client:load />
+
+## 说明
+
+- 文档站是纯静态站点、没有服务端，因此演示在浏览器侧拦截演示端点，**回放一段预录的 TanStack AI 标准 SSE 流**（逐字下发）。对话链路本身走真实实现：`fetchServerSentEvents` 消费 SSE、`createChatHook` 驱动消息渲染、流式同步到编辑器与预览
+- 输入任意内容或点击推荐指令即可触发回放；回复中的 ```html 代码块可点击「应用到编辑器」
+- 启用「编辑器」开关后，左栏变为 `[Monaco | 预览]`，可手动改写生成的片段
+- 真实接入时把 `endpointUrl` 指向宿主的 SSE 端点即可，组件侧无需任何改动
+
+## 库能力
+
+- **对话生成**：基于 TanStack AI headless UI，渲染侧使用 Ant Design X（消息气泡 / 输入框 / 空态推荐 / 思考过程）
+- **片段产出**：fragment-only，产物在应用时刻完成样式作用域化，宿主可直接当 HTML 引入
+- **实时预览**：设备档位（桌面拉伸 / 手机固定设备框）、脚本开关、刷新、新窗口预览
+- **代码编辑**：Monaco 懒加载，仅 html/css/js 词法高亮，无语言服务与 worker
+- **主题联动**：容器 class / 宿主 `data-theme` / 系统偏好三级判定，Monaco 主题同步跟随

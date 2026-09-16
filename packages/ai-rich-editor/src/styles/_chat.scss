@@ -1,0 +1,117 @@
+/**
+ * AI 对话面板：面板头、消息区、空态、输入区
+ * 消息气泡与输入框本体由 antd / Ant Design X 渲染，这里只管布局与留白
+ */
+@use 'variables' as v;
+
+.easyx-ai-rich-editor__chat {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: var(--easyx-ai-rich-editor-bg);
+}
+
+.easyx-ai-rich-editor__chat-head {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  height: 44px;
+  padding: 0 12px;
+  border-bottom: 1px solid var(--easyx-ai-rich-editor-border);
+  background: var(--easyx-ai-rich-editor-bg);
+}
+
+.easyx-ai-rich-editor__chat-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--easyx-ai-rich-editor-text);
+}
+
+.easyx-ai-rich-editor__chat-icon {
+  color: var(--easyx-ai-rich-editor-primary);
+}
+
+.easyx-ai-rich-editor__chat-body {
+  flex: 1;
+  min-height: 0;
+  padding: 12px;
+  overflow-y: auto;
+
+  @include v.scrollbar;
+}
+
+.easyx-ai-rich-editor__chat-messages {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.easyx-ai-rich-editor__chat-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 100%;
+  padding: 0 4px;
+}
+
+.easyx-ai-rich-editor__chat-empty-inner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  text-align: center;
+}
+
+.easyx-ai-rich-editor__chat-empty-icon {
+  font-size: 24px;
+  color: var(--easyx-ai-rich-editor-text-tertiary);
+  opacity: 0.6;
+}
+
+.easyx-ai-rich-editor__chat-empty-title {
+  font-size: 16px;
+  font-weight: 500;
+  color: var(--easyx-ai-rich-editor-text);
+}
+
+.easyx-ai-rich-editor__chat-empty-desc {
+  font-size: 14px;
+  color: var(--easyx-ai-rich-editor-text-tertiary);
+}
+
+.easyx-ai-rich-editor__chat-prompts {
+  width: 100%;
+  margin-top: 32px;
+}
+
+.easyx-ai-rich-editor__chat-pending {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  color: var(--easyx-ai-rich-editor-text-tertiary);
+}
+
+.easyx-ai-rich-editor__chat-user-text {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.easyx-ai-rich-editor__chat-input {
+  flex-shrink: 0;
+  padding: 8px 12px 12px;
+}
+
+.easyx-ai-rich-editor__chat-sender {
+  box-shadow: var(--easyx-ai-rich-editor-shadow);
+}
+
+.easyx-ai-rich-editor__chat-error {
+  font-size: 14px;
+}

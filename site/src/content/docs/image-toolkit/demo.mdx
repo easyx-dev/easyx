@@ -1,0 +1,25 @@
+---
+title: Image Toolkit 演示
+description: 浏览器内图片裁切、缩放、格式转换与无损优化的完整演示
+---
+
+import IframeDemo from '../../../components/IframeDemo.tsx';
+import { getDemoSource } from '../../../components/demo-sources.ts';
+
+`@easyx/image-toolkit` 的完整编辑弹窗演示。源图由 canvas 现场生成，整条处理链路都在浏览器内完成。
+
+<IframeDemo slug="image-toolkit-demo" sourceCode={getDemoSource('image-toolkit-demo')} client:load />
+
+## 说明
+
+- 文档站没有服务端，因此演示的源图由 canvas 现场绘制，加载与处理均发生在浏览器
+- 首次打开编辑器会下载并实例化 wasm 引擎（gzip 后约 5.3 MiB），界面会给出分阶段进度；之后的调用直接复用实例
+- 演示中的「覆盖原图」「另存为新文件」只更新统计信息，不写回任何服务端
+
+## 库能力
+
+- **裁切 / 缩放**：等比换算（锁比例、默认不放大、上下限钳制），预设档位与自定义宽高联动
+- **拖动对比**：原图 ↔ 处理后同区域对齐，分隔线两侧永远是同一块像素
+- **格式转换**：PNG / JPEG / WebP，质量与调色板颜色数可调
+- **无损优化**：PNG / WebP / TIFF 逐像素无损重压缩，可叠加裁切
+- **自动预览**：参数变化后防抖 500ms 触发，请求带序号、过期响应丢弃、处理中保留上一次结果

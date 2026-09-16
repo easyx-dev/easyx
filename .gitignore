@@ -10,4 +10,5 @@ storybook-static
 !.vscode/extensions.json
 .idea
 .temp
+.tmp
 .opencode/plans

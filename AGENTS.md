@@ -2,7 +2,7 @@
 
 ## 项目概况
 
-EasyX 系列库的 pnpm monorepo：每个库独立安装、独立发版，共用一套 Astro + Starlight 文档站点与演示环境。当前包含编辑器核心、表格增强套件与文档站点。
+EasyX 系列库的 pnpm monorepo：每个库独立安装、独立发版，共用一套 Astro + Starlight 文档站点与演示环境。当前包含零框架依赖的富文本编辑器、表格增强套件、AI HTML 片段工作台、浏览器端图片处理套件与文档站点。
 
 新增库时遵循「新增一个库」章节，无需改动仓库整体结构。
 
@@ -116,6 +116,48 @@ packages/
 │       │   └── node-utils.ts     # PM 节点收集与批量属性更新
 │       └── styles/
 │   └── table.scss        # 表格样式（SCSS）+ CSS 自定义属性
+├── ai-rich-editor/           # @easyx/ai-rich-editor — AI HTML 片段工作台（React + antd）
+│   ├── package.json
+│   ├── README.md
+│   ├── rslib.config.ts       # ESM，pluginReact + pluginSass + injectStyles
+│   ├── rstest.config.ts      # node 环境，组件测试按文件声明 jsdom
+│   ├── tsconfig.json
+│   ├── src/
+│   │   ├── index.ts              # 公开入口（导入样式 + 导出组件/常量/类型）
+│   │   ├── AiRichEditor.tsx      # 主容器：顶栏 + 左预览/右对话 + 应用与流式同步
+│   │   ├── types.ts              # AiRichEditorProps / AiRichEditorConfig 等
+│   │   ├── constants.ts          # 默认内容、预设指令、设备档位、system 提示词模板
+│   │   ├── prompts.ts            # 内置 system 提示词构建
+│   │   ├── chat/ChatProvider.tsx # TanStack AI headless 数据流 + Ant Design X 渲染
+│   │   ├── components/           # 顶栏 / 预览 / 代码面板 / 设置面板 / markdown 消息
+│   │   ├── hooks/                # useIsDark（三级主题判定）/ useElementSize
+│   │   ├── utils/                # extract（片段提取与预览文档）/ scope（样式作用域化）/ clipboard
+│   │   ├── styles/               # SCSS 分片（变量/骨架/对话/内容），编译后内联进 JS
+│   │   └── env.d.ts
+│   └── tests/                # 提取/提示词/作用域化/markdown 渲染
+└── image-toolkit/            # @easyx/image-toolkit — 浏览器端图片处理套件
+    ├── package.json
+    ├── README.md
+    ├── rslib.config.ts       # 三入口 ESM；静态 new URL 资源引用 + wasm 复制
+    ├── rstest.config.ts      # node 环境，组件测试按文件声明 jsdom
+    ├── tsconfig.json
+    ├── src/
+    │   ├── index.ts              # 根入口：同构纯逻辑（零重量依赖，禁止引用引擎）
+    │   ├── types.ts              # ImageOperation / ImageMeta / ImageProcessResult 等
+    │   ├── limits.ts             # 格式能力与输入上限的单一事实来源
+    │   ├── sniff.ts              # 魔数嗅探与尺寸解析
+    │   ├── lossless.ts           # 各格式无损策略表
+    │   ├── operation.ts          # 操作归一化、裁切求交、中文描述
+    │   ├── resize.ts             # 等比缩放换算
+    │   ├── env.d.ts              # 构建期开关与 ?url 资源声明
+    │   └── admin/                # 浏览器侧入口（./admin）
+    │       ├── index.ts          # 引擎客户端 + hooks + 组件统一出口
+    │       ├── editor-settings.ts # UI 状态 → 引擎入参的唯一转换点（纯逻辑）
+    │       ├── engine/           # 状态机、下载器、Worker、wasm 操作、资源定位
+    │       ├── hooks/            # useImageEngine / useImagePreview / useElementSize
+    │       ├── components/       # 弹窗布局、拖动对比、裁切台、缩放/编码面板、引擎门控
+    │       └── utils/            # format-bytes
+    └── tests/                # 纯逻辑 + 引擎编排 + 真实 wasm 实测
 site/                        # Astro + Starlight 文档站点（系列库共用）
 ├── astro.config.mjs         # Astro 配置（Starlight 插件 + React 集成 + 按库分组的侧边栏）
 ├── package.json
@@ -127,16 +169,21 @@ site/                        # Astro + Starlight 文档站点（系列库共用�
     │   ├── IframeDemo.tsx        # iframe 嵌入 Demo 组件
     │   └── demos/                # 交互式 Demo
     │       ├── registry.ts       # Demo 注册表：slug / 标题 / 懒加载入口的唯一登记点
+    │       ├── use-demo-dark.ts  # 演示页主题判定（读文档根 data-theme）
     │       ├── editor-demo.tsx
     │       ├── vanilla-demo.tsx
     │       ├── table-plus-demo.tsx
-    │       └── height-demo.tsx
+    │       ├── height-demo.tsx
+    │       ├── ai-rich-editor-demo.tsx  # 浏览器侧回放预录 SSE 流
+    │       └── image-toolkit-demo.tsx   # canvas 现场生成源图
     ├── content/
     │   ├── config.ts
     │   └── docs/                # MDX 文档，一个库一个目录
     │       ├── index.mdx        # 系列概览（splash 落地页）
     │       ├── editor/          # 编辑器文档
-    │       └── table-plus/      # 表格套件文档
+    │       ├── table-plus/      # 表格套件文档
+    │       ├── ai-rich-editor/  # AI 工作台文档
+    │       └── image-toolkit/   # 图片套件文档
     ├── pages/
     │   └── demos/[slug].astro   # Demo 独立页面路由（静态路径由 registry 派生）
     └── styles/
@@ -148,7 +195,8 @@ site/                        # Astro + Starlight 文档站点（系列库共用�
 | 分类 | 技术 | 版本 |
 |------|------|------|
 | 编辑器引擎 | Tiptap v3 / ProseMirror | 3.x |
-| UI 层 | **纯 DOM（零框架依赖）** + `@floating-ui/dom` 定位 | — |
+| 图片引擎 | `@imagemagick/magick-wasm`（ImageMagick 编译为 WebAssembly，跑在自建 Worker 中） | 0.0.43（版本固定，glue 与 wasm 必须同版） |
+| UI 层 | 纯 DOM（零框架依赖）+ `@floating-ui/dom` 定位；React 类库用 antd + Ant Design X | — |
 | React | React 19 + react-dom（Demo 与 React 类库；库内声明为 `peerDependencies`） | 19.x |
 | 构建（包） | Rslib（Rspack）+ `@rslib/core` | — |
 | 构建（站点） | Astro + Starlight | 5.x |
@@ -162,20 +210,23 @@ site/                        # Astro + Starlight 文档站点（系列库共用�
 
 ### 各包 Rslib 配置对比
 
-| 配置项 | @easyx/editor | @easyx/tiptap-table-plus |
-|--------|--------------|------------------------|
-| 构建模式 | 主入口打包 | Bundleless（`bundle: false`） |
-| 输出格式 | ESM + CJS | 仅 ESM |
-| 声明文件 | `dts: true` | `dts: true` |
-| 样式处理 | `pluginSass()` + `injectStyles: true`（SCSS 编译后内联到 JS） | `sideEffects: [".css"]` |
-| 构建目标 | `output.target: 'web'` | `output.target: 'web'` |
-| 语法目标 | `node 18` | `es2021` |
+| 配置项 | @easyx/editor | @easyx/tiptap-table-plus | @easyx/ai-rich-editor | @easyx/image-toolkit |
+|--------|--------------|------------------------|----------------------|---------------------|
+| 构建模式 | 主入口打包 | Bundleless（`bundle: false`） | 主入口打包 | 打包，三入口（`.` / `./admin` / Worker） |
+| 输出格式 | ESM + CJS | 仅 ESM | 仅 ESM | 仅 ESM |
+| 声明文件 | `dts: true` | `dts: true` | `dts: true` | `dts: true` |
+| 样式处理 | `pluginSass()` + `injectStyles: true` | `sideEffects: [".css"]` | `pluginSass()` + `injectStyles: true` | 仅 antd 组件样式，无自有样式 |
+| 构建目标 | `output.target: 'web'` | `output.target: 'web'` | `output.target: 'web'` | `output.target: 'web'` |
+| 语法目标 | `node 18` | `es2021` | `es2021` | `es2021` |
+| 特殊处理 | — | — | `pluginReact()` | `pluginReact()`；静态 `new URL()` 资源引用 + `output.copy` 复制 wasm |
 
 ### 包入口约定
 
 - `@easyx/editor`：`exports` 同时声明 `types`（`.d.ts`）、`import`（ESM）、`require`（CJS）
 - `@easyx/tiptap-table-plus`：仅 ESM，`sideEffects: ["**/*.css"]` 标记 CSS 为副作用
-- 两个包 `files` 均仅包含 `dist`
+- `@easyx/ai-rich-editor`：仅 ESM，样式随 `injectStyles` 内联进 JS，宿主无需单独引入
+- `@easyx/image-toolkit`：仅 ESM，`exports` 两个入口 —— `.`（同构纯逻辑，零重量依赖）与 `./admin`（浏览器侧引擎与 UI）
+- 四个包 `files` 均仅包含 `dist`
 
 ### 站点构建
 
@@ -183,6 +234,7 @@ site/                        # Astro + Starlight 文档站点（系列库共用�
 - `astro.config.mjs` 中配置 `base: '/easyx/'`，站点地址为 `https://easyx-dev.github.io/easyx/`
 - 集成 `@astrojs/starlight`（文档框架）+ `@astrojs/react`（Demo 组件）
 - 站点为全系列库共用：侧边栏按库分组，文档按 `docs/<库目录>/` 组织，Demo 在 `demos/registry.ts` 登记后自动生成路由
+- `astro.config.mjs` 中按 `NODE_ENV` 分离依赖预打包目录（dev 用 `.vite`，build 用 `.vite-build`）。原因：二者默认共用 `node_modules/.vite/deps`，而构建（生产）会把它改写成生产态产物，此时仍在运行的 dev server 会拿到生产态的 `react/jsx-dev-runtime`（其 `jsxDEV` 为 `undefined`）而报 `jsxDEV is not a function`。Astro 的 `defineConfig` **不接受函数形式**，因此不能用 `command` 区分
 
 ### 新增一个库
 
@@ -302,6 +354,30 @@ const editor = createEditor(containerElement, {
 - 通过 `getTablePlusTranslations(editor)` / `getTablePlusTheme(editor)` 读取运行时状态
 - 样式通过 CSS 变量 `--easyx-tiptap-table-plus-*` 控制，可在外部覆盖
 
+### AI 富文本工作台
+
+`@easyx/ai-rich-editor` 是 React + antd 的重客户端组件，只产出可嵌入内容字段的 HTML 片段（fragment），不输出整页文档：
+
+- 两栏工作台：左预览（可选 Monaco 代码面板）｜右 AI 对话，顶栏统一收拢预览控件与开关
+- 对话能力经 `endpointUrl` 注入，**不持有**任何端点/鉴权知识；数据流用 TanStack AI headless UI（`createChatHook` 模块作用域注册一次），渲染侧用 Ant Design X
+- `createInstanceChatOverrides` 把每实例的 `endpointUrl` / 结束回调经 overrides 注入模块级 options（多实例互不串线）；`ChatProvider.tsx` 用 `ChatHookBinding` 收窄库返回类型，作为与库不可命名内部类型的唯一边界
+- **样式作用域化**在应用时刻完成（`utils/scope.ts`）：片段内 `<style>` 选择器被改写为 `.{前缀} …`，前缀在实例创建时生成一次（`easyx-rich-content-<id>`），产物自带 scope，宿主可直接 `dangerouslySetInnerHTML`
+- 样式为包内 SCSS + CSS 变量 `--easyx-ai-rich-editor-*`，`injectStyles` 编译后内联进 JS
+- 暗色判定三级：容器 class `easyx-ai-rich-editor-dark` → 宿主 `[data-theme]` 祖先（值以 `dark` 结尾）→ 系统 `prefers-color-scheme`；`useIsDark` 与包内样式保持同一优先级
+- 预览 `iframe` 默认 `allow-scripts allow-same-origin`（为加载同源资源），**仅可用于受信产物**
+
+### 图片处理套件
+
+`@easyx/image-toolkit` 把图片处理全部放在浏览器，服务端零图片库、零原生依赖：
+
+- 根入口（`.`）**必须保持零重量依赖**：只导出图片语义相关的纯函数与类型，禁止静态引用 `@imagemagick/magick-wasm`；引擎一律经 `./admin` 进入
+- 引擎为单例状态机 `idle → downloading → instantiating → ready`，主线程负责带进度的下载、Worker 负责 wasm 实例化与处理；并发调用共享同一次加载，失败后 `inflight` 复位可重试
+- `src/limits.ts` 是格式能力的单一事实来源，界面的可编辑 / 可输出 / 可无损优化判定都从它派生；`admin/editor-settings.ts` 是 UI 状态 → 引擎入参的唯一转换点
+- 引擎产物必须经 `sniffImage` 校验后才允许流入存储
+- **运行时资源引用必须保持静态**：产物中是 `new Worker(new URL('./engine/worker.js', import.meta.url), { type: 'module' })` 与 `new URL('./engine/magick.wasm', import.meta.url)`，宿主打包器据此把资源复制进自己的产物。因此 `rslib.config.ts` 对 `client.ts` / `bundled-wasm.ts` 关闭了 `parser.url`，wasm 经 `output.copy` 落到 `dist/admin/engine/`；改这两处路径时必须同步核对产物目录结构
+- `@imagemagick/magick-wasm` 固定在 `devDependencies` 参与打包（Worker 由浏览器直接加载，产物中不能残留裸模块说明符），版本必须与 glue 严格同版
+- 该依赖的 wasm 二进制与第三方许可声明（`NOTICE`，含 ImageMagick 静态链接的各库）随包再分发，故在 `rslib.config.ts` 的 `output.copy` 中于构建期复制进 `dist`：既不把 220 KB 的 NOTICE 提交进仓库，也不会与依赖版本脱节
+
 ## 主题系统
 
 ### 编辑器主题
@@ -324,18 +400,24 @@ const editor = createEditor(containerElement, {
 | `--easyx-tiptap-table-plus-text` | `#1a1a2e` | 主文字色 |
 | `--easyx-tiptap-table-plus-radius` | `2px` | 圆角 |
 
+### AI 工作台与图片套件 CSS 变量
+
+- `--easyx-ai-rich-editor-*`：`bg` / `bg-subtle` / `border` / `text` / `text-secondary` / `text-tertiary` / `primary` / `shadow` / `radius` / `preview-bg`，亮暗两套取值由包内定义，宿主可覆盖
+- `--easyx-image-toolkit-*`：暂无自有样式变量，界面样式由 antd 承担
+
 ## 测试约定
 
 ### 目录结构
 
-- 测试文件放在各包的 `tests/` 目录下
-- 文件名：`<模块名>.test.tsx` 或 `.test.ts`
+- 测试文件放在各包的 `tests/` 目录下（不从源码目录收集）
+- 文件名：`<模块名>.test.tsx` 或 `.test.ts`；跨模块同名时以 `<模块>-<场景>.test.ts` 区分，如 `engine-client.test.ts`
 
 ### 测试工具链
 
-- 测试运行器：**Rstest**（`packages/editor/rstest.config.ts` 中配置）
+- 测试运行器：**Rstest**（各包 `rstest.config.ts` 中配置）
 - 使用 `@rstest/adapter-rslib` 适配器
-- DOM 环境：`happy-dom`
+- DOM 环境：`packages/editor` 用 `happy-dom`；React 组件包用 `jsdom`，且默认 `testEnvironment: 'node'`，只在需要的文件首行用 `// @rstest-environment jsdom` 声明
+- 测试内使用运行时 API 时统一从 `@rstest/core` 导入 `rs`（`rs.mock` / `rs.fn` / `rs.stubGlobal` / `rs.waitFor`）
 
 ### 命名与覆盖
 

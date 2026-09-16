@@ -1,0 +1,6 @@
+/**
+ * 样式入口：SCSS 经 rslib 编译后内联进 JS，宿主无需额外引入样式文件
+ */
+@use 'layout';
+@use 'chat';
+@use 'content';

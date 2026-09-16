@@ -1,0 +1,143 @@
+/**
+ * 骨架布局：根容器、顶栏、预览区、代码编辑区
+ * 根容器承载主题令牌，暗色由容器 class / 宿主 data-theme / 系统偏好三者之一决定
+ */
+@use 'variables' as v;
+
+.easyx-ai-rich-editor {
+  @include v.metrics;
+  @include v.light;
+
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid var(--easyx-ai-rich-editor-border);
+  border-radius: var(--easyx-ai-rich-editor-radius);
+  background: var(--easyx-ai-rich-editor-bg);
+  color: var(--easyx-ai-rich-editor-text);
+
+  /* 暗色优先级：容器 class > 宿主 data-theme > 系统偏好 */
+  &-dark {
+    @include v.dark;
+  }
+
+  [data-theme$='dark'] & {
+    @include v.dark;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme]) & {
+      @include v.dark;
+    }
+  }
+}
+
+/* 顶栏 */
+.easyx-ai-rich-editor__toolbar {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  height: 48px;
+  padding: 0 8px;
+  border-bottom: 1px solid var(--easyx-ai-rich-editor-border);
+  background: var(--easyx-ai-rich-editor-bg);
+}
+
+.easyx-ai-rich-editor__toolbar-title {
+  overflow: hidden;
+  font-size: 14px;
+  font-weight: 500;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.easyx-ai-rich-editor__toolbar-actions {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+}
+
+.easyx-ai-rich-editor__toolbar-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-right: 4px;
+  font-size: var(--easyx-ai-rich-editor-font-size-xs);
+  color: var(--easyx-ai-rich-editor-text-secondary);
+}
+
+/* 主体分栏 */
+.easyx-ai-rich-editor__body {
+  flex: 1;
+  min-height: 0;
+}
+
+.easyx-ai-rich-editor__body-inner {
+  height: 100%;
+}
+
+/* 预览区 */
+.easyx-ai-rich-editor__preview {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  padding: 16px;
+  background: var(--easyx-ai-rich-editor-bg-subtle);
+}
+
+.easyx-ai-rich-editor__preview-stage {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  justify-content: center;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.easyx-ai-rich-editor__preview-screen {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  border: 1px solid var(--easyx-ai-rich-editor-border);
+  border-radius: var(--easyx-ai-rich-editor-radius);
+  background: var(--easyx-ai-rich-editor-preview-bg);
+  box-shadow: var(--easyx-ai-rich-editor-shadow);
+}
+
+.easyx-ai-rich-editor__preview-frame {
+  width: 100%;
+  height: 100%;
+  border: 0;
+}
+
+.easyx-ai-rich-editor__preview-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+}
+
+/* 代码编辑区 */
+.easyx-ai-rich-editor__code-panel {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: var(--easyx-ai-rich-editor-bg);
+}
+
+.easyx-ai-rich-editor__code-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  font-size: 14px;
+  color: var(--easyx-ai-rich-editor-text-tertiary);
+}

@@ -1,0 +1,99 @@
+---
+title: AI Rich Editor
+description: AI 驱动的 HTML 片段生产工作台：对话生成、所见即所得预览、片段样式自动作用域化
+---
+
+`@easyx/ai-rich-editor` 是 AI 驱动的「代码编辑 + 实时预览」工作台（重客户端组件）。
+
+定位为**另一种形态的富文本**：只产出可嵌入内容字段的 HTML 片段（fragment），不输出整页文档。与 `@easyx/editor`（传统富文本）互补 —— 由对话生成自由 HTML 片段，所见即所得预览。
+
+## 安装
+
+```bash
+pnpm add @easyx/ai-rich-editor
+```
+
+`react` / `react-dom` / `antd` / `@ant-design/icons` / `monaco-editor` 为 peer 依赖，需宿主自行安装。
+
+## 快速上手
+
+```tsx
+import { AiRichEditor, DEFAULT_HTML } from '@easyx/ai-rich-editor';
+
+export function MyPage() {
+  const [html, setHtml] = useState(DEFAULT_HTML);
+  return (
+    <AiRichEditor
+      value={html}
+      onChange={setHtml}
+      endpointUrl="/api/ai-chat" // 宿主提供的流式 SSE 端点
+    />
+  );
+}
+```
+
+宿主需提供对接 TanStack AI 的 SSE 端点（服务端用 `chat()` + `toServerSentEventsResponse`）。
+
+## 布局
+
+顶栏 + 水平分割：左（预览区，可选编辑器）｜右（AI 对话面板）。
+
+- **顶栏**：预览控件「设备档位 / 脚本开关 / 刷新 / 新窗口预览」+ **编辑器**开关 + 复制 + 设置
+- **左栏**：默认整区为预览卡片；开启「编辑器」后变为 `[Monaco | 预览]` 内层横向分割
+- **右栏**：AI 对话（`Bubble` / `Sender` / `Welcome` + `Prompts` / `Think`），默认 420，min 400 / max 600
+
+## 产物：自带作用域的 HTML 片段
+
+AI 生成的片段在「应用到编辑器」（含 `autoApply`）时即完成**样式作用域化**，宿主可直接当 HTML 引入：
+
+```html
+<div class="easyx-rich-content-<实例前缀>">
+  <style>.easyx-rich-content-<实例前缀> .hero { … }</style>
+  <div class="hero">…</div>
+</div>
+```
+
+```tsx
+<div dangerouslySetInnerHTML={{ __html: detail.html }} />
+```
+
+作用域化保证片段内嵌 `<style>` 只作用于该片段根，不污染宿主全局；内联 `style=""` 天然隔离。
+内置 system 提示词同步约束了源头：内联样式优先，确需 `<style>` 时禁用 `body` / `*` / `:root` / `html` 等全局选择器。
+
+## 配置
+
+配置项统一收拢到 `config` 属性（`endpointUrl` / `value` / `onChange` / `height` 保持顶层），经顶栏「设置」面板编辑，保存后生效：
+
+| 配置项 | 说明 | 默认 |
+|--------|------|------|
+| `autoApply` | AI 回复后自动应用到编辑器 | `true` |
+| `systemPrompt` | 自定义 system 提示词 | 内置模板 |
+| `previewHead` | 预览 `<head>` 附加代码（原始 HTML） | 空 |
+| `notify` | 消息提示回调 | antd 静态提示 |
+
+:::caution
+`config` 为**仅初始值（非受控）**——挂载后改动 `config` 不会生效；运行期请经设置面板修改，如需持久化再用 `onConfigChange` 回写宿主。
+:::
+
+## 主题
+
+亮暗判定优先级（与包内样式一致）：
+
+1. 容器 class `easyx-ai-rich-editor-dark`
+2. 最近的宿主 `[data-theme]` 祖先（值以 `dark` 结尾，如 `dark`、`admin-dark`）
+3. 两者都没有时跟随系统 `prefers-color-scheme`
+
+Monaco 主题同步跟随上述判定；antd 组件的亮暗由宿主的 `ConfigProvider` 决定。
+所有颜色经 `--easyx-ai-rich-editor-*` CSS 变量控制，可在宿主覆盖。
+
+## 安全边界
+
+预览 `iframe` 使用 `sandbox` 隔离，默认 `allow-scripts allow-same-origin`（后者用于加载同源资源），脚本可在顶栏关闭。
+
+:::danger
+`allow-scripts` + `allow-same-origin` 组合会使 iframe 内容与宿主同源、获得 `parent.document` 写权（OWASP 反模式）。当前保留 `allow-same-origin` 是为在预览内加载同源资源，二者不可兼得，故以「受信编辑器产物」为前提，**勿把该模式用于不可信内容**。
+:::
+
+## 单实例假设
+
+`createChatHook` 的 options 固定在模块作用域，`endpointUrl` 与结束回调经每实例 overrides 注入（多实例互不串线），但编辑器仍按**一页一个**设计。

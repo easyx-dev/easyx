@@ -77,7 +77,7 @@ jobs:
         env:
           CHANGED: ${{ steps.detect.outputs.changed }}
           # 发布顺序：被依赖的包在前。新增库需按依赖关系追加到此列表
-          PUBLISH_ORDER: '@easyx/tiptap-table-plus @easyx/editor'
+          PUBLISH_ORDER: '@easyx/tiptap-table-plus @easyx/editor @easyx/ai-rich-editor @easyx/image-toolkit'
         run: |
           for NAME in ${CHANGED}; do
             case " ${PUBLISH_ORDER} " in

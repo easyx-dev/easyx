@@ -1,0 +1,64 @@
+/**
+ * 主题变量：亮色为默认值，暗色经容器 class、宿主 data-theme 或系统偏好覆盖
+ * 命名统一 easyx-ai-rich-editor- 前缀，宿主可覆盖任一变数定制外观
+ */
+
+/** 亮色令牌 */
+@mixin light {
+  --easyx-ai-rich-editor-bg: #fff;
+  --easyx-ai-rich-editor-bg-subtle: #f4f4f5;
+  --easyx-ai-rich-editor-border: #e4e4e7;
+  --easyx-ai-rich-editor-text: #1a1a2e;
+  --easyx-ai-rich-editor-text-secondary: #52525b;
+  --easyx-ai-rich-editor-text-tertiary: #a1a1aa;
+  --easyx-ai-rich-editor-primary: #1677ff;
+  --easyx-ai-rich-editor-shadow: 0 2px 8px rgb(0 0 0 / 8%);
+  --easyx-ai-rich-editor-scrollbar-thumb: #d4d4d8;
+}
+
+/** 暗色令牌 */
+@mixin dark {
+  --easyx-ai-rich-editor-bg: #18181b;
+  --easyx-ai-rich-editor-bg-subtle: #232326;
+  --easyx-ai-rich-editor-border: #303034;
+  --easyx-ai-rich-editor-text: #f4f4f5;
+  --easyx-ai-rich-editor-text-secondary: #a1a1aa;
+  --easyx-ai-rich-editor-text-tertiary: #71717a;
+  --easyx-ai-rich-editor-primary: #4096ff;
+  --easyx-ai-rich-editor-shadow: 0 2px 8px rgb(0 0 0 / 32%);
+  --easyx-ai-rich-editor-scrollbar-thumb: #3f3f46;
+}
+
+/** 尺寸与字体令牌（不随主题变化） */
+@mixin metrics {
+  --easyx-ai-rich-editor-radius: 6px;
+  --easyx-ai-rich-editor-radius-lg: 12px;
+  --easyx-ai-rich-editor-font-mono: ui-monospace, sfmono-regular, menlo, monaco,
+    consolas, "liberation mono", monospace;
+  --easyx-ai-rich-editor-font-size-xs: 12px;
+  --easyx-ai-rich-editor-font-size-sm: 13px;
+  --easyx-ai-rich-editor-line-height-code: 24px;
+
+  /* 预览画布固定为白底：预览的是宿主 HTML 页面本身，不随编辑器主题变化 */
+  --easyx-ai-rich-editor-preview-bg: #fff;
+}
+
+/** 细窄滚动条：避免默认滚动条割裂面板 */
+@mixin scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: var(--easyx-ai-rich-editor-scrollbar-thumb) transparent;
+
+  &::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    border-radius: 3px;
+    background: var(--easyx-ai-rich-editor-scrollbar-thumb);
+  }
+
+  &::-webkit-scrollbar-track {
+    background: transparent;
+  }
+}

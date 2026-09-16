@@ -1,0 +1,58 @@
+{
+  "name": "@easyx/image-toolkit",
+  "version": "0.1.0",
+  "description": "浏览器端图片处理套件：裁切/缩放/格式转换/无损优化全部由 wasm 引擎在客户端完成；根入口提供零依赖的魔数嗅探与操作归一化纯逻辑",
+  "type": "module",
+  "sideEffects": [
+    "**/*.css"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./admin": {
+      "types": "./dist/admin/index.d.ts",
+      "import": "./dist/admin/index.js"
+    }
+  },
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "dev": "rslib --watch",
+    "build": "rslib build",
+    "test": "rstest",
+    "test:watch": "rstest --watch"
+  },
+  "dependencies": {
+    "react-easy-crop": "^6.2.3"
+  },
+  "peerDependencies": {
+    "@ant-design/icons": "^6.3.2",
+    "antd": "^6.5.3",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0"
+  },
+  "devDependencies": {
+    "@ant-design/icons": "^6.3.2",
+    "@imagemagick/magick-wasm": "0.0.43",
+    "@rsbuild/plugin-react": "^2.1.0",
+    "@rslib/core": "^0.23.0",
+    "@rstest/adapter-rslib": "^0.10.5",
+    "@rstest/core": "^0.10.5",
+    "@testing-library/react": "^16.3.2",
+    "@types/node": "^24.13.3",
+    "@types/react": "^19.2.17",
+    "@types/react-dom": "^19.2.3",
+    "antd": "^6.5.3",
+    "jsdom": "^30.0.1",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
+    "typescript": "^6.0.3"
+  }
+}

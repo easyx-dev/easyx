@@ -1,0 +1,109 @@
+---
+title: Image Toolkit
+description: 浏览器端图片处理套件：裁切、缩放、格式转换与无损优化全部由 wasm 引擎在客户端完成
+---
+
+`@easyx/image-toolkit` 把图片处理全部放在浏览器：服务端零图片库、零原生依赖，能力随浏览器能力走。
+内置引擎基于 [`@imagemagick/magick-wasm`](https://github.com/dlemstra/magick-wasm)（ImageMagick 编译为 WebAssembly），运行在自建 Worker 中，不阻塞主线程。
+
+## 两个入口
+
+| 入口 | 内容 | 依赖 |
+|------|------|------|
+| `@easyx/image-toolkit` | 同构纯逻辑：魔数嗅探、格式白名单、操作归一化、缩放换算 | 零重量依赖（服务端可安全引用） |
+| `@easyx/image-toolkit/admin` | 浏览器侧：引擎客户端、React hooks、编辑弹窗组件 | React + antd + wasm 引擎（惰性加载） |
+
+:::tip
+根入口**禁止**静态引用引擎，否则 wasm glue 会被打进服务端 bundle —— 服务端做魔数嗅探时只会引入这一层纯逻辑。
+:::
+
+## 安装
+
+```bash
+pnpm add @easyx/image-toolkit
+```
+
+`react` / `react-dom` / `antd` / `@ant-design/icons` 为 peer 依赖，需宿主自行安装（`./admin` 入口才需要）。
+
+## 使用
+
+### 纯逻辑（同构）
+
+```ts
+import { IMAGE_LIMITS, isProcessableFormat, sniffImage } from '@easyx/image-toolkit';
+
+const meta = sniffImage(bytes); // 魔数嗅探：非图片返回 null
+```
+
+`sniffImage` 以魔数判定类型与尺寸，**不信任客户端声明的 MIME** —— 这是阻止存储型 XSS 的第一道闸门。
+
+### 编辑弹窗（浏览器）
+
+```tsx
+import { configureImageEngine, ImageEditorModal } from '@easyx/image-toolkit/admin';
+
+// 可选：指向 CDN 或自有静态资源
+configureImageEngine({ wasmUrl: '/static/magick.wasm' });
+
+<ImageEditorModal
+  open={open}
+  src={sourceUrl}
+  fileName="cover.png"
+  onReplace={async (result) => replaceOriginal(result)}
+  onSaveAsNew={async (result, fileName) => uploadAsNew(result, fileName)}
+  onClose={() => setOpen(false)}
+/>;
+```
+
+用 `<ImageEngineGate>` 包裹即可获得引擎加载进度、错误与重试，无需各自处理加载态。
+
+## 能力矩阵（实测）
+
+引擎版本：`ImageMagick 7.1.2-30 Q8 wasm32`（wasm 与 glue 必须严格同版）。
+
+| 格式 | 解码（可编辑） | 编码（可输出） | 无损优化 | 说明 |
+| --- | --- | --- | --- | --- |
+| JPEG | ✅ | ✅ | ⚠️ 近无损 | 质量 100 重编码仍有约 24% 像素字节差异（视觉不可分辨） |
+| PNG | ✅ | ✅ | ✅ 逐像素无损 | `png:compression-level=9` |
+| WebP | ✅ | ✅ | ✅ 逐像素无损 | `webp:lossless=true, method=6` |
+| TIFF | ✅ | ✅ | ✅ 逐像素无损 | LZW |
+| GIF | ✅ | ❌ | ❌ | 可读可裁；动图会被压平 |
+| AVIF / HEIC | ❌ | ❌ | ❌ | 本 wasm 构建下编解码器不可用 |
+| SVG | ❌ | ❌ | ❌ | 规避 ImageMagick XML 解析器的历史外部引用风险 |
+
+### 无损与有损的真实收益
+
+以低质量编码的 PNG 作为「劣质源」实测：PNG compression-level 9 为 −41.5%（逐像素一致），WebP lossless 为 −43.2%（逐像素一致）。
+用引擎自己高质量编码的图作源会得到接近 0 的收益 —— **收益高度取决于源文件编码质量**。
+
+指定输出 PNG 的最大颜色数时，引擎先做调色板量化（Riemersma 抖动）再编码，这正是 TinyPNG 的主力手段。
+连续色调（照片、渐变）降色会出现色带，扁平插画与图标几乎无感。
+
+:::note
+**无损优化与缩放互斥**：缩放必然重采样改变像素。选中无损优化时缩放被禁用，但允许叠加裁切（裁切只取像素子集，保留区像素不变）。
+:::
+
+## wasm 资源与宿主打包器
+
+**默认**：无需任何配置，wasm 随包发布（`dist/admin/engine/magick.wasm`，约 14 MB），内网与私有化部署开箱可用。
+
+产物中的 Worker 与 wasm 都以标准静态写法引用，宿主打包器据此把它们复制进自己的产物：
+
+```js
+new Worker(new URL('./engine/worker.js', import.meta.url), { type: 'module' });
+new URL('./engine/magick.wasm', import.meta.url);
+```
+
+从源码自定义构建时设置 `EASYX_IMAGE_TOOLKIT_REMOTE=1` 可剥离本地 wasm 副本，此时必须注入地址，否则启动时明确报错而非静默失败。
+
+:::caution
+不要对本包产物做「视为外部资源、不解析」的处理，也不要让打包器把这两个表达式改写掉，否则 Worker 与 wasm 不会被带进宿主产物。
+:::
+
+## 已知取舍
+
+- **JPEG 没有真正的无损重编码**：未暴露 jpegtran 式系数透传，只能质量 100 重编码
+- **不提供手动旋转**：EXIF 方向已由 `autoOrient()` 自动处理
+- **TIFF 不可无损优化**：引擎具备该能力，但 TIFF 不在可输出格式内，界面据此提示而非静默无反应
+- **输入上限**：超过 50 MB 或 5000 万像素的图不在浏览器内处理
+- **编码会丢元数据**：需要保留 EXIF / ICC 时不要勾选「剥离元数据」
