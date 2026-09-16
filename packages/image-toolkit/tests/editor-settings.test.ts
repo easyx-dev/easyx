@@ -2,6 +2,7 @@
  * 编辑器设置模型测试：UI 状态 → 引擎入参的转换规则
  */
 import { describe, expect, it } from '@rstest/core';
+import type { ImageSize } from '../src/types';
 import {
   applySettingsPatch,
   buildLosslessOptions,
@@ -12,8 +13,7 @@ import {
   hasResize,
   resolveOutputFormat,
   resolveSourceRect,
-} from '../src/admin/editor-settings';
-import type { ImageSize } from '../src/types';
+} from '../src/ui/editor-settings';
 
 const sourceSize: ImageSize = { width: 1772, height: 2480 };
 

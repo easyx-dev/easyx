@@ -2,7 +2,7 @@
  * 下载器测试：进度上报、Content-Encoding 降级、错误包装
  */
 import { describe, expect, it, rs } from '@rstest/core';
-import { downloadWithProgress } from '../src/admin/engine/download';
+import { downloadWithProgress } from '../src/ui/engine/download';
 
 /** 构造最小 Response 替身：只覆盖 downloadWithProgress 实际使用的字段 */
 function fakeResponse(options: {

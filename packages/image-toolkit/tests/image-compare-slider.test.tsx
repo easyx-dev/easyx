@@ -7,7 +7,7 @@
 
 import { afterEach, beforeEach, describe, expect, it, rs } from '@rstest/core';
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
-import { ImageCompareSlider } from '../src/admin/components/ImageCompareSlider';
+import { ImageCompareSlider } from '../src/ui/components/ImageCompareSlider';
 
 const CONTAINER = { left: 0, top: 0, width: 800, height: 400 };
 

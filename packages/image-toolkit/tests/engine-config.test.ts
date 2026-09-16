@@ -6,8 +6,8 @@
  */
 import { afterEach, beforeEach, describe, expect, it, rs } from '@rstest/core';
 
-rs.mock('../src/admin/engine/bundled-wasm', () => ({
-  loadBundledWasmUrl: () => 'file:///dist/admin/engine/magick.wasm',
+rs.mock('../src/ui/engine/bundled-wasm', () => ({
+  loadBundledWasmUrl: () => 'file:///dist/ui/engine/magick.wasm',
 }));
 
 import {
@@ -15,7 +15,7 @@ import {
   getConfiguredWasmUrl,
   resolveEngineWasmUrl,
   setRemoteOnlyBuild,
-} from '../src/admin/engine/config';
+} from '../src/ui/engine/config';
 
 describe('configureImageEngine / resolveEngineWasmUrl', () => {
   beforeEach(() => {
@@ -61,7 +61,7 @@ describe('configureImageEngine / resolveEngineWasmUrl', () => {
 
   it('未注入地址且非远程模式时回退本地打包资源', async () => {
     await expect(resolveEngineWasmUrl()).resolves.toBe(
-      'file:///dist/admin/engine/magick.wasm',
+      'file:///dist/ui/engine/magick.wasm',
     );
   });
 });

@@ -1,5 +1,5 @@
 /**
- * 图片处理管理端组件
+ * 图片处理 UI 组件
  */
 export { ImageCompareSlider } from './ImageCompareSlider';
 export { ImageCropStage } from './ImageCropStage';

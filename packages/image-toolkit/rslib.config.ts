@@ -18,7 +18,7 @@ const magickWasmRoot = path.resolve(
  * 构建配置说明
  *
  * 产物形态（宿主打包器需要能解析运行时资源，这是设计的核心约束）：
- * - 三个入口：`.`（同构纯逻辑）、`./admin`（浏览器侧引擎与 UI）、`admin/engine/worker`（引擎 Worker）
+ * - 三个入口：`.`（同构纯逻辑）、`./ui`（浏览器侧引擎与 UI）、`ui/engine/worker`（引擎 Worker）
  * - Worker 与 wasm 都以「静态相对 new URL(..., import.meta.url)」出现在产物中，
  *   由宿主打包器解析并把资源复制进其产物；因此本包构建期必须关闭这两个表达式的解析
  *   （见 rules 中的 parser.url），否则会被改写成依赖 rslib 运行时 publicPath 的动态表达式，
@@ -35,8 +35,8 @@ export default defineConfig({
   source: {
     entry: {
       index: './src/index.ts',
-      'admin/index': './src/admin/index.ts',
-      'admin/engine/worker': './src/admin/engine/worker.ts',
+      'ui/index': './src/ui/index.ts',
+      'ui/engine/worker': './src/ui/engine/worker.ts',
     },
     define: {
       __EASYX_IMAGE_TOOLKIT_REMOTE_ONLY__: JSON.stringify(
@@ -58,7 +58,7 @@ export default defineConfig({
         // wasm 二进制与第三方许可声明：二者都随本包再分发，故随构建从依赖复制进 dist，
         // 既不把 220 KB 的 NOTICE 提交进仓库，也不会与依赖版本脱节
         from: magickWasmFile,
-        to: 'admin/engine/magick.wasm',
+        to: 'ui/engine/magick.wasm',
       },
       {
         // to 视为目录，原文件名 NOTICE 自动附加 → dist/THIRD-PARTY-NOTICES/NOTICE
@@ -73,7 +73,7 @@ export default defineConfig({
         rules: [
           {
             // 关闭这两个模块的 new URL(...) 解析，让静态表达式原样进入产物
-            test: /[\\/]admin[\\/]engine[\\/](client|bundled-wasm)\.ts$/,
+            test: /[\\/]ui[\\/]engine[\\/](client|bundled-wasm)\.ts$/,
             parser: { url: false },
           },
         ],

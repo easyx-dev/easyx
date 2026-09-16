@@ -149,8 +149,8 @@ packages/
     │   ├── lossless.ts           # 各格式无损策略表
     │   ├── operation.ts          # 操作归一化、裁切求交、中文描述
     │   ├── resize.ts             # 等比缩放换算
-    │   ├── env.d.ts              # 构建期开关与 ?url 资源声明
-    │   └── admin/                # 浏览器侧入口（./admin）
+    │   ├── env.d.ts              # 构建期开关类型声明
+    │   └── ui/                   # 浏览器侧入口（./ui）
     │       ├── index.ts          # 引擎客户端 + hooks + 组件统一出口
     │       ├── editor-settings.ts # UI 状态 → 引擎入参的唯一转换点（纯逻辑）
     │       ├── engine/           # 状态机、下载器、Worker、wasm 操作、资源定位
@@ -212,7 +212,7 @@ site/                        # Astro + Starlight 文档站点（系列库共用�
 
 | 配置项 | @easyx/editor | @easyx/tiptap-table-plus | @easyx/ai-rich-editor | @easyx/image-toolkit |
 |--------|--------------|------------------------|----------------------|---------------------|
-| 构建模式 | 主入口打包 | Bundleless（`bundle: false`） | 主入口打包 | 打包，三入口（`.` / `./admin` / Worker） |
+| 构建模式 | 主入口打包 | Bundleless（`bundle: false`） | 主入口打包 | 打包，三入口（`.` / `./ui` / Worker） |
 | 输出格式 | ESM + CJS | 仅 ESM | 仅 ESM | 仅 ESM |
 | 声明文件 | `dts: true` | `dts: true` | `dts: true` | `dts: true` |
 | 样式处理 | `pluginSass()` + `injectStyles: true` | `sideEffects: [".css"]` | `pluginSass()` + `injectStyles: true` | 仅 antd 组件样式，无自有样式 |
@@ -225,7 +225,7 @@ site/                        # Astro + Starlight 文档站点（系列库共用�
 - `@easyx/editor`：`exports` 同时声明 `types`（`.d.ts`）、`import`（ESM）、`require`（CJS）
 - `@easyx/tiptap-table-plus`：仅 ESM，`sideEffects: ["**/*.css"]` 标记 CSS 为副作用
 - `@easyx/ai-rich-editor`：仅 ESM，样式随 `injectStyles` 内联进 JS，宿主无需单独引入
-- `@easyx/image-toolkit`：仅 ESM，`exports` 两个入口 —— `.`（同构纯逻辑，零重量依赖）与 `./admin`（浏览器侧引擎与 UI）
+- `@easyx/image-toolkit`：仅 ESM，`exports` 两个入口 —— `.`（同构纯逻辑，零重量依赖）与 `./ui`（浏览器侧引擎与 UI）
 - 四个包 `files` 均仅包含 `dist`
 
 ### 站点构建
@@ -370,11 +370,11 @@ const editor = createEditor(containerElement, {
 
 `@easyx/image-toolkit` 把图片处理全部放在浏览器，服务端零图片库、零原生依赖：
 
-- 根入口（`.`）**必须保持零重量依赖**：只导出图片语义相关的纯函数与类型，禁止静态引用 `@imagemagick/magick-wasm`；引擎一律经 `./admin` 进入
+- 根入口（`.`）**必须保持零重量依赖**：只导出图片语义相关的纯函数与类型，禁止静态引用 `@imagemagick/magick-wasm`；引擎一律经 `./ui` 进入
 - 引擎为单例状态机 `idle → downloading → instantiating → ready`，主线程负责带进度的下载、Worker 负责 wasm 实例化与处理；并发调用共享同一次加载，失败后 `inflight` 复位可重试
-- `src/limits.ts` 是格式能力的单一事实来源，界面的可编辑 / 可输出 / 可无损优化判定都从它派生；`admin/editor-settings.ts` 是 UI 状态 → 引擎入参的唯一转换点
+- `src/limits.ts` 是格式能力的单一事实来源，界面的可编辑 / 可输出 / 可无损优化判定都从它派生；`ui/editor-settings.ts` 是 UI 状态 → 引擎入参的唯一转换点
 - 引擎产物必须经 `sniffImage` 校验后才允许流入存储
-- **运行时资源引用必须保持静态**：产物中是 `new Worker(new URL('./engine/worker.js', import.meta.url), { type: 'module' })` 与 `new URL('./engine/magick.wasm', import.meta.url)`，宿主打包器据此把资源复制进自己的产物。因此 `rslib.config.ts` 对 `client.ts` / `bundled-wasm.ts` 关闭了 `parser.url`，wasm 经 `output.copy` 落到 `dist/admin/engine/`；改这两处路径时必须同步核对产物目录结构
+- **运行时资源引用必须保持静态**：产物中是 `new Worker(new URL('./engine/worker.js', import.meta.url), { type: 'module' })` 与 `new URL('./engine/magick.wasm', import.meta.url)`，宿主打包器据此把资源复制进自己的产物。因此 `rslib.config.ts` 对 `client.ts` / `bundled-wasm.ts` 关闭了 `parser.url`，wasm 经 `output.copy` 落到 `dist/ui/engine/`；改这两处路径时必须同步核对产物目录结构
 - `@imagemagick/magick-wasm` 固定在 `devDependencies` 参与打包（Worker 由浏览器直接加载，产物中不能残留裸模块说明符），版本必须与 glue 严格同版
 - 该依赖的 wasm 二进制与第三方许可声明（`NOTICE`，含 ImageMagick 静态链接的各库）随包再分发，故在 `rslib.config.ts` 的 `output.copy` 中于构建期复制进 `dist`：既不把 220 KB 的 NOTICE 提交进仓库，也不会与依赖版本脱节
 

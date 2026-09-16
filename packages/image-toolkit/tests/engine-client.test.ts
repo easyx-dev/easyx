@@ -11,11 +11,11 @@ const mocks = rs.hoisted(() => ({
   resolveEngineWasmUrl: rs.fn(),
 }));
 
-rs.mock('../src/admin/engine/download', () => ({
+rs.mock('../src/ui/engine/download', () => ({
   downloadWithProgress: mocks.downloadWithProgress,
 }));
 
-rs.mock('../src/admin/engine/config', () => ({
+rs.mock('../src/ui/engine/config', () => ({
   resolveEngineWasmUrl: mocks.resolveEngineWasmUrl,
 }));
 
@@ -28,11 +28,11 @@ import {
   resetImageEngine,
   subscribeImageEngine,
   transformImage,
-} from '../src/admin/engine/client';
+} from '../src/ui/engine/client';
 import type {
   EngineRequest,
   ImageEngineState,
-} from '../src/admin/engine/protocol';
+} from '../src/ui/engine/protocol';
 
 /** 可编程的 Worker 替身：记录出站消息并支持手工回包 */
 class FakeWorker {

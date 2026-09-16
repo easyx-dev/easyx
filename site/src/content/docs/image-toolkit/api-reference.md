@@ -42,7 +42,7 @@ description: Image Toolkit 两个入口的导出清单、引擎 API 与类型定
 
 `ImageFormat`、`ImageOutputFormat`、`ImageFit`、`ImageCrop`、`ImageResize`、`ImageOperation`、`ImageSize`、`ImageMeta`、`ImageSniffResult`、`ImageProcessResult`、`LosslessFidelity`、`LosslessStrategy`、`ScaleRequest`、`ScaleOptions`。
 
-## 管理端入口（`./admin`）
+## 管理端入口（`./ui`）
 
 ### 引擎 API
 
@@ -95,5 +95,5 @@ description: Image Toolkit 两个入口的导出清单、引擎 API 与类型定
 ## 包内约定
 
 - `src/limits.ts` 是格式能力的**单一事实来源**，界面的可编辑 / 可输出 / 可无损优化判定都从它派生
-- `src/admin/editor-settings.ts` 是 UI 状态 → 引擎入参的**唯一转换点**（纯逻辑，可单测）
+- `src/ui/editor-settings.ts` 是 UI 状态 → 引擎入参的**唯一转换点**（纯逻辑，可单测）
 - 引擎结果必须经 `sniffImage` 校验后才允许流入存储

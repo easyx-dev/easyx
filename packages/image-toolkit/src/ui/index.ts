@@ -1,5 +1,5 @@
 /**
- * 图片处理包管理端入口：引擎客户端 + React hooks + 组件
+ * 图片处理包浏览器侧入口：引擎客户端 + React hooks + 组件
  *
  * 本入口为浏览器专用（依赖 Worker 与 wasm）。
  * 服务端请使用包根入口的纯逻辑导出（sniffImage / metrics 等），

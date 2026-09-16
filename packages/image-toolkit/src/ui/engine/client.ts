@@ -84,7 +84,7 @@ function handleMessage(event: MessageEvent<EngineResponse>): void {
 function acquireWorker(): Worker {
   if (engineWorker) return engineWorker;
 
-  // 静态相对路径，基准是产物中的 dist/admin/index.js，指向 dist/admin/engine/worker.js。
+  // 静态相对路径，基准是产物中的 dist/ui/index.js，指向 dist/ui/engine/worker.js。
   // 宿主打包器据此把 Worker 打成独立产物；本包构建期已关闭该表达式解析（见 rslib.config.ts）。
   const worker = new Worker(new URL('./engine/worker.js', import.meta.url), {
     type: 'module',

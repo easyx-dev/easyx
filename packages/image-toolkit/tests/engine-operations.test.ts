@@ -15,12 +15,12 @@ import {
   NoiseType,
 } from '@imagemagick/magick-wasm';
 import { beforeAll, describe, expect, it } from '@rstest/core';
+import { sniffImage } from '../src/sniff';
 import {
   optimizeLosslessly,
   probeImage,
   transformImage,
-} from '../src/admin/engine/operations';
-import { sniffImage } from '../src/sniff';
+} from '../src/ui/engine/operations';
 
 const require = createRequire(import.meta.url);
 

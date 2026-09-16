@@ -8,7 +8,7 @@
 | 入口 | 内容 | 依赖 |
 |------|------|------|
 | `@easyx/image-toolkit` | 同构纯逻辑：魔数嗅探、格式白名单、操作归一化、缩放换算 | 零重量依赖（服务端可安全引用） |
-| `@easyx/image-toolkit/admin` | 浏览器侧：引擎客户端、React hooks、编辑弹窗组件 | React + antd + wasm 引擎（惰性加载） |
+| `@easyx/image-toolkit/ui` | 浏览器侧：引擎客户端、React hooks、编辑弹窗组件 | React + antd + wasm 引擎（惰性加载） |
 
 > 根入口**禁止**静态引用引擎，否则 wasm glue 会被打进服务端 bundle。
 
@@ -62,7 +62,7 @@ PNG compression-level 9 为 −41.5%（逐像素一致），WebP lossless + meth
 pnpm add @easyx/image-toolkit
 ```
 
-`react` / `react-dom` / `antd` / `@ant-design/icons` 为 peer 依赖，需宿主自行安装（`./admin` 入口才需要）。
+`react` / `react-dom` / `antd` / `@ant-design/icons` 为 peer 依赖，需宿主自行安装（`./ui` 入口才需要）。
 
 ## 使用
 
@@ -77,7 +77,7 @@ const meta = sniffImage(bytes); // 魔数嗅探：非图片返回 null
 ### 编辑弹窗（浏览器）
 
 ```tsx
-import { configureImageEngine, ImageEditorModal } from '@easyx/image-toolkit/admin';
+import { configureImageEngine, ImageEditorModal } from '@easyx/image-toolkit/ui';
 
 // 可选：指向 CDN 或自有静态资源（绝对 URL 需服务端提供 CORS 与 application/wasm）
 configureImageEngine({ wasmUrl: '/static/magick.wasm' });
@@ -101,7 +101,7 @@ configureImageEngine({ wasmUrl: '/static/magick.wasm' });
 
 ## wasm 资源与宿主打包器
 
-**默认**：无需任何配置，wasm 随包发布（`dist/admin/engine/magick.wasm`，约 14 MB），内网与私有化部署开箱可用。
+**默认**：无需任何配置，wasm 随包发布（`dist/ui/engine/magick.wasm`，约 14 MB），内网与私有化部署开箱可用。
 
 包内同时附带上游第三方许可声明 `dist/THIRD-PARTY-NOTICES/NOTICE`（wasm 静态链接了 ImageMagick 及若干第三方库，构建时从依赖原样复制）。
 

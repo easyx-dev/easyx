@@ -10,7 +10,7 @@ import {
   PROCESSABLE_FORMATS,
   sniffImage,
 } from '@easyx/image-toolkit';
-import { ImageEditorModal } from '@easyx/image-toolkit/admin';
+import { ImageEditorModal } from '@easyx/image-toolkit/ui';
 import { App as AntdApp, theme as antdTheme, ConfigProvider } from 'antd';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useDemoDark } from './use-demo-dark';
