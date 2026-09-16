@@ -1,13 +1,10 @@
 /**
  * 骨架布局：根容器、顶栏、预览区、代码编辑区
- * 根容器承载主题令牌，暗色由容器 class / 宿主 data-theme / 系统偏好三者之一决定
+ * 主题令牌由 easyx-ai-rich-editor-scope 提供（主容器同时带该类），此处只管布局
  */
 @use 'variables' as v;
 
 .easyx-ai-rich-editor {
-  @include v.metrics;
-  @include v.light;
-
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -15,21 +12,6 @@
   border-radius: var(--easyx-ai-rich-editor-radius);
   background: var(--easyx-ai-rich-editor-bg);
   color: var(--easyx-ai-rich-editor-text);
-
-  /* 暗色优先级：容器 class > 宿主 data-theme > 系统偏好 */
-  &-dark {
-    @include v.dark;
-  }
-
-  [data-theme$='dark'] & {
-    @include v.dark;
-  }
-
-  @media (prefers-color-scheme: dark) {
-    :root:not([data-theme]) & {
-      @include v.dark;
-    }
-  }
 }
 
 /* 顶栏 */
@@ -59,6 +41,16 @@
   align-items: center;
   gap: 4px;
   min-width: 0;
+}
+
+/* 顶栏内的分组分隔线（纯装饰） */
+.easyx-ai-rich-editor__toolbar-sep {
+  flex-shrink: 0;
+  align-self: center;
+  width: 1px;
+  height: 18px;
+  margin: 0 4px;
+  background: var(--easyx-ai-rich-editor-border);
 }
 
 .easyx-ai-rich-editor__toolbar-label {
@@ -119,10 +111,26 @@
 
 .easyx-ai-rich-editor__preview-empty {
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
+  gap: 10px;
   width: 100%;
   height: 100%;
+  padding: 24px;
+  text-align: center;
+}
+
+.easyx-ai-rich-editor__preview-empty-icon {
+  display: flex;
+  color: var(--easyx-ai-rich-editor-text-tertiary);
+  opacity: 0.7;
+}
+
+.easyx-ai-rich-editor__preview-empty-text {
+  max-width: 280px;
+  font-size: var(--easyx-ai-rich-editor-font-size-sm);
+  color: var(--easyx-ai-rich-editor-text-tertiary);
 }
 
 /* 代码编辑区 */

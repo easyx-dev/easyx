@@ -1,18 +1,17 @@
 /**
- * AI 对话消息渲染：基于 @ant-design/x-markdown 的 XMarkdown
- * 助手消息全文走 XMarkdown（标题/加粗/行内代码/列表/表格/引用），
- * ```html 围栏代码块通过 components.code 拦截渲染为「可复制/应用到编辑器」卡片；
- * 其余代码块与行内代码由包内默认样式渲染。
+ * AI 对话消息渲染：自研 markdown 渲染层
+ *
+ * 助手消息全文走 marked 词法 → React 元素（见 src/markdown/renderer.tsx），
+ * ```html 围栏代码块拦截渲染为「可复制/应用到编辑器」卡片，其余代码块与行内代码
+ * 由包内样式的通用块渲染。
  */
-import { CodeOutlined, CopyOutlined } from '@ant-design/icons';
-import type { ComponentProps } from '@ant-design/x-markdown';
-import { XMarkdown } from '@ant-design/x-markdown';
-import { Button, Tooltip, Typography } from 'antd';
-import { type ReactNode, useEffect, useRef } from 'react';
+import { type ReactNode, useEffect, useMemo, useRef } from 'react';
+import { renderMarkdown } from '../markdown/renderer';
 import type { AiRichNotify } from '../types';
+import { IconCode, IconCopy } from '../ui/icons';
+import { Button } from '../ui/primitives/Button';
+import { Tooltip } from '../ui/primitives/Tooltip';
 import { copyToClipboard } from '../utils/clipboard';
-
-const { Text } = Typography;
 
 /** HTML 代码块卡片：头部（标签 + 复制/应用）+ 可滚动正文 */
 function HtmlCodeCard({
@@ -47,24 +46,27 @@ function HtmlCodeCard({
     <div className="easyx-ai-rich-editor__code-card">
       <div className="easyx-ai-rich-editor__code-card-head">
         <span className="easyx-ai-rich-editor__code-card-label">
-          <CodeOutlined /> HTML
+          <IconCode />
+          HTML
         </span>
         <div className="easyx-ai-rich-editor__code-card-actions">
           <Tooltip title="复制代码">
             <Button
-              size="small"
-              type="text"
-              icon={<CopyOutlined />}
-              onClick={handleCopy}
+              aria-label="复制代码"
               className="easyx-ai-rich-editor__code-card-copy"
+              icon={<IconCopy size={14} />}
+              iconOnly
+              onClick={() => void handleCopy()}
+              size="sm"
+              variant="text"
             />
           </Tooltip>
           {onApplyHtml && (
             <Tooltip title="替换编辑器中的内容">
               <Button
-                size="small"
-                type="link"
                 onClick={() => onApplyHtml(html)}
+                size="sm"
+                variant="link"
               >
                 应用到编辑器
               </Button>
@@ -72,59 +74,20 @@ function HtmlCodeCard({
           )}
         </div>
       </div>
-      <pre ref={preRef} className="easyx-ai-rich-editor__code-card-body">
+      <pre className="easyx-ai-rich-editor__code-card-body" ref={preRef}>
         <code className="easyx-ai-rich-editor__code-card-code">{html}</code>
       </pre>
     </div>
   );
 }
 
-/** 非 html 的块级代码：等宽滚动块；行内代码：浅灰圆角块 */
-function DefaultCode({
-  block,
-  children,
-}: {
-  block: boolean;
-  children: ReactNode;
-}) {
-  if (block) {
-    return (
-      <pre className="easyx-ai-rich-editor__code-block">
-        <code className="easyx-ai-rich-editor__code-block-code">
-          {children}
-        </code>
-      </pre>
-    );
-  }
-  return <code className="easyx-ai-rich-editor__code-inline">{children}</code>;
-}
-
-/** XMarkdown 组件映射：拦截 ```html 代码块渲染卡片，接管 pre/code 默认样式 */
-function buildMarkdownComponents(
-  onApplyHtml?: (html: string) => void,
-  notify?: AiRichNotify,
-) {
-  return {
-    // outer pre 仅作透传（块级代码的 pre 由 DefaultCode/card 自行渲染）
-    pre: ({ children }: ComponentProps) => <>{children}</>,
-    code: (props: ComponentProps) => {
-      const { lang, block, children } = props;
-      // lang / block 由 XMarkdown 对围栏代码注入（未知类型，做布尔/等值判定）；
-      // 兼容 lang 带附加参数（如 ```html id="main"）的情况
-      const isHtml =
-        (block as boolean | undefined) === true &&
-        typeof lang === 'string' &&
-        lang.startsWith('html');
-      if (isHtml) {
-        // XMarkdown 对围栏代码追加了结尾换行，展示时去掉
-        const html = String(children ?? '').replace(/\n$/, '');
-        return (
-          <HtmlCodeCard html={html} onApplyHtml={onApplyHtml} notify={notify} />
-        );
-      }
-      return <DefaultCode block={Boolean(block)}>{children}</DefaultCode>;
-    },
-  };
+/** 非 html 的块级代码：等宽滚动块 */
+function DefaultCodeBlock({ code }: { code: string }) {
+  return (
+    <pre className="easyx-ai-rich-editor__code-block">
+      <code className="easyx-ai-rich-editor__code-block-code">{code}</code>
+    </pre>
+  );
 }
 
 interface MarkdownContentProps {
@@ -140,17 +103,21 @@ export function MarkdownContent({
   onApplyHtml,
   notify,
 }: MarkdownContentProps) {
+  const nodes: ReactNode = useMemo(() => {
+    if (!content.trim()) return null;
+    return renderMarkdown(content, ({ lang, code }) =>
+      // 兼容 ```html id="main" 这类带附加参数的围栏
+      lang.startsWith('html') ? (
+        <HtmlCodeCard html={code} notify={notify} onApplyHtml={onApplyHtml} />
+      ) : (
+        <DefaultCodeBlock code={code} />
+      ),
+    );
+  }, [content, onApplyHtml, notify]);
+
   if (!content.trim()) {
-    return <Text className="easyx-ai-rich-editor__empty-reply">(空回复)</Text>;
+    return <span className="easyx-ai-rich-editor__empty-reply">(空回复)</span>;
   }
-  return (
-    <div className="easyx-ai-rich-editor__markdown">
-      <XMarkdown
-        content={content}
-        openLinksInNewTab
-        disableDefaultStyles={['pre', 'code']}
-        components={buildMarkdownComponents(onApplyHtml, notify)}
-      />
-    </div>
-  );
+
+  return <div className="easyx-ai-rich-editor__markdown">{nodes}</div>;
 }

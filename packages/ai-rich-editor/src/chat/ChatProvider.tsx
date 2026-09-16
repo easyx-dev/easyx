@@ -1,23 +1,13 @@
 /**
- * AI 富编辑器对话区：TanStack AI headless 数据流 + Ant Design X 渲染
+ * AI 富编辑器对话区：TanStack AI headless 数据流 + 包内自研渲染层
  * 基于 @tanstack/ai-react/ui 的 createChatHook：模块作用域注册一次，
  * components（layout/message/input）+ partsComponents（text/thinking/fallback）
  * 驱动消息渲染；宿主经 EditorCfgContext 注入 runtime 配置（systemPrompt/requestMeta/onApplyHtml/notify）。
- * 渲染侧使用 Ant Design X：Bubble（消息）/ Sender（输入）/ Prompts（空态推荐）/ Think（思考）。
+ * 渲染侧全部走包内原语：气泡、输入框、推荐指令、思考块均为自研实现。
  *
  * 单实例假设：编辑器一页一个；createChatHook 的 options 在模块作用域固定，
  * 每实例的 endpointUrl / 结束回调经 createInstanceChatOverrides 注入。
  */
-import {
-  DeleteOutlined,
-  LoadingOutlined,
-  RobotOutlined,
-} from '@ant-design/icons';
-// 用子路径导入 Ant Design X 组件，避免从根入口拉入 code-highlighter/mermaid（会阻断构建）
-import Bubble from '@ant-design/x/es/bubble';
-import Prompts from '@ant-design/x/es/prompts';
-import Sender from '@ant-design/x/es/sender';
-import Think from '@ant-design/x/es/think';
 import type { UIMessage } from '@tanstack/ai-react';
 import { fetchServerSentEvents } from '@tanstack/ai-react';
 import type {
@@ -28,7 +18,6 @@ import type {
   PartProps,
 } from '@tanstack/ai-react/ui';
 import { createChatHook } from '@tanstack/ai-react/ui';
-import { Alert, Button, Tooltip } from 'antd';
 import {
   type ComponentType,
   createContext,
@@ -41,6 +30,12 @@ import { MarkdownContent } from '../components/MarkdownContent';
 import { CHAT_INPUT_PLACEHOLDER, PRESET_PROMPTS } from '../constants';
 import { buildDefaultSystemPrompt } from '../prompts';
 import type { AiRichNotify } from '../types';
+import { IconRobot, IconTrash } from '../ui/icons';
+import { Alert } from '../ui/primitives/Alert';
+import { Button } from '../ui/primitives/Button';
+import { Tooltip } from '../ui/primitives/Tooltip';
+import { ChatComposer } from './ChatComposer';
+import { ThinkBlock } from './ThinkBlock';
 
 /** 运行期注入给 chat 组件的配置（不含 endpointUrl/onComplete，二者走模块 ref） */
 export interface EditorChatConfig {
@@ -136,16 +131,11 @@ function ChatMessage({ message, Parts }: MessageProps<typeof chatOptions>) {
   const chat = useChatContext();
   if (message.role === 'user') {
     return (
-      <Bubble
-        placement="end"
-        variant="filled"
-        shape="default"
-        content={
-          <span className="easyx-ai-rich-editor__chat-user-text">
-            {textOf(message)}
-          </span>
-        }
-      />
+      <div className="easyx-ai-rich-editor__bubble easyx-ai-rich-editor__bubble--user">
+        <span className="easyx-ai-rich-editor__chat-user-text">
+          {textOf(message)}
+        </span>
+      </div>
     );
   }
   // 正在流式生成的必然是消息列表最后一条；按消息判定而非全局 isLoading，
@@ -153,32 +143,27 @@ function ChatMessage({ message, Parts }: MessageProps<typeof chatOptions>) {
   const last = chat.messages.at(-1);
   const isStreaming = Boolean(chat.isLoading && last?.id === message.id);
   return (
-    <Bubble
-      placement="start"
-      variant="borderless"
-      shape="default"
-      content={
-        <MessageStreamContext.Provider value={isStreaming}>
-          <Parts />
-        </MessageStreamContext.Provider>
-      }
-    />
+    <div className="easyx-ai-rich-editor__bubble easyx-ai-rich-editor__bubble--assistant">
+      <MessageStreamContext.Provider value={isStreaming}>
+        <Parts />
+      </MessageStreamContext.Provider>
+    </div>
   );
 }
 
-/** 文本 part：XMarkdown（markdown 富文本 + ```html 代码块「应用到编辑器」） */
+/** 文本 part：markdown 渲染（```html 代码块「应用到编辑器」） */
 function TextPart({ part }: PartProps<typeof chatOptions, 'text'>) {
   const cfg = useEditorCfg();
   return (
     <MarkdownContent
       content={part.content}
-      onApplyHtml={cfg.onApplyHtml}
       notify={cfg.notify}
+      onApplyHtml={cfg.onApplyHtml}
     />
   );
 }
 
-/** 思考 part：Think（本消息流式中显示「思考中…」；默认折叠，展开后做 markdown 渲染 + 限高滚动 + 自动触底） */
+/** 思考 part：本消息流式中显示「思考中…」；默认折叠，展开后做 markdown 渲染 + 限高滚动 + 自动触底 */
 function ThinkingPart({ part }: PartProps<typeof chatOptions, 'thinking'>) {
   const cfg = useEditorCfg();
   const isStreaming = useContext(MessageStreamContext);
@@ -194,18 +179,14 @@ function ThinkingPart({ part }: PartProps<typeof chatOptions, 'thinking'>) {
 
   if (!content.trim()) return null;
   return (
-    <Think
+    <ThinkBlock
       loading={isStreaming}
       title={isStreaming ? '思考中…' : '已思考'}
-      defaultExpanded={false}
     >
-      <div
-        ref={scrollRef}
-        style={{ maxHeight: 288, overflow: 'auto', padding: '8px 12px' }}
-      >
+      <div className="easyx-ai-rich-editor__think-scroll" ref={scrollRef}>
         <MarkdownContent content={content} notify={cfg.notify} />
       </div>
-    </Think>
+    </ThinkBlock>
   );
 }
 
@@ -214,40 +195,33 @@ function FallbackPart(_props: PartProps<typeof chatOptions>) {
   return null;
 }
 
-/** 输入区：Sender（内置发送/停止、Enter 发送；悬浮效果，去除底部 footer） */
+/** 输入区：包内自研输入框（Enter 发送、Shift+Enter 换行、输入法合成期不发送） */
 function ChatInput(_props: InputProps<typeof chatOptions>) {
   const chat = useChatContext();
   const cfg = useEditorCfg();
   const [input, setInput] = useState('');
 
-  const handleSend = (text: string) => {
+  const handleSubmit = (text: string) => {
     const value = text.trim();
     if (!value || chat.isLoading) return;
     // 失败由 chat.error 驱动界面提示；此处吞掉 rejection 避免未处理 promise
     chat.sendMessage(value, { body: sendBody(cfg) }).catch(() => {});
-  };
-
-  const handleSubmit = (text: string) => {
-    handleSend(text);
     setInput('');
   };
 
   return (
-    <Sender
-      value={input}
-      onChange={(v) => setInput(v)}
-      onSubmit={handleSubmit}
+    <ChatComposer
       loading={chat.isLoading}
       onCancel={() => chat.stop()}
+      onChange={setInput}
+      onSubmit={handleSubmit}
       placeholder={CHAT_INPUT_PLACEHOLDER}
-      autoSize={{ minRows: 2, maxRows: 6 }}
-      submitType="enter"
-      className="easyx-ai-rich-editor__chat-sender"
+      value={input}
     />
   );
 }
 
-/** 布局壳：对话面板头 + 消息滚动区（空态 Welcome+Prompts）+ 底部输入框 */
+/** 布局壳：对话面板头 + 消息滚动区（空态引导 + 推荐指令）+ 底部输入框 */
 function ChatLayout({
   Messages,
   Interrupts,
@@ -280,15 +254,16 @@ function ChatLayout({
       {/* 对话面板头：AI 助手 + 新会话 */}
       <div className="easyx-ai-rich-editor__chat-head">
         <span className="easyx-ai-rich-editor__chat-title">
-          <RobotOutlined className="easyx-ai-rich-editor__chat-icon" /> AI 助手
+          <IconRobot className="easyx-ai-rich-editor__chat-icon" />
+          AI 助手
         </span>
         <Tooltip title="新会话（清空并重新开始）">
           <Button
-            size="small"
-            type="text"
-            icon={<DeleteOutlined />}
             disabled={chat.messages.length === 0}
+            icon={<IconTrash size={13} />}
             onClick={() => chat.setMessages([])}
+            size="sm"
+            variant="text"
           >
             新会话
           </Button>
@@ -296,14 +271,13 @@ function ChatLayout({
       </div>
 
       {/* 消息区 */}
-      <div ref={scrollRef} className="easyx-ai-rich-editor__chat-body">
+      <div className="easyx-ai-rich-editor__chat-body" ref={scrollRef}>
         {/* 中断列表：有 pending 中断（工具审批等）时在任何状态下都展示 */}
         <Interrupts />
         {chat.messages.length === 0 ? (
           <div className="easyx-ai-rich-editor__chat-empty">
-            {/* 空态标题：居中纯文字，去掉 Welcome 的灰色背景块 */}
             <div className="easyx-ai-rich-editor__chat-empty-inner">
-              <RobotOutlined className="easyx-ai-rich-editor__chat-empty-icon" />
+              <IconRobot className="easyx-ai-rich-editor__chat-empty-icon" />
               <span className="easyx-ai-rich-editor__chat-empty-title">
                 AI 页面助手
               </span>
@@ -313,14 +287,23 @@ function ChatLayout({
             </div>
             {/* 推荐指令：纵向排列，一行一个 */}
             <div className="easyx-ai-rich-editor__chat-prompts">
-              <Prompts
-                title="为你推荐"
-                vertical
-                items={PRESET_PROMPTS.map((p) => ({ key: p, label: p }))}
-                onItemClick={({ data }) => {
-                  handlePreset(String(data.key));
-                }}
-              />
+              <span className="easyx-ai-rich-editor__chat-prompts-title">
+                为你推荐
+              </span>
+              <ul className="easyx-ai-rich-editor__chat-prompts-list">
+                {PRESET_PROMPTS.map((preset) => (
+                  <li key={preset}>
+                    <button
+                      className="easyx-ai-rich-editor__chat-prompt"
+                      disabled={chat.isLoading}
+                      onClick={() => handlePreset(preset)}
+                      type="button"
+                    >
+                      {preset}
+                    </button>
+                  </li>
+                ))}
+              </ul>
             </div>
           </div>
         ) : (
@@ -328,17 +311,12 @@ function ChatLayout({
             <Messages />
             {/* 模型反馈期间的过渡状态：首个 assistant 内容到达前显示加载占位 */}
             {awaitingFirstToken && (
-              <Bubble
-                placement="start"
-                variant="borderless"
-                shape="default"
-                content={
-                  <div className="easyx-ai-rich-editor__chat-pending">
-                    <LoadingOutlined spin />
-                    <span>请求中…</span>
-                  </div>
-                }
-              />
+              <div className="easyx-ai-rich-editor__bubble easyx-ai-rich-editor__bubble--assistant">
+                <div className="easyx-ai-rich-editor__chat-pending">
+                  <span className="easyx-ai-rich-editor__spinner easyx-ai-rich-editor__spinner--sm" />
+                  <span>请求中…</span>
+                </div>
+              </div>
             )}
           </div>
         )}
@@ -351,10 +329,10 @@ function ChatLayout({
 
       {chat.error && (
         <Alert
-          type="error"
-          showIcon
-          message={chat.error.message}
           className="easyx-ai-rich-editor__chat-error"
+          showIcon
+          title={chat.error.message}
+          type="error"
         />
       )}
     </div>
@@ -365,16 +343,16 @@ function ChatLayout({
 // 库的返回类型引用了未导出的内部类型，声明文件无法命名，
 // 因此在此一次性收窄为渲染层实际用到的公开结构（ChatHookBinding），作为与库类型的唯一边界。
 const chatHook = createChatHook({
-  options: chatOptions,
   components: {
     input: ChatInput,
-    message: ChatMessage,
     layout: ChatLayout,
+    message: ChatMessage,
   },
+  options: chatOptions,
   partsComponents: {
+    fallback: FallbackPart,
     text: TextPart,
     thinking: ThinkingPart,
-    fallback: FallbackPart,
   },
 }) as unknown as ChatHookBinding;
 

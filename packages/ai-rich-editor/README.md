@@ -13,11 +13,11 @@ AI 驱动的「代码编辑 + 实时预览」工作台（重客户端组件）�
 | 防污染 | 作用域化在**应用时刻**完成，产物自带 scope 前缀，宿主可直接当 HTML 引入，端侧零处理 |
 | 传输 | **不持有**任何 HTTP 端点/鉴权知识 —— 对话能力经宿主提供的 SSE 端点（`endpointUrl`）消费 |
 | 样式 | 包内 SCSS + CSS 变量，编译后内联进 JS，宿主零配置 |
-| 依赖 | peer：`antd` / `@ant-design/icons` / `monaco-editor` / `react` / `react-dom`；dep：`@monaco-editor/react`、`@tanstack/ai-react`、`@ant-design/x`、`@ant-design/x-markdown` |
+| 依赖 | peer：`monaco-editor` / `react` / `react-dom`；dep：`@monaco-editor/react`、`@tanstack/ai-react`、`@floating-ui/dom`（浮层定位）、`marked`（对话 markdown）。**除 React 外不依赖任何 UI 库**，界面全部自研 |
 
 ## 布局结构
 
-顶栏 + antd `Splitter`（水平拖拽分割）：左（预览区，可选编辑器）｜右（AI 对话面板，默认 420，min 400 / max 600）。
+顶栏 + 自研 `Splitter`（水平拖拽分割，支持键盘调整）：左（预览区，可选编辑器）｜右（AI 对话面板，默认 420，min 400 / max 600）。
 
 - **顶栏**：预览控件「设备档位 / 脚本开关 / 刷新 / 新窗口预览」+ **编辑器**开关（打开后在左栏与预览并排）+ 复制 + **设置**
 - **左栏**：默认整区为预览卡片（iframe 实时预览）；开启「编辑器」后变为 `[Monaco | 预览]` 内层横向分割
@@ -30,7 +30,7 @@ AI 驱动的「代码编辑 + 实时预览」工作台（重客户端组件）�
 pnpm add @easyx/ai-rich-editor
 ```
 
-`react` / `react-dom` / `antd` / `@ant-design/icons` / `monaco-editor` 为 peer 依赖，需宿主自行安装。
+`react` / `react-dom` / `monaco-editor` 为 peer 依赖，需宿主自行安装（`@monaco-editor/react` 等运行时依赖随包安装）。
 
 ## 快速上手
 
@@ -81,7 +81,8 @@ AI 生成的片段在「应用到编辑器」（含 `autoApply`）时已做**样
 ## 对话契约
 
 - 数据流基于 TanStack AI **headless UI**：`createChatHook` 在模块作用域注册 `components`（`layout` / `message` / `input`）与 `partsComponents`（`text` / `thinking` / `fallback`），`fetchServerSentEvents` 消费宿主 SSE 端点
-- **渲染侧**使用 Ant Design X：消息 → `Bubble`、输入 → `Sender`、空态 → `Welcome` + `Prompts`、思考 → `Think`、错误 → `Alert`；数据流与 UI 组件解耦
+- **渲染侧**为包内自研：消息 → 气泡（`ChatProvider`）、输入 → `ChatComposer`（自增高 + Input 发送 + 输入法合成期守卫生效）、空态 → 引导 + 推荐指令、思考 → `ThinkBlock`（默认折叠）、错误 → `Alert`；数据流与 UI 组件解耦，替换渲染层不影响数据链路
+- 助手消息的 markdown 走「marked 词法 → React 元素」自研渲染层：markdown 里的**裸 HTML 一律丢弃**，链接协议白名单校验，全程不经过 `dangerouslySetInnerHTML`
 - system 提示词由包内生成（`buildDefaultSystemPrompt`），可经 `config.systemPrompt` 覆盖，随每次发送透传给服务端
 - `stop` 中止当前生成；`clear` / 新会话清空对话；`autoApply` 在流结束后自动应用回复中的 HTML 代码块
 - 流式生成中，回复里 HTML 代码块的累计新增达到阈值即同步到编辑器与预览
@@ -95,7 +96,7 @@ AI 生成的片段在「应用到编辑器」（含 `autoApply`）时已做**样
 | `autoApply` | AI 回复后自动应用到编辑器 | `true` |
 | `systemPrompt` | 自定义 system 提示词 | 内置模板 |
 | `previewHead` | 预览 `<head>` 附加代码（原始 HTML） | 空 |
-| `notify` | 消息提示回调 | antd 静态提示 |
+| `notify` | 消息提示回调 | 包内置轻提示 |
 
 > **注意**：`config` 为**仅初始值（非受控）**——挂载后改动 `config` 不会生效；运行期请经设置面板修改，如需持久化再用 `onConfigChange` 回写宿主。
 
@@ -103,11 +104,11 @@ AI 生成的片段在「应用到编辑器」（含 `autoApply`）时已做**样
 
 亮暗判定优先级（与包内样式一致）：
 
-1. 容器 class `easyx-ai-rich-editor-dark`
+1. 令牌作用域上的 class `easyx-ai-rich-editor-scope-dark`
 2. 最近的宿主 `[data-theme]` 祖先（值以 `dark` 结尾，如 `dark`、`admin-dark`）
 3. 两者都没有时跟随系统 `prefers-color-scheme`
 
-代码编辑器（Monaco）主题同步跟随上述判定。antd 组件（气泡、抽屉、输入框）的亮暗由宿主的 `ConfigProvider` 决定，包内不接管。
+代码编辑器（Monaco）主题同步跟随上述判定。抽屉、菜单、Tooltip、轻提示等浮层渲染在 portal 中：`data-theme` 挂在 `<html>` 上时第 2 条依然命中，包内会把触发元素所处的主题一并带到浮层根上，因此浮层不会脱主题。
 
 所有颜色经 `--easyx-ai-rich-editor-*` CSS 变量控制，可在宿主覆盖。
 
@@ -136,6 +137,6 @@ AI 生成的片段在「应用到编辑器」（含 `autoApply`）时已做**样
 pnpm --filter @easyx/ai-rich-editor test
 ```
 
-覆盖代码块提取 / 预览文档构建（含附加代码注入）、`MarkdownContent`（XMarkdown 文本、```html 代码块「应用到编辑器」、空回复占位）、样式作用域化（前缀生成 / CSS 选择器改写 / style 注入与整段包装）。
+覆盖代码块提取 / 预览文档构建（含附加代码注入）、`MarkdownContent`（```html 代码块「应用到编辑器」、空回复占位）与 `markdown/renderer`（结构映射、裸 HTML 丢弃、危险协议降级、流式半成品）、样式作用域化（前缀生成 / CSS 选择器改写 / style 注入与整段包装）。
 
 > `scopedRichContent` 的 `<style>` 选择器改写为零依赖轻量实现：覆盖常见选择器（元素 / 类 / 后代 / `@media` / `@supports` 内层）与 `@keyframes` / `@font-face` 原样保留；CSS 原生嵌套规则（规则体内嵌套规则）不做嵌套前缀改写，此类输入请让 AI 用内联样式规避。

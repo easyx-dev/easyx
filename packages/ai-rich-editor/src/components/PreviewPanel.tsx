@@ -2,9 +2,9 @@
  * 左栏预览面板：带背景色与内边距的内容卡片，iframe sandbox 渲染 srcDoc
  * 设备档位 / 脚本开关 / 刷新 / 新窗口 控制在主顶栏（Toolbar），本组件只负责展示
  */
-import { Empty } from 'antd';
 import { EMPTY_PREVIEW_TEXT, PREVIEW_DEVICES } from '../constants';
 import { useElementSize } from '../hooks/useElementSize';
+import { IconCode } from '../ui/icons';
 import { buildPreviewDocument } from '../utils/extract';
 
 interface PreviewPanelProps {
@@ -31,7 +31,7 @@ export function PreviewPanel({
   // 固定设备（手机）取 PREVIEW_DEVICES 的宽高；桌面自适应
   const fixedBox =
     device.key === 'mobile' && typeof device.width === 'number'
-      ? { w: device.width, h: device.height ?? 812 }
+      ? { h: device.height ?? 812, w: device.width }
       : undefined;
 
   // 手机框按舞台空间等比缩放（≤100%）；桌面拉伸不缩放
@@ -52,34 +52,36 @@ export function PreviewPanel({
   // 预览直接使用已完成作用域化的 value（应用时刻已 scoped），保证「预览 = 最终渲染」
   const renderScreen = (
     <iframe
-      key={reloadKey}
-      title="HTML 预览"
-      srcDoc={buildPreviewDocument(html, previewHead)}
-      sandbox={sandbox}
       className="easyx-ai-rich-editor__preview-frame"
+      key={reloadKey}
+      sandbox={sandbox}
+      srcDoc={buildPreviewDocument(html, previewHead)}
+      title="HTML 预览"
     />
   );
 
   const renderEmpty = (
     <div className="easyx-ai-rich-editor__preview-empty">
-      <Empty
-        image={Empty.PRESENTED_IMAGE_SIMPLE}
-        description={EMPTY_PREVIEW_TEXT}
-      />
+      <span className="easyx-ai-rich-editor__preview-empty-icon">
+        <IconCode size={22} />
+      </span>
+      <span className="easyx-ai-rich-editor__preview-empty-text">
+        {EMPTY_PREVIEW_TEXT}
+      </span>
     </div>
   );
 
   return (
     <div className="easyx-ai-rich-editor__preview">
       {/* 内容卡片：桌面拉伸填充，手机固定尺寸设备框居中 */}
-      <div ref={stageRef} className="easyx-ai-rich-editor__preview-stage">
+      <div className="easyx-ai-rich-editor__preview-stage" ref={stageRef}>
         {fixedBox ? (
           <div
             className="easyx-ai-rich-editor__preview-screen"
             style={{
-              width: fixedBox.w,
               height: fixedBox.h,
               transform: `scale(${fitZoom})`,
+              width: fixedBox.w,
             }}
           >
             {html.trim() ? renderScreen : renderEmpty}

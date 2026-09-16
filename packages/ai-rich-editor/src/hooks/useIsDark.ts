@@ -1,20 +1,18 @@
 /**
  * 主题暗色判定 hook
  *
- * 判定优先级与包内样式一致：容器 class（easyx-ai-rich-editor-dark）
+ * 判定优先级与包内样式一致：令牌作用域上的暗色 class（easyx-ai-rich-editor-scope-dark）
  * → 最近的宿主 [data-theme] 祖先（值以 dark 结尾，如 dark / admin-dark）
  * → 未声明主题时跟随系统 prefers-color-scheme。
  * 三处任一变化都实时联动（属性监听 + 媒体查询订阅）。
  *
- * 注意：这里用 closest() 判定，包含元素自身；而包内样式用的是后代选择器
- * `[data-theme$='dark'] .easyx-ai-rich-editor`，要求 data-theme 在祖先上。
- * 二者只在「data-theme 恰好落在编辑器根元素本身」时才会分叉，
- * 当前公开 API 无法把该属性放到根元素上，故保持一致；改动根元素属性时需同步核对样式。
+ * 说明：Monaco 读不到 CSS 变量，只能由本 hook 把判定结果交给它，因此这份判定
+ * 必须与 src/styles/_variables.scss 的 theme-scope 保持一致。
  */
 import { type RefObject, useEffect, useState } from 'react';
 
-const DARK_CLASS = 'easyx-ai-rich-editor-dark';
-const ROOT_CLASS = 'easyx-ai-rich-editor';
+const DARK_CLASS = 'easyx-ai-rich-editor-scope-dark';
+const ROOT_CLASS = 'easyx-ai-rich-editor-scope';
 const THEME_ATTR = 'data-theme';
 
 /** 读取当前是否暗色；el 为编辑器内部任意元素 */

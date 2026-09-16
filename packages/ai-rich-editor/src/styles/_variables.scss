@@ -7,12 +7,29 @@
 @mixin light {
   --easyx-ai-rich-editor-bg: #fff;
   --easyx-ai-rich-editor-bg-subtle: #f4f4f5;
+  --easyx-ai-rich-editor-bg-hover: #f4f4f5;
+  --easyx-ai-rich-editor-bg-active: #e4e4e7;
+  --easyx-ai-rich-editor-bg-mask: rgb(255 255 255 / 60%);
+  --easyx-ai-rich-editor-overlay: rgb(0 0 0 / 45%);
   --easyx-ai-rich-editor-border: #e4e4e7;
+  --easyx-ai-rich-editor-border-strong: #d4d4d8;
   --easyx-ai-rich-editor-text: #1a1a2e;
   --easyx-ai-rich-editor-text-secondary: #52525b;
   --easyx-ai-rich-editor-text-tertiary: #a1a1aa;
   --easyx-ai-rich-editor-primary: #1677ff;
+  --easyx-ai-rich-editor-primary-hover: #4096ff;
+  --easyx-ai-rich-editor-primary-soft: #e6f4ff;
+  --easyx-ai-rich-editor-on-primary: #fff;
+  --easyx-ai-rich-editor-success: #16a34a;
+  --easyx-ai-rich-editor-success-soft: #f0fdf4;
+  --easyx-ai-rich-editor-warning: #d97706;
+  --easyx-ai-rich-editor-warning-soft: #fffbeb;
+  --easyx-ai-rich-editor-danger: #dc2626;
+  --easyx-ai-rich-editor-danger-soft: #fef2f2;
+  /* 分段控件选中项：比组底色更「浮起」，亮暗两套保持同一层次关系 */
+  --easyx-ai-rich-editor-control-selected-bg: #fff;
   --easyx-ai-rich-editor-shadow: 0 2px 8px rgb(0 0 0 / 8%);
+  --easyx-ai-rich-editor-shadow-lg: 0 12px 40px rgb(0 0 0 / 16%);
   --easyx-ai-rich-editor-scrollbar-thumb: #d4d4d8;
 }
 
@@ -20,27 +37,82 @@
 @mixin dark {
   --easyx-ai-rich-editor-bg: #18181b;
   --easyx-ai-rich-editor-bg-subtle: #232326;
+  --easyx-ai-rich-editor-bg-hover: #2a2a2e;
+  --easyx-ai-rich-editor-bg-active: #303034;
+  --easyx-ai-rich-editor-bg-mask: rgb(24 24 27 / 60%);
+  --easyx-ai-rich-editor-overlay: rgb(0 0 0 / 60%);
   --easyx-ai-rich-editor-border: #303034;
+  --easyx-ai-rich-editor-border-strong: #3f3f46;
   --easyx-ai-rich-editor-text: #f4f4f5;
   --easyx-ai-rich-editor-text-secondary: #a1a1aa;
   --easyx-ai-rich-editor-text-tertiary: #71717a;
   --easyx-ai-rich-editor-primary: #4096ff;
+  --easyx-ai-rich-editor-primary-hover: #69b1ff;
+  --easyx-ai-rich-editor-primary-soft: #111d2c;
+  --easyx-ai-rich-editor-on-primary: #fff;
+  --easyx-ai-rich-editor-success: #4ade80;
+  --easyx-ai-rich-editor-success-soft: #14291c;
+  --easyx-ai-rich-editor-warning: #fbbf24;
+  --easyx-ai-rich-editor-warning-soft: #2b2111;
+  --easyx-ai-rich-editor-danger: #f87171;
+  --easyx-ai-rich-editor-danger-soft: #2c1618;
+  --easyx-ai-rich-editor-control-selected-bg: #3f3f46;
   --easyx-ai-rich-editor-shadow: 0 2px 8px rgb(0 0 0 / 32%);
+  --easyx-ai-rich-editor-shadow-lg: 0 12px 40px rgb(0 0 0 / 48%);
   --easyx-ai-rich-editor-scrollbar-thumb: #3f3f46;
 }
 
-/** 尺寸与字体令牌（不随主题变化） */
+/** 尺寸、字体与层级令牌（不随主题变化） */
 @mixin metrics {
+  --easyx-ai-rich-editor-radius-sm: 4px;
   --easyx-ai-rich-editor-radius: 6px;
   --easyx-ai-rich-editor-radius-lg: 12px;
-  --easyx-ai-rich-editor-font-mono: ui-monospace, sfmono-regular, menlo, monaco,
-    consolas, "liberation mono", monospace;
   --easyx-ai-rich-editor-font-size-xs: 12px;
   --easyx-ai-rich-editor-font-size-sm: 13px;
+  --easyx-ai-rich-editor-font-size-md: 14px;
+  --easyx-ai-rich-editor-font-mono: ui-monospace, sfmono-regular, menlo, monaco,
+    consolas, "liberation mono", monospace;
   --easyx-ai-rich-editor-line-height-code: 24px;
+  /* 层级：提示总在最上，悬浮菜单高于抽屉 */
+  --easyx-ai-rich-editor-z-menu: 1200;
+  --easyx-ai-rich-editor-z-drawer: 1300;
+  --easyx-ai-rich-editor-z-tooltip: 1400;
+  --easyx-ai-rich-editor-z-toast: 1500;
 
   /* 预览画布固定为白底：预览的是宿主 HTML 页面本身，不随编辑器主题变化 */
   --easyx-ai-rich-editor-preview-bg: #fff;
+}
+
+/**
+ * 主题作用域：令牌定义 + 三种暗色来源
+ * 优先级：容器 -dark class > 宿主 [data-theme$='dark'] 祖先 > 系统偏好（仅宿主未声明主题时）
+ * 以 mixin 提供，便于 portal 出的浮层在自身根上重建同一作用域
+ */
+@mixin theme-scope {
+  @include metrics;
+  @include light;
+
+  color-scheme: light;
+
+  &.easyx-ai-rich-editor-scope-dark {
+    @include dark;
+
+    color-scheme: dark;
+  }
+
+  [data-theme$='dark'] & {
+    @include dark;
+
+    color-scheme: dark;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme]) & {
+      @include dark;
+
+      color-scheme: dark;
+    }
+  }
 }
 
 /** 细窄滚动条：避免默认滚动条割裂面板 */
@@ -60,5 +132,13 @@
 
   &::-webkit-scrollbar-track {
     background: transparent;
+  }
+}
+
+/** 键盘可达的焦点环：只在键盘导航时出现 */
+@mixin focus-ring {
+  &:focus-visible {
+    outline: 2px solid var(--easyx-ai-rich-editor-primary);
+    outline-offset: 1px;
   }
 }

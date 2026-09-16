@@ -1,0 +1,157 @@
+/**
+ * 浮层样式：Tooltip、下拉菜单、抽屉、轻提示
+ *
+ * 四者都 portal 到 body，根节点自带令牌作用域类（见 _base.scss）。
+ */
+@use 'variables' as v;
+
+/* Tooltip：高对比小气泡，配色在亮暗下与背景反转 */
+.easyx-ai-rich-editor__tooltip {
+  position: fixed;
+  z-index: var(--easyx-ai-rich-editor-z-tooltip);
+  max-width: 260px;
+  padding: 4px 8px;
+  border-radius: var(--easyx-ai-rich-editor-radius-sm);
+  background: var(--easyx-ai-rich-editor-text);
+  box-shadow: var(--easyx-ai-rich-editor-shadow);
+  color: var(--easyx-ai-rich-editor-bg);
+  font-size: var(--easyx-ai-rich-editor-font-size-xs);
+  line-height: 1.5;
+  pointer-events: none;
+  animation: easyx-ai-rich-editor-fade-in 0.12s ease-out;
+}
+
+/* 下拉菜单 */
+.easyx-ai-rich-editor__dropdown {
+  display: inline-flex;
+}
+
+.easyx-ai-rich-editor__menu {
+  position: fixed;
+  z-index: var(--easyx-ai-rich-editor-z-menu);
+  min-width: 140px;
+  padding: 4px;
+  border: 1px solid var(--easyx-ai-rich-editor-border);
+  border-radius: var(--easyx-ai-rich-editor-radius);
+  background: var(--easyx-ai-rich-editor-bg);
+  box-shadow: var(--easyx-ai-rich-editor-shadow-lg);
+  animation: easyx-ai-rich-editor-fade-in 0.12s ease-out;
+}
+
+.easyx-ai-rich-editor__menu-item {
+  display: block;
+  width: 100%;
+  padding: 6px 10px;
+  border: 0;
+  border-radius: var(--easyx-ai-rich-editor-radius-sm);
+  background: transparent;
+  font-size: var(--easyx-ai-rich-editor-font-size-sm);
+  text-align: start;
+  cursor: pointer;
+}
+
+.easyx-ai-rich-editor__menu-item:hover:not(:disabled) {
+  background: var(--easyx-ai-rich-editor-bg-hover);
+}
+
+.easyx-ai-rich-editor__menu-item:disabled {
+  color: var(--easyx-ai-rich-editor-text-tertiary);
+  cursor: not-allowed;
+}
+
+/* 抽屉：遮罩 + 右侧面板 */
+.easyx-ai-rich-editor__drawer-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: var(--easyx-ai-rich-editor-z-drawer);
+  background: var(--easyx-ai-rich-editor-overlay);
+  animation: easyx-ai-rich-editor-fade-in 0.15s ease-out;
+}
+
+.easyx-ai-rich-editor__drawer {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  z-index: calc(var(--easyx-ai-rich-editor-z-drawer) + 1);
+  display: flex;
+  flex-direction: column;
+  max-width: 100vw;
+  border-left: 1px solid var(--easyx-ai-rich-editor-border);
+  background: var(--easyx-ai-rich-editor-bg);
+  box-shadow: var(--easyx-ai-rich-editor-shadow-lg);
+}
+
+.easyx-ai-rich-editor__drawer-head {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px;
+  border-bottom: 1px solid var(--easyx-ai-rich-editor-border);
+}
+
+.easyx-ai-rich-editor__drawer-title {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.easyx-ai-rich-editor__drawer-actions {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 8px;
+}
+
+.easyx-ai-rich-editor__drawer-body {
+  flex: 1;
+  min-height: 0;
+  padding: 16px;
+  overflow: auto;
+
+  @include v.scrollbar;
+}
+
+/* 轻提示 */
+.easyx-ai-rich-editor__toast-host {
+  position: fixed;
+  top: 24px;
+  left: 50%;
+  z-index: var(--easyx-ai-rich-editor-z-toast);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: center;
+  pointer-events: none;
+  transform: translateX(-50%);
+}
+
+.easyx-ai-rich-editor__toast {
+  padding: 6px 14px;
+  border: 1px solid var(--easyx-ai-rich-editor-border);
+  border-radius: var(--easyx-ai-rich-editor-radius);
+  background: var(--easyx-ai-rich-editor-bg);
+  box-shadow: var(--easyx-ai-rich-editor-shadow-lg);
+  font-size: var(--easyx-ai-rich-editor-font-size-sm);
+  animation: easyx-ai-rich-editor-fade-in 0.15s ease-out;
+}
+
+.easyx-ai-rich-editor__toast--success {
+  border-color: transparent;
+  background: var(--easyx-ai-rich-editor-success-soft);
+  color: var(--easyx-ai-rich-editor-success);
+}
+
+.easyx-ai-rich-editor__toast--warning {
+  border-color: transparent;
+  background: var(--easyx-ai-rich-editor-warning-soft);
+  color: var(--easyx-ai-rich-editor-warning);
+}
+
+.easyx-ai-rich-editor__toast--error {
+  border-color: transparent;
+  background: var(--easyx-ai-rich-editor-danger-soft);
+  color: var(--easyx-ai-rich-editor-danger);
+}

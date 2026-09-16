@@ -1,38 +1,27 @@
 /**
  * 设置面板：统一展示/编辑包配置项（保存后生效）
- * 编辑内容暂存于 Form，点击「保存」后回写 runtimeConfig 并触发 onConfigChange
+ *
+ * 编辑内容暂存为受控草稿，点击「保存」后回写 runtimeConfig 并触发 onConfigChange；
+ * 打开时用当前配置重置草稿，取消则直接丢弃。
  */
-import {
-  Button,
-  Collapse,
-  Drawer,
-  Form,
-  Input,
-  Switch,
-  Tag,
-  Typography,
-} from 'antd';
-import { useEffect } from 'react';
+import { useEffect, useId, useState } from 'react';
 import { SETTINGS_DRAWER_WIDTH } from '../constants';
 import { buildDefaultSystemPrompt } from '../prompts';
 import type { AiRichEditorConfig } from '../types';
-
-const { Paragraph, Text } = Typography;
+import { Button } from '../ui/primitives/Button';
+import { Collapse } from '../ui/primitives/Collapse';
+import { Drawer } from '../ui/primitives/Drawer';
+import { Field, Stack, Tag, Text } from '../ui/primitives/layout';
+import { Switch } from '../ui/primitives/Switch';
+import { TextArea } from '../ui/primitives/TextArea';
 
 interface SettingsPanelProps {
   open: boolean;
-  /** 当前生效的配置（用于初始化表单与只读展示） */
+  /** 当前生效的配置（用于初始化草稿与只读展示） */
   config: AiRichEditorConfig;
   onClose: () => void;
   onSave: (config: AiRichEditorConfig) => void;
 }
-
-/** 设置面板可编辑字段（notify 为只读展示，不在此表单项内；height 为顶层 prop） */
-type SettingsFormValues = {
-  autoApply: boolean;
-  systemPrompt?: string;
-  previewHead?: string;
-};
 
 export function SettingsPanel({
   open,
@@ -40,102 +29,102 @@ export function SettingsPanel({
   onClose,
   onSave,
 }: SettingsPanelProps) {
-  const [form] = Form.useForm<SettingsFormValues>();
-  // 实时监听自定义提示词是否填写，用于切换「当前生效」标识
-  const customPrompt = Form.useWatch('systemPrompt', form);
-  const hasCustomPrompt = Boolean(customPrompt?.trim());
+  const [autoApply, setAutoApply] = useState(config.autoApply ?? true);
+  const [systemPrompt, setSystemPrompt] = useState(config.systemPrompt ?? '');
+  const [previewHead, setPreviewHead] = useState(config.previewHead ?? '');
+  const promptId = useId();
+  const headId = useId();
 
-  // 打开时用当前配置初始化表单
+  // 打开时用当前配置重置草稿，避免上次未保存的编辑残留
   useEffect(() => {
-    if (open) {
-      form.setFieldsValue({
-        autoApply: config.autoApply ?? true,
-        systemPrompt: config.systemPrompt ?? '',
-        previewHead: config.previewHead ?? '',
-      });
-    }
-  }, [open, config, form]);
+    if (!open) return;
+    setAutoApply(config.autoApply ?? true);
+    setSystemPrompt(config.systemPrompt ?? '');
+    setPreviewHead(config.previewHead ?? '');
+  }, [open, config]);
 
-  const handleOk = async () => {
-    const values = await form.validateFields();
+  const hasCustomPrompt = Boolean(systemPrompt.trim());
+
+  const handleSave = () => {
     onSave({
       ...config,
-      autoApply: values.autoApply,
-      systemPrompt: values.systemPrompt?.trim()
-        ? values.systemPrompt
-        : undefined,
-      previewHead: values.previewHead?.trim() ? values.previewHead : undefined,
+      autoApply,
+      previewHead: previewHead.trim() ? previewHead : undefined,
+      systemPrompt: systemPrompt.trim() ? systemPrompt : undefined,
     });
   };
 
   return (
     <Drawer
-      title="设置"
-      width={SETTINGS_DRAWER_WIDTH}
-      open={open}
-      onClose={onClose}
       extra={
         <>
-          <Button size="small" onClick={onClose}>
+          <Button onClick={onClose} size="sm">
             取消
           </Button>
-          <Button size="small" type="primary" onClick={() => void handleOk()}>
+          <Button onClick={handleSave} size="sm" variant="primary">
             保存
           </Button>
         </>
       }
+      onClose={onClose}
+      open={open}
+      title="设置"
+      width={SETTINGS_DRAWER_WIDTH}
     >
-      <Form form={form} layout="vertical" requiredMark={false}>
-        <Form.Item
-          label="自动应用到编辑器"
-          name="autoApply"
-          valuePropName="checked"
-        >
-          <Switch checkedChildren="开" unCheckedChildren="关" />
-        </Form.Item>
+      <Stack size="lg">
+        <Stack direction="row" size="sm" justify="between">
+          <Text>自动应用到编辑器</Text>
+          <Switch
+            aria-label="自动应用到编辑器"
+            checked={autoApply}
+            checkedChildren="开"
+            onChange={setAutoApply}
+            unCheckedChildren="关"
+          />
+        </Stack>
 
         {/* 生效状态：随「是否填写自定义提示词」切换 */}
         <div className="easyx-ai-rich-editor__settings-status">
-          <Text type="secondary">当前生效：</Text>
-          <Tag color={hasCustomPrompt ? 'blue' : 'default'}>
+          <Text tone="secondary" size="sm">
+            当前生效：
+          </Text>
+          <Tag tone={hasCustomPrompt ? 'primary' : 'default'}>
             {hasCustomPrompt ? '自定义' : '内置默认'}
           </Tag>
         </div>
-        <Form.Item label="自定义 system 提示词" name="systemPrompt">
-          <Input.TextArea rows={6} placeholder="留空则使用内置默认提示词" />
-        </Form.Item>
 
-        <Form.Item label="预览附加代码（注入 &lt;head&gt;）" name="previewHead">
-          <Input.TextArea
-            rows={5}
-            placeholder="如：<style>body{...}</style>，原样注入预览 head"
+        <Field htmlFor={promptId} label="自定义 system 提示词">
+          <TextArea
+            id={promptId}
+            onChange={setSystemPrompt}
+            placeholder="留空则使用内置默认提示词"
+            rows={6}
+            value={systemPrompt}
           />
-        </Form.Item>
-      </Form>
+        </Field>
 
-      <div className="easyx-ai-rich-editor__settings-notify">
-        <Text type="secondary">
+        <Field htmlFor={headId} label="预览附加代码（注入 <head>）">
+          <TextArea
+            id={headId}
+            onChange={setPreviewHead}
+            placeholder="如：<style>body{...}</style>，原样注入预览 head"
+            rows={5}
+            value={previewHead}
+          />
+        </Field>
+
+        <Text block size="xs" tone="secondary">
           消息提示：
-          {config.notify ? '已配置（宿主回调）' : '使用默认 antd 提示'}
+          {config.notify ? '已配置（宿主回调）' : '使用包内置轻提示'}
         </Text>
-      </div>
 
-      {/* 内置默认提示词（只读参考，默认折叠） */}
-      <Collapse
-        className="easyx-ai-rich-editor__settings-collapse"
-        size="small"
-        items={[
-          {
-            key: 'default-prompt',
-            label: '内置默认提示词',
-            children: (
-              <Paragraph className="easyx-ai-rich-editor__settings-prompt">
-                {buildDefaultSystemPrompt()}
-              </Paragraph>
-            ),
-          },
-        ]}
-      />
+        {/* 内置默认提示词（只读参考，默认折叠） */}
+        <Collapse title="内置默认提示词">
+          <pre className="easyx-ai-rich-editor__settings-prompt">
+            {buildDefaultSystemPrompt()}
+          </pre>
+        </Collapse>
+      </Stack>
     </Drawer>
   );
 }

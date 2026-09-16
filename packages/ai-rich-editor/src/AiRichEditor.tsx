@@ -4,7 +4,6 @@
  * value / onChange 兼容受控注入；对话能力由调用方通过 adapter 注入；
  * 包配置项统一收拢到 config，经设置面板编辑保存生效
  */
-import { message, Splitter } from 'antd';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   createInstanceChatOverrides,
@@ -21,6 +20,9 @@ import type {
   AiRichEditorProps,
   AiRichNotify,
 } from './types';
+import { cx, SCOPE_CLASS } from './ui/cx';
+import { Splitter, SplitterPane } from './ui/Splitter';
+import { toast } from './ui/toast';
 import {
   buildPreviewDocument,
   currentHtmlFragment,
@@ -32,12 +34,13 @@ import { generateScopePrefix, scopedRichContent } from './utils/scope';
 const LIVE_SYNC_CHAR_THRESHOLD = 200;
 
 /**
- * 缺省消息提示：宿主未注入 notify 时用 antd 静态 message 兜底（与包文档一致）
+ * 缺省消息提示：宿主未注入 notify 时用包内置轻提示兜底
  *
- * 静态 message 不走 ConfigProvider 上下文，需要跟随宿主主题的场景请自行注入 notify。
+ * 内置提示是挂到 body 的独立浮层，不随宿主主题容器走；需要完全跟随宿主主题
+ * 或替换为宿主自己的提示组件时，注入 notify 即可。
  */
 const defaultNotify: AiRichNotify = (type, content) => {
-  message[type](content);
+  toast(type, content);
 };
 
 export function AiRichEditor({
@@ -156,10 +159,10 @@ export function AiRichEditor({
 
   const editorCfg = useMemo(
     () => ({
-      systemPrompt,
-      requestMeta,
-      onApplyHtml: handleApplyHtml,
       notify,
+      onApplyHtml: handleApplyHtml,
+      requestMeta,
+      systemPrompt,
     }),
     [systemPrompt, requestMeta, handleApplyHtml, notify],
   );
@@ -176,70 +179,67 @@ export function AiRichEditor({
 
   return (
     <div
-      className="easyx-ai-rich-editor"
+      className={cx('easyx-ai-rich-editor', SCOPE_CLASS)}
       style={{
         height: typeof height === 'number' ? `${height}px` : height,
       }}
     >
       <Toolbar
-        html={value}
         deviceKey={deviceKey}
-        onDeviceKeyChange={setDeviceKey}
-        scriptsEnabled={scriptsEnabled}
-        onToggleScripts={() => setScriptsEnabled((prev) => !prev)}
-        onRefresh={() => setReloadKey((k) => k + 1)}
-        onOpenInNewWindow={handleOpenInNewWindow}
-        showEditor={showEditor}
-        onToggleEditor={() => setShowEditor((prev) => !prev)}
-        onOpenSettings={() => setSettingsOpen(true)}
+        html={value}
         notify={notify}
+        onDeviceKeyChange={setDeviceKey}
+        onOpenInNewWindow={handleOpenInNewWindow}
+        onOpenSettings={() => setSettingsOpen(true)}
+        onRefresh={() => setReloadKey((k) => k + 1)}
+        onToggleEditor={() => setShowEditor((prev) => !prev)}
+        onToggleScripts={() => setScriptsEnabled((prev) => !prev)}
+        scriptsEnabled={scriptsEnabled}
+        showEditor={showEditor}
       />
 
-      <Splitter className="easyx-ai-rich-editor__body" orientation="horizontal">
+      <Splitter className="easyx-ai-rich-editor__body">
         {/* 左栏：预览区（编辑器开启时与编辑器并排） */}
-        <Splitter.Panel>
+        <SplitterPane>
           {showEditor ? (
-            <Splitter
-              className="easyx-ai-rich-editor__body-inner"
-              orientation="horizontal"
-            >
-              <Splitter.Panel min={300}>
+            <Splitter className="easyx-ai-rich-editor__body-inner">
+              <SplitterPane min={300}>
                 <EditorPanel value={value} onChange={onChange} />
-              </Splitter.Panel>
-              <Splitter.Panel min={320}>
+              </SplitterPane>
+              <SplitterPane min={320}>
                 <PreviewPanel
-                  html={value}
                   deviceKey={deviceKey}
-                  scriptsEnabled={scriptsEnabled}
-                  reloadKey={reloadKey}
+                  html={value}
                   previewHead={previewHead}
+                  reloadKey={reloadKey}
+                  scriptsEnabled={scriptsEnabled}
                 />
-              </Splitter.Panel>
+              </SplitterPane>
             </Splitter>
           ) : (
             <PreviewPanel
-              html={value}
               deviceKey={deviceKey}
-              scriptsEnabled={scriptsEnabled}
-              reloadKey={reloadKey}
+              html={value}
               previewHead={previewHead}
+              reloadKey={reloadKey}
+              scriptsEnabled={scriptsEnabled}
             />
           )}
-        </Splitter.Panel>
+        </SplitterPane>
 
         {/* 右栏：AI 对话面板 */}
-        <Splitter.Panel defaultSize={420} min={400} max={600}>
+        <SplitterPane defaultSize={420} max={600} min={400}>
           <EditorCfgContext.Provider value={editorCfg}>
             <chat.AppChat />
           </EditorCfgContext.Provider>
-        </Splitter.Panel>
+        </SplitterPane>
       </Splitter>
 
       <SettingsPanel
-        open={settingsOpen}
         config={runtimeConfig}
         onClose={() => setSettingsOpen(false)}
         onSave={handleSaveSettings}
+        open={settingsOpen}
       />
     </div>
   );

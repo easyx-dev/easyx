@@ -1,0 +1,72 @@
+/**
+ * 基础层：令牌作用域根、盒模型与字体继承
+ *
+ * 主容器与所有 portal 出的浮层（抽屉、菜单、Tooltip、轻提示）都带 easyx-ai-rich-editor-scope，
+ * 令牌与暗色判定都挂在该类上，因此浮层脱离宿主 DOM 层级后依然成立。
+ */
+@use 'variables' as v;
+
+.easyx-ai-rich-editor-scope {
+  @include v.theme-scope;
+
+  /* 字体继承宿主，不强制字体栈；等宽仅在代码类元素上单独指定 */
+  font-family: inherit;
+  font-size: var(--easyx-ai-rich-editor-font-size-md);
+  line-height: 1.5714;
+  color: var(--easyx-ai-rich-editor-text);
+  text-align: start;
+
+  *,
+  *::before,
+  *::after {
+    box-sizing: border-box;
+  }
+
+  button,
+  input,
+  select,
+  textarea {
+    font: inherit;
+    color: inherit;
+  }
+}
+
+/** 可滚动区域统一细窄滚动条 */
+.easyx-ai-rich-editor__scroll {
+  @include v.scrollbar;
+}
+
+/** 加载指示：纯 CSS 圆环，颜色跟随 currentColor */
+.easyx-ai-rich-editor__spinner {
+  display: inline-block;
+  flex-shrink: 0;
+  width: 14px;
+  height: 14px;
+  border: 2px solid currentcolor;
+  border-top-color: transparent;
+  border-radius: 50%;
+  color: var(--easyx-ai-rich-editor-primary);
+  animation: easyx-ai-rich-editor-spin 0.8s linear infinite;
+}
+
+.easyx-ai-rich-editor__spinner--sm {
+  width: 12px;
+  height: 12px;
+  border-width: 1.5px;
+}
+
+@keyframes easyx-ai-rich-editor-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes easyx-ai-rich-editor-fade-in {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}

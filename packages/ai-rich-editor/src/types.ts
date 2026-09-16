@@ -3,7 +3,7 @@
  * 协议层与 UI 库无关，由宿主透传 SSE 端点（TanStack AI useChat 消费）
  */
 
-/** 消息提示回调（可选注入；缺省用 antd 静态 message） */
+/** 消息提示回调（可选注入；缺省用包内置轻提示 toast） */
 export type AiRichNotify = (
   type: 'success' | 'warning' | 'error',
   content: string,
@@ -20,11 +20,11 @@ export interface AiRichEditorConfig {
   systemPrompt?: string;
   /** 预览容器 <head> 附加代码（一段原始 HTML，如内置 <style>/<script>，原样注入） */
   previewHead?: string;
-  /** 消息提示回调（可选，缺省 antd 静态 message；设置面板只读展示） */
+  /** 消息提示回调（可选，缺省用包内置轻提示；设置面板只读展示） */
   notify?: AiRichNotify;
 }
 
-/** 三栏编辑器 Props（兼容 antd Form.Item 受控注入） */
+/** 编辑器 Props */
 export interface AiRichEditorProps {
   /** 当前 HTML 内容 */
   value?: string;
