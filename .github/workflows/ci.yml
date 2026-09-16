@@ -13,9 +13,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # pnpm 版本由根 package.json 的 packageManager 字段决定，此处不传 version
       - uses: pnpm/action-setup@v4
-        with:
-          version: 10.18.0
 
       - uses: actions/setup-node@v4
         with:
@@ -25,8 +24,8 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Build tiptap-table-plus
-        run: pnpm --filter @easyx/tiptap-table-plus build
+      - name: Build packages
+        run: pnpm build:packages
 
       - name: Lint check
         run: pnpm exec biome check .

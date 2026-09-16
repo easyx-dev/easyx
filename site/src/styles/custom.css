@@ -289,6 +289,7 @@
   text-decoration: line-through;
 }
 
+.height-demo-intro code,
 .demo-editor-body .ProseMirror code {
   padding: 1px 5px;
   border-radius: 4px;
@@ -532,14 +533,6 @@
   font-size: 13px;
   line-height: 1.7;
   color: var(--demo-text);
-}
-
-.height-demo-intro code {
-  padding: 1px 5px;
-  border-radius: 4px;
-  background: var(--demo-code-bg);
-  color: var(--demo-code-color);
-  font-size: 12px;
 }
 
 .height-demo-case {

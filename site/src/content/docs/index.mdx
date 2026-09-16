@@ -1,39 +1,49 @@
 ---
-title: EasyX Editor
+title: EasyX
 template: splash
 hero:
-  title: EasyX Editor
-  tagline: 富文本编辑器 & 表格增强套件
+  title: EasyX
+  tagline: 面向现代 Web 的独立库集合，共用一套文档与演示
   actions:
     - text: Editor
-      link: /easyx-editor/editor/
+      link: /easyx/editor/
       variant: primary
       icon: right-arrow
-    - text: Table Kit
-      link: /easyx-editor/table-plus/
+    - text: Table Plus
+      link: /easyx/table-plus/
       variant: secondary
       icon: right-arrow
 ---
 
-import { Card, CardGrid } from '@astrojs/starlight/components';
+import { Card, CardGrid, LinkCard } from '@astrojs/starlight/components';
+
+EasyX 以 pnpm monorepo 维护一系列相互独立的库：每个库单独安装、独立发版，共用同一套文档站点与演示环境。
+
+## 库
 
 <CardGrid>
-  <Card title="零 UI 框架依赖">
-    选区边框、操作手柄和上下文菜单均使用原生 DOM 构建，不依赖任何 UI 框架，可嵌入任意前端项目。
+  <LinkCard
+    title="@easyx/editor"
+    description="零框架依赖的 Tiptap 富文本编辑器，内置工具栏、气泡菜单、媒体上传与高度控制。"
+    href="/easyx/editor/"
+  />
+  <LinkCard
+    title="@easyx/tiptap-table-plus"
+    description="Tiptap 表格增强套件：行列操作、单元格样式、70 色背景与中英文右键菜单。"
+    href="/easyx/table-plus/"
+  />
+</CardGrid>
+
+## 设计原则
+
+<CardGrid>
+  <Card title="独立发版">
+    各库版本独立维护，推送 main 后仅发布版本号有变化的包，不强制版本对齐。
   </Card>
-  <Card title="暗色主题">
-    通过 CSS 自定义属性实现完整暗色模式，支持运行时 setTheme() 动态切换，所有组件秒级响应。
+  <Card title="按需引入">
+    每个库都提供完整类型声明，可单独安装、单独升级，互不牵连。
   </Card>
-  <Card title="70 色调色板">
-    10 种色相 × 7 级明度，支持方向键导航和无障碍访问，选中颜色实时应用到单元格文字或背景。
-  </Card>
-  <Card title="丰富的行列操作">
-    支持行/列的插入、删除、移动、复制和排序，通过语义化的链式命令 API 调用。
-  </Card>
-  <Card title="国际化">
-    内置简体中文和 English 语言包，支持部分字段的自定义翻译覆盖，轻松适配任意语言。
-  </Card>
-  <Card title="Bundleless ESM">
-    每个文件独立编译输出，支持 Tree Shaking，按需加载。仅 ESM 格式，面向现代 Web 应用。
+  <Card title="统一演示">
+    所有库共用本站点，演示运行在独立页面中，与文档正文互不干扰。
   </Card>
 </CardGrid>

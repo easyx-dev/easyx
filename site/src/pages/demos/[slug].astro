@@ -1,26 +1,32 @@
 ---
-import EditorDemo from '../../components/demos/editor-demo.tsx';
-import HeightDemo from '../../components/demos/height-demo.tsx';
-import TablePlusDemo from '../../components/demos/table-plus-demo.tsx';
-import VanillaDemo from '../../components/demos/vanilla-demo.tsx';
+import DemoHost from '../../components/DemoHost.tsx';
+import { demos } from '../../components/demos/registry.ts';
+// Demo 页面独立于文档布局，需自带站点级演示样式
 import '../../styles/custom.css';
 
 export function getStaticPaths() {
-  return ['editor-demo', 'vanilla-demo', 'table-plus-demo', 'height-demo'].map(
-    (slug) => ({ params: { slug } }),
-  );
+  return demos.map((demo) => ({ params: { slug: demo.slug } }));
 }
 
 const { slug } = Astro.params;
+const demo = demos.find((item) => item.slug === slug);
 ---
 
-<html>
+<html lang="zh-CN">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>{demo?.title ?? slug}</title>
+    <style is:inline>
+      html.embedded,
+      html.embedded body {
+        overflow: hidden;
+      }
+    </style>
     <script is:inline>
+      // 脚本位于 head，此时 body 尚未创建，内嵌判定与主题都只操作 documentElement
       if (window.self !== window.top) {
-        document.body.style.overflow = 'hidden';
+        document.documentElement.classList.add('embedded');
       }
 
       const params = new URLSearchParams(window.location.search);
@@ -35,10 +41,7 @@ const { slug } = Astro.params;
     </script>
   </head>
   <body style="margin:0;">
-    {slug === 'editor-demo' && <EditorDemo client:load />}
-    {slug === 'vanilla-demo' && <VanillaDemo client:load />}
-    {slug === 'table-plus-demo' && <TablePlusDemo client:load />}
-    {slug === 'height-demo' && <HeightDemo client:load />}
+    <DemoHost slug={slug} client:only="react" />
     <script is:inline>
       function sendHeight() {
         const height = document.documentElement.scrollHeight;

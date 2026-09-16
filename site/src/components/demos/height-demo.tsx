@@ -28,12 +28,20 @@ function useIsDark(): boolean {
   return isDark;
 }
 
-/** 模拟上传：读为 DataURL */
-function simulateUpload(file: File): Promise<{ url: string; name: string }> {
+/** 模拟上传：读为 DataURL，返回编辑器要求的媒体项结构 */
+function simulateUpload(
+  file: File,
+): Promise<{ id: string; url: string; name: string; size: number }> {
   return new Promise((resolve) => {
     const reader = new FileReader();
-    reader.onload = () =>
-      resolve({ url: reader.result as string, name: file.name });
+    reader.onload = () => {
+      resolve({
+        id: file.name,
+        url: reader.result as string,
+        name: file.name,
+        size: file.size,
+      });
+    };
     reader.readAsDataURL(file);
   });
 }

@@ -22,9 +22,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # pnpm 版本由根 package.json 的 packageManager 字段决定，此处不传 version
       - uses: pnpm/action-setup@v4
-        with:
-          version: 10.18.0
 
       - uses: actions/setup-node@v4
         with:
@@ -35,13 +34,19 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      # 遍历 packages/* 中的全部非 private 包，比对本地版本与 npm 已发布版本
       - name: Detect changed packages
         id: detect
         run: |
           CHANGED=""
-          for SPEC in "@easyx/tiptap-table-plus:packages/tiptap-table-plus" "@easyx/editor:packages/editor"; do
-            NAME="${SPEC%%:*}"
-            DIR="${SPEC##*:}"
+          for DIR in packages/*; do
+            [ -d "${DIR}" ] || continue
+            NAME=$(node -p "require('./${DIR}/package.json').name || ''")
+            [ -n "${NAME}" ] || continue
+            if [ "$(node -p "require('./${DIR}/package.json').private === true")" = "true" ]; then
+              echo "${NAME}: private，跳过"
+              continue
+            fi
             VERSION=$(node -p "require('./${DIR}/package.json').version")
             PUBLISHED=$(pnpm view "${NAME}" version 2>/dev/null || true)
             echo "${NAME}: local=${VERSION} published=${PUBLISHED}"
@@ -55,13 +60,9 @@ jobs:
         if: steps.detect.outputs.changed == ''
         run: echo "没有包版本与 npm 不一致，跳过发布"
 
-      - name: Build tiptap-table-plus
+      - name: Build packages
         if: steps.detect.outputs.changed != ''
-        run: pnpm --filter @easyx/tiptap-table-plus build
-
-      - name: Build editor
-        if: steps.detect.outputs.changed != '' && contains(steps.detect.outputs.changed, '@easyx/editor')
-        run: pnpm --filter @easyx/editor build
+        run: pnpm build:packages
 
       - name: Lint check
         if: steps.detect.outputs.changed != ''
@@ -71,13 +72,29 @@ jobs:
         if: steps.detect.outputs.changed != ''
         run: pnpm test
 
-      - name: Publish @easyx/tiptap-table-plus
-        if: steps.detect.outputs.changed != '' && contains(steps.detect.outputs.changed, '@easyx/tiptap-table-plus')
-        run: pnpm --filter @easyx/tiptap-table-plus publish --no-git-checks --access public
+      - name: Publish changed packages
+        if: steps.detect.outputs.changed != ''
+        env:
+          CHANGED: ${{ steps.detect.outputs.changed }}
+          # 发布顺序：被依赖的包在前。新增库需按依赖关系追加到此列表
+          PUBLISH_ORDER: '@easyx/tiptap-table-plus @easyx/editor'
+        run: |
+          for NAME in ${CHANGED}; do
+            case " ${PUBLISH_ORDER} " in
+              *" ${NAME} "*) ;;
+              *) echo "::error::${NAME} 未登记在 PUBLISH_ORDER 中，请按依赖顺序补充后再发布"; exit 1 ;;
+            esac
+          done
 
-      - name: Publish @easyx/editor
-        if: steps.detect.outputs.changed != '' && contains(steps.detect.outputs.changed, '@easyx/editor')
-        run: pnpm --filter @easyx/editor publish --no-git-checks --access public
+          for NAME in ${PUBLISH_ORDER}; do
+            case " ${CHANGED} " in
+              *" ${NAME} "*) ;;
+              *) continue ;;
+            esac
+            echo "::group::发布 ${NAME}"
+            pnpm --filter "${NAME}" publish --no-git-checks --access public
+            echo "::endgroup::"
+          done
 
       - name: 飞书通知（发布成功）
         if: success() && steps.detect.outputs.changed != ''

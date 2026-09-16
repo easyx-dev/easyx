@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { getDemoEntry } from './demos/registry';
 
 interface IframeDemoProps {
   /** Demo 页面 slug，对应 src/components/demos/ 下的文件名（不含扩展名） */
   slug: string;
-  /** 工具栏显示的标题，默认使用 slug */
+  /** 工具栏显示的标题，缺省时取注册表中的演示标题 */
   title?: string;
   /** 源码内容，可选。传入后显示"查看代码"按钮 */
   sourceCode?: string;
@@ -12,6 +13,20 @@ interface IframeDemoProps {
 function getParentTheme(): string {
   if (typeof document === 'undefined') return 'light';
   return document.documentElement.getAttribute('data-theme') || 'light';
+}
+
+/**
+ * 同步复制兜底：execCommand 已废弃，但非安全上下文（HTTP）下没有可用的替代 API，
+ * 这里以结构化类型声明调用，绕开 TypeScript 对该 API 的弃用提示
+ */
+function execLegacyCopy(): boolean {
+  const execCommand = (
+    document as unknown as { execCommand?: (commandId: string) => boolean }
+  ).execCommand;
+
+  return (
+    typeof execCommand === 'function' && execCommand.call(document, 'copy')
+  );
 }
 
 export default function IframeDemo({
@@ -74,14 +89,14 @@ export default function IframeDemo({
       textarea.style.opacity = '0';
       document.body.appendChild(textarea);
       textarea.select();
-      document.execCommand('copy');
+      execLegacyCopy();
       document.body.removeChild(textarea);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     }
   }, [sourceCode]);
 
-  const displayTitle = title || slug;
+  const displayTitle = title || getDemoEntry(slug)?.title || slug;
 
   return (
     <div className="demo-iframe-wrapper">

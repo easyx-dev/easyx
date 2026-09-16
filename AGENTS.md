@@ -2,16 +2,19 @@
 
 ## 项目概况
 
-基于 Tiptap 的零框架依赖编辑器工具包，采用 pnpm monorepo 组织，包含编辑器核心、表格增强套件和文档站点三个子包。
+EasyX 系列库的 pnpm monorepo：每个库独立安装、独立发版，共用一套 Astro + Starlight 文档站点与演示环境。当前包含编辑器核心、表格增强套件与文档站点。
+
+新增库时遵循「新增一个库」章节，无需改动仓库整体结构。
 
 ## 工程结构
 
 ```
 .agents/                     # AI Agent 技能与命令定义
 ├── commands/
-│   └── deploy.md            # 发布前置命令：检测两包变动与范围并升级版本号
+│   └── deploy.md            # 发布前置命令：检测各库变动与范围并升级版本号
 ├── skills/
 │   ├── rslib-best-practices/
+│   ├── rspress-custom-theme/
 │   └── rspress-description-generator/
 .opencode/
 └── commands -> ../.agents/commands   # 软连接到 .agents/commands，供 opencode 读取
@@ -113,29 +116,29 @@ packages/
 │       │   └── node-utils.ts     # PM 节点收集与批量属性更新
 │       └── styles/
 │   └── table.scss        # 表格样式（SCSS）+ CSS 自定义属性
-site/                        # Astro + Starlight 文档站点
-├── astro.config.mjs         # Astro 配置（Starlight 插件 + React 集成）
+site/                        # Astro + Starlight 文档站点（系列库共用）
+├── astro.config.mjs         # Astro 配置（Starlight 插件 + React 集成 + 按库分组的侧边栏）
 ├── package.json
 ├── tsconfig.json
 └── src/
     ├── components/
-    │   ├── demo-sources.ts       # Demo 源码展示数据
+    │   ├── DemoHost.tsx          # Demo 宿主：按 slug 懒加载演示组件（client:only 孤岛）
+    │   ├── demo-sources.ts       # Demo 源码文本读取（?raw glob，供「查看代码」面板）
     │   ├── IframeDemo.tsx        # iframe 嵌入 Demo 组件
-    │   └── demos/               # 交互式 Demo
+    │   └── demos/                # 交互式 Demo
+    │       ├── registry.ts       # Demo 注册表：slug / 标题 / 懒加载入口的唯一登记点
     │       ├── editor-demo.tsx
     │       ├── vanilla-demo.tsx
     │       ├── table-plus-demo.tsx
-    │       ├── height-demo.tsx
-    │       ├── theme-demo.tsx
-    │       └── i18n-demo.tsx
+    │       └── height-demo.tsx
     ├── content/
     │   ├── config.ts
-    │   └── docs/                # MDX 文档
-    │       ├── index.mdx
+    │   └── docs/                # MDX 文档，一个库一个目录
+    │       ├── index.mdx        # 系列概览（splash 落地页）
     │       ├── editor/          # 编辑器文档
-    │       └── table-plus/       # 表格套件文档
+    │       └── table-plus/      # 表格套件文档
     ├── pages/
-    │   └── demos/[slug].astro   # Demo 独立页面路由
+    │   └── demos/[slug].astro   # Demo 独立页面路由（静态路径由 registry 派生）
     └── styles/
         └── custom.css           # Starlight 自定义样式
 ```
@@ -146,14 +149,14 @@ site/                        # Astro + Starlight 文档站点
 |------|------|------|
 | 编辑器引擎 | Tiptap v3 / ProseMirror | 3.x |
 | UI 层 | **纯 DOM（零框架依赖）** + `@floating-ui/dom` 定位 | — |
-| React（仅 demo） | React 19 + react-dom + @tiptap/react | 19.x |
+| React | React 19 + react-dom（Demo 与 React 类库；库内声明为 `peerDependencies`） | 19.x |
 | 构建（包） | Rslib（Rspack）+ `@rslib/core` | — |
 | 构建（站点） | Astro + Starlight | 5.x |
 | 语言 | TypeScript（strict） | 6.x |
 | 样式 | SCSS（`@rsbuild/plugin-sass`） | — |
 | Lint/Format | Biome | 2.x |
 | 测试 | Rstest + `@rstest/adapter-rslib` + `happy-dom` | — |
-| 包管理 | pnpm（monorepo） | 10.x |
+| 包管理 | pnpm（monorepo） | 12.x |
 
 ## 构建约定
 
@@ -177,8 +180,27 @@ site/                        # Astro + Starlight 文档站点
 ### 站点构建
 
 - 使用 Astro (`astro build`) 静态生成，部署到 GitHub Pages
-- `astro.config.mjs` 中配置 `base: '/easyx-editor/'`
+- `astro.config.mjs` 中配置 `base: '/easyx/'`，站点地址为 `https://easyx-dev.github.io/easyx/`
 - 集成 `@astrojs/starlight`（文档框架）+ `@astrojs/react`（Demo 组件）
+- 站点为全系列库共用：侧边栏按库分组，文档按 `docs/<库目录>/` 组织，Demo 在 `demos/registry.ts` 登记后自动生成路由
+
+### 新增一个库
+
+新增库时按下表逐项落地，避免遗漏站点或发布链路：
+
+| 项 | 约定 |
+|----|------|
+| 目录 / 包名 | `packages/<lib>/`，包名 `@easyx/<lib>`，`version` 独立维护 |
+| 构建 | Rslib（`rslib.config.ts`）；公共库设 `dts: true` 并声明 `files: ["dist"]` |
+| 依赖声明 | 被消费方自行安装的运行时依赖（React / antd / monaco 等）一律放 `peerDependencies`，构建中 external |
+| 类型入口 | `exports` 声明 `types`，包根提供 `types` 字段 |
+| 测试 | `rstest.config.ts` 使用 `@rstest/adapter-rslib`；DOM 场景按需选 happy-dom 或 jsdom |
+| 命名空间 | 类名与 CSS 变量统一 `easyx-<lib>` 前缀，避免多库样式互相污染 |
+| 文档 | `site/src/content/docs/<lib>/` 新增文档，`astro.config.mjs` 侧边栏追加分组 |
+| Demo | Demo 组件放 `site/src/components/demos/`，在 `demos/registry.ts` 登记（slug 需全站唯一，约定 `<lib>-<demo>`） |
+| 发布 | 在 `.github/workflows/release.yml` 的 `PUBLISH_ORDER` 中按依赖顺序登记包名 |
+
+Demo 组件统一以 `client:only` 挂载（无 SSR，保证重依赖不进文档站主包），因此**不能依赖 SSR 行为**：使用 `@tiptap/react` 的 `useEditor` 时必须显式传 `immediatelyRender: false`，否则编辑器实例会被 Tiptap 的销毁定时器提前释放，导致 effect 中访问 `editor.commands` 抛错。
 
 ## 架构约定
 
@@ -326,24 +348,28 @@ const editor = createEditor(containerElement, {
 
 | workflow | 触发时机 | 职责 |
 |----------|----------|------|
-| `ci.yml` | PR、dev/main 推送 | Biome 只读检查（`pnpm exec biome check .`）+ `pnpm test` 质量门禁 |
-| `release.yml` | main 推送、手动触发 | 比对两包本地 `version` 与 npm 已发布版本，仅发布不一致的包；`@easyx/tiptap-table-plus` 先于 `@easyx/editor` 发布 |
-| `deploy.yml` | main 推送、手动触发 | 构建两包与站点，部署 GitHub Pages |
+| `ci.yml` | PR、dev/main 推送 | 构建全部库 + Biome 只读检查（`pnpm exec biome check .`）+ `pnpm test` 质量门禁 |
+| `release.yml` | main 推送、手动触发 | 遍历 `packages/*` 非 private 包，比对本地 `version` 与 npm 已发布版本，仅发布不一致的包，发布顺序由 `PUBLISH_ORDER` 决定（被依赖的包在前） |
+| `deploy.yml` | main 推送、手动触发 | 构建全部库与站点，部署 GitHub Pages |
 
 `release.yml` 与 `deploy.yml` 在成功/失败后经 `.github/actions/feishu-notify/` 复合 Action 推送飞书 interactive 卡片通知，依赖组织级 Secret `FEISHU_WEBHOOK`（群机器人 webhook）。
 
+pnpm 版本以根 `package.json` 的 `packageManager` 字段为唯一来源：workflow 中的 `pnpm/action-setup` **不传 `version` 输入**，由 action 自动读取该字段。`pnpm/action-setup` 在 `version` 输入与 `packageManager` 字段同时存在且不一致时会直接报错终止，禁止两处重复声明。
+
 ### 发布流程
 
-- 两包版本**独立维护**，不要求一致；只 bump 需要发布的包
+- 各库版本**独立维护**，不要求一致；只 bump 需要发布的包
 - `pnpm publish` 依赖 `NODE_AUTH_TOKEN`（对应仓库 `NPM_TOKEN` secret），发布前自动改写 `workspace:*` 为实际版本
-- 发布前置：可运行 `deploy` 命令（`.agents/commands/deploy.md`）自动检测两包变动与范围并升级版本号；也可手动 bump `version` → 推送 main → `release.yml` 检测版本差异后自动发布
+- 发布前置：可运行 `deploy` 命令（`.agents/commands/deploy.md`）自动检测各库变动与范围并升级版本号；也可手动 bump `version` → 推送 main → `release.yml` 检测版本差异后自动发布
+- 新增库后需在 `PUBLISH_ORDER` 中按依赖顺序补登记，否则不会被发布
 
 ## 命令
 
 | 命令 | 说明 |
 |------|------|
-| `pnpm dev` | 构建 editor + table-plus，同时启动 Astro 站点开发服务器 |
-| `pnpm build` | 构建所有包（editor + table-plus + site） |
+| `pnpm dev` | 构建全部库，同时启动 Astro 站点开发服务器 |
+| `pnpm build` | 构建全部库 + 文档站点 |
+| `pnpm build:packages` | 仅构建 `packages/*` 下的全部库 |
 | `pnpm build:site` | 仅构建文档站点 |
 | `pnpm check` | Biome 代码检查并自动修复 |
 | `pnpm format` | Biome 代码格式化 |

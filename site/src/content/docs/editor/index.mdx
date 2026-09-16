@@ -3,12 +3,29 @@ title: Editor 概览
 description: EasyX Editor 核心编辑器快速导航
 ---
 
-import { LinkCard, CardGrid } from '@astrojs/starlight/components';
+import { Card, CardGrid, LinkCard } from '@astrojs/starlight/components';
 
 通过 `createEditor` 创建的全功能编辑器，包含工具栏、气泡菜单、媒体上传和主题切换。
 
 <CardGrid>
-  <LinkCard title="编辑器演示" href="/easyx-editor/editor/demo/" />
-  <LinkCard title="原生 API" href="/easyx-editor/editor/vanilla-demo/" />
-  <LinkCard title="API 参考" href="/easyx-editor/editor/api-reference/" />
+  <LinkCard title="编辑器演示" href="/easyx/editor/demo/" />
+  <LinkCard title="原生 API" href="/easyx/editor/vanilla-demo/" />
+  <LinkCard title="API 参考" href="/easyx/editor/api-reference/" />
+</CardGrid>
+
+## 特性
+
+<CardGrid>
+  <Card title="零 UI 框架依赖">
+    工具栏、气泡菜单与选中浮层均以原生 DOM 构建，可嵌入任意前端项目。
+  </Card>
+  <Card title="媒体能力">
+    图片、视频、音频、附件均支持上传 / URL / 媒体库三种插入方式，粘贴与拖入的文件自动按类型路由。
+  </Card>
+  <Card title="高度控制">
+    height / minHeight / maxHeight / resizable 四种配置覆盖自适应、定高与拖拽调节。
+  </Card>
+  <Card title="暗色主题">
+    全部颜色由 CSS 自定义属性控制，setTheme() 运行时切换并同步表格主题。
+  </Card>
 </CardGrid>

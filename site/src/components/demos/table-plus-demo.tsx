@@ -65,6 +65,10 @@ export default function TablePlusDemo() {
         }),
       ],
       content: savedContentRef.current,
+      // 演示以 client:only 挂载（无 SSR），必须关闭立即渲染：
+      // 否则编辑器实例会在首次渲染时创建，而 Tiptap 的销毁定时器可能先于 effect 触发，
+      // 释放掉实例后 effect 访问 editor.commands 会抛错
+      immediatelyRender: false,
     },
     [locale, customMenu],
   );

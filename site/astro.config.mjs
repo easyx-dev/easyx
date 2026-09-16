@@ -3,14 +3,14 @@ import starlight from '@astrojs/starlight';
 import { defineConfig } from 'astro/config';
 
 export default defineConfig({
-  base: '/easyx-editor/',
-  site: 'https://easyx-dev.github.io/easyx-editor/',
+  base: '/easyx/',
+  site: 'https://easyx-dev.github.io/easyx/',
   integrations: [
     react(),
     starlight({
-      title: 'EasyX Editor',
+      title: 'EasyX',
       description:
-        '基于 Tiptap 的零框架依赖表格扩展套件，提供丰富的媒体编辑能力与可定制主题系统',
+        'EasyX 系列独立库：零框架依赖的 Tiptap 富文本编辑器、表格增强套件，以及更多 Web 能力',
       defaultLocale: 'root',
       locales: {
         root: { label: '简体中文', lang: 'zh-CN' },
@@ -19,11 +19,13 @@ export default defineConfig({
         {
           icon: 'github',
           label: 'GitHub',
-          href: 'https://github.com/easyx-dev/easyx-editor',
+          href: 'https://github.com/easyx-dev/easyx',
         },
       ],
       customCss: ['./src/styles/custom.css'],
+      // 侧边栏按库分组，一个库一个分组；新增库在此追加分组
       sidebar: [
+        { label: '系列概览', link: '/' },
         {
           label: 'Editor',
           items: [
