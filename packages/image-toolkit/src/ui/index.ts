@@ -5,6 +5,7 @@
  * 服务端请使用包根入口的纯逻辑导出（sniffImage / metrics 等），
  * 根入口禁止静态引用引擎，避免 wasm glue 被打进服务端 bundle。
  */
+import './styles/index.scss';
 
 export * from './components';
 export {

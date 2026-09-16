@@ -1,0 +1,191 @@
+/**
+ * 反馈类：行内提示、进度条、加载指示、Tooltip
+ */
+
+/* 行内提示：错误与需要用户行动的提示才用，普通说明走 Hint */
+.easyx-image-toolkit__alert {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  padding: 8px 12px;
+  border: 1px solid var(--easyx-image-toolkit-border);
+  border-radius: var(--easyx-image-toolkit-radius);
+  background: var(--easyx-image-toolkit-bg-subtle);
+  font-size: var(--easyx-image-toolkit-font-size-xs);
+}
+
+.easyx-image-toolkit__alert--info {
+  border-color: transparent;
+  background: var(--easyx-image-toolkit-primary-soft);
+  color: var(--easyx-image-toolkit-primary);
+}
+
+.easyx-image-toolkit__alert--success {
+  border-color: transparent;
+  background: var(--easyx-image-toolkit-success-soft);
+  color: var(--easyx-image-toolkit-success);
+}
+
+.easyx-image-toolkit__alert--warning {
+  border-color: transparent;
+  background: var(--easyx-image-toolkit-warning-soft);
+  color: var(--easyx-image-toolkit-warning);
+}
+
+.easyx-image-toolkit__alert--error {
+  border-color: transparent;
+  background: var(--easyx-image-toolkit-danger-soft);
+  color: var(--easyx-image-toolkit-danger);
+}
+
+.easyx-image-toolkit__alert-icon {
+  display: flex;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.easyx-image-toolkit__alert-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.easyx-image-toolkit__alert-title {
+  font-weight: 600;
+}
+
+.easyx-image-toolkit__alert-desc {
+  margin-top: 2px;
+  overflow-wrap: anywhere;
+  color: var(--easyx-image-toolkit-text-secondary);
+}
+
+.easyx-image-toolkit__alert-action {
+  flex-shrink: 0;
+}
+
+/* 进度条：percent 为 null 时切到不确定态（下载总长未知） */
+.easyx-image-toolkit__progress {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+}
+
+.easyx-image-toolkit__progress-track {
+  flex: 1;
+  min-width: 0;
+  height: 6px;
+  overflow: hidden;
+  border-radius: 3px;
+  background: var(--easyx-image-toolkit-bg-active);
+}
+
+.easyx-image-toolkit__progress-bar {
+  height: 100%;
+  border-radius: 3px;
+  background: var(--easyx-image-toolkit-primary);
+  transition: width 0.2s;
+}
+
+.easyx-image-toolkit__progress-bar--indeterminate {
+  width: 32%;
+  animation: easyx-image-toolkit-progress 1.2s ease-in-out infinite;
+}
+
+.easyx-image-toolkit__progress-value {
+  flex-shrink: 0;
+  min-width: 34px;
+  font-size: var(--easyx-image-toolkit-font-size-xs);
+  font-variant-numeric: tabular-nums;
+  text-align: end;
+  color: var(--easyx-image-toolkit-text-secondary);
+}
+
+/* 加载指示：纯 CSS 圆环，颜色跟随 currentColor */
+.easyx-image-toolkit__spinner {
+  display: inline-block;
+  flex-shrink: 0;
+  width: 16px;
+  height: 16px;
+  border: 2px solid currentcolor;
+  border-top-color: transparent;
+  border-radius: 50%;
+  color: var(--easyx-image-toolkit-primary);
+  animation: easyx-image-toolkit-spin 0.8s linear infinite;
+}
+
+.easyx-image-toolkit__spinner--sm {
+  width: 12px;
+  height: 12px;
+  border-width: 1.5px;
+}
+
+.easyx-image-toolkit__spinner--lg {
+  width: 28px;
+  height: 28px;
+  border-width: 3px;
+}
+
+/* 加载包裹：有子内容时盖一层半透明遮罩，无子内容时只居中显示圆环 */
+.easyx-image-toolkit__spin-wrap {
+  position: relative;
+}
+
+.easyx-image-toolkit__spin-mask {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--easyx-image-toolkit-bg-mask);
+}
+
+.easyx-image-toolkit__spin-center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 80px;
+}
+
+/* Tooltip：高对比小气泡，配色在亮暗下与背景反转 */
+.easyx-image-toolkit__tooltip {
+  position: fixed;
+  z-index: var(--easyx-image-toolkit-z-tooltip);
+  max-width: 260px;
+  padding: 4px 8px;
+  border-radius: var(--easyx-image-toolkit-radius-sm);
+  background: var(--easyx-image-toolkit-text);
+  box-shadow: var(--easyx-image-toolkit-shadow);
+  color: var(--easyx-image-toolkit-bg);
+  font-size: var(--easyx-image-toolkit-font-size-xs);
+  line-height: 1.5;
+  pointer-events: none;
+  animation: easyx-image-toolkit-fade-in 0.12s ease-out;
+}
+
+@keyframes easyx-image-toolkit-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes easyx-image-toolkit-progress {
+  0% {
+    transform: translateX(-100%);
+  }
+
+  100% {
+    transform: translateX(320%);
+  }
+}
+
+@keyframes easyx-image-toolkit-fade-in {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}

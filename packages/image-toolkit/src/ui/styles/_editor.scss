@@ -1,0 +1,170 @@
+/**
+ * 图片编辑器的业务布局：弹窗主体两栏、控制栏分组、底栏、预览区与裁切台
+ *
+ * 这里只放静态外观；凡是随数据变化的定位/尺寸（裁切偏移、对比分隔线位置）
+ * 仍由组件以内联样式给出。
+ */
+
+/* 弹窗主体：左预览 + 右控制栏 */
+.easyx-image-toolkit__editor {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+}
+
+.easyx-image-toolkit__editor-stage {
+  flex: 1;
+  min-width: 0;
+}
+
+.easyx-image-toolkit__editor-side {
+  flex-shrink: 0;
+  width: 360px;
+}
+
+/* 控制栏分组：标题 + 内容，组间用分割线隔开 */
+.easyx-image-toolkit__group + .easyx-image-toolkit__group {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--easyx-image-toolkit-border);
+}
+
+.easyx-image-toolkit__group-body {
+  margin-top: 8px;
+}
+
+/* 底栏：左状态右动作，窄屏换行 */
+.easyx-image-toolkit__footer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--easyx-image-toolkit-border);
+}
+
+.easyx-image-toolkit__footer-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+/* 居中提示块：格式不支持、像素超限等不可继续的情形 */
+.easyx-image-toolkit__center-note {
+  padding: 32px 0;
+  text-align: center;
+}
+
+/* 源图读取中的占位：撑住弹窗高度，避免加载完成瞬间高度跳变 */
+.easyx-image-toolkit__placeholder {
+  height: 200px;
+}
+
+/* 预览区下方的错误提示 */
+.easyx-image-toolkit__stage-alert {
+  margin-top: 8px;
+}
+
+.easyx-image-toolkit__center-note-line {
+  display: block;
+}
+
+.easyx-image-toolkit__center-note-line + .easyx-image-toolkit__center-note-line {
+  margin-top: 4px;
+}
+
+/* 对比预览：容器宽度为基准，两层图像各自按数据定位 */
+.easyx-image-toolkit__compare {
+  position: relative;
+  width: 100%;
+  overflow: hidden;
+  /* 透明区域的棋盘底纹：让 PNG 的透明与留白可区分 */
+  background: repeating-conic-gradient(
+      rgb(0 0 0 / 4%) 0% 25%,
+      transparent 0% 50%
+    )
+    50% / 16px 16px;
+  user-select: none;
+  touch-action: none;
+}
+
+.easyx-image-toolkit__compare--draggable {
+  cursor: ew-resize;
+}
+
+.easyx-image-toolkit__compare-img {
+  position: absolute;
+  max-width: none;
+}
+
+.easyx-image-toolkit__compare-clip {
+  position: absolute;
+  inset: 0;
+}
+
+.easyx-image-toolkit__compare-handle {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: #fff;
+  box-shadow: 0 0 4px rgb(0 0 0 / 40%);
+  cursor: ew-resize;
+}
+
+.easyx-image-toolkit__compare-knob {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 6px rgb(0 0 0 / 35%);
+  font-size: 12px;
+  color: #666;
+  transform: translate(-50%, -50%);
+}
+
+.easyx-image-toolkit__compare-badge {
+  position: absolute;
+  top: 8px;
+  padding: 1px 6px;
+  background: rgb(0 0 0 / 50%);
+  font-size: 12px;
+  color: #fff;
+  pointer-events: none;
+}
+
+.easyx-image-toolkit__compare-badge--start {
+  left: 8px;
+}
+
+.easyx-image-toolkit__compare-badge--end {
+  right: 8px;
+}
+
+/* 裁切台：黑底画布 + 比例/缩放工具行 */
+.easyx-image-toolkit__crop-stage {
+  position: relative;
+  width: 100%;
+  background: #000;
+}
+
+.easyx-image-toolkit__crop-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  margin-top: 12px;
+}
+
+.easyx-image-toolkit__crop-zoom {
+  margin-top: 4px;
+}

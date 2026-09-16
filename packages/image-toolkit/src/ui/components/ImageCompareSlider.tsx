@@ -10,10 +10,12 @@
  * 另一处必须注意的是裁剪基准：`clip-path` 的百分比按**元素自身**宽度解析，
  * 而分隔线按**容器**宽度定位。原图元素的宽度/偏移通常都不等于容器，
  * 因此裁剪要套在「容器尺寸的 wrapper」上，否则裁切边界会与分隔线分离。
+ * 该 wrapper 的 inset/clip-path 属于算法几何（百分比基准），故仍以内联样式给出。
  */
 import { useCallback, useRef, useState } from 'react';
 import type { ImageCrop, ImageSize } from '../../types';
 import { useElementSize } from '../hooks/useElementSize';
+import { cx } from '../utils/cx';
 
 export interface ImageCompareSliderProps {
   /** 原图地址 */
@@ -103,7 +105,7 @@ export function ImageCompareSlider({
 
   // 容器尚未测量到时只渲染占位，避免除零
   if (container.width === 0 || container.height === 0) {
-    return <div ref={containerRef} style={{ width: '100%', height }} />;
+    return <div ref={containerRef} style={{ height, width: '100%' }} />;
   }
 
   const comparing = resultUrl !== null && resultSize !== null;
@@ -119,10 +121,10 @@ export function ImageCompareSlider({
 
   // 原图与处理后同像素密度；无处理结果时原图自行 contain
   const rect = resultSourceRect ?? {
+    height: sourceSize.height,
     left: 0,
     top: 0,
     width: sourceSize.width,
-    height: sourceSize.height,
   };
   const sourceScale = comparing
     ? resultScale * (resultSize.width / rect.width)
@@ -131,8 +133,8 @@ export function ImageCompareSlider({
         container.height / sourceSize.height,
       );
   const sourceDisplay = {
-    width: sourceSize.width * sourceScale,
     height: sourceSize.height * sourceScale,
+    width: sourceSize.width * sourceScale,
   };
   // 处理后图像居中显示；原图按同一像素密度渲染，并把裁切区左上角对齐到该位置
   const resultLeft = (container.width - displayWidth) / 2;
@@ -146,36 +148,29 @@ export function ImageCompareSlider({
 
   return (
     <div
-      ref={containerRef}
-      style={{
-        position: 'relative',
-        width: '100%',
-        height,
-        overflow: 'hidden',
-        background:
-          'repeating-conic-gradient(rgba(0,0,0,0.04) 0% 25%, transparent 0% 50%) 50% / 16px 16px',
-        cursor: comparing ? 'ew-resize' : 'default',
-        userSelect: 'none',
-        touchAction: 'none',
-      }}
+      className={cx(
+        'easyx-image-toolkit__compare',
+        comparing && 'easyx-image-toolkit__compare--draggable',
+      )}
+      onPointerCancel={comparing ? handlePointerUp : undefined}
       onPointerDown={comparing ? handlePointerDown : undefined}
       onPointerMove={comparing ? handlePointerMove : undefined}
       onPointerUp={comparing ? handlePointerUp : undefined}
-      onPointerCancel={comparing ? handlePointerUp : undefined}
+      ref={containerRef}
+      style={{ height }}
     >
       {/* 底层：处理后（占满其显示区域） */}
       {comparing && (
         <img
-          src={resultUrl}
           alt="处理后"
+          className="easyx-image-toolkit__compare-img"
           draggable={false}
+          src={resultUrl}
           style={{
-            position: 'absolute',
+            height: displayHeight,
             left: resultLeft,
             top: resultTop,
             width: displayWidth,
-            height: displayHeight,
-            maxWidth: 'none',
           }}
         />
       )}
@@ -188,22 +183,21 @@ export function ImageCompareSlider({
 			*/}
       <div
         style={{
-          position: 'absolute',
-          inset: 0,
           clipPath: comparing ? `inset(0 ${100 - position}% 0 0)` : undefined,
+          inset: 0,
+          position: 'absolute',
         }}
       >
         <img
-          src={sourceUrl}
           alt="原图"
+          className="easyx-image-toolkit__compare-img"
           draggable={false}
+          src={sourceUrl}
           style={{
-            position: 'absolute',
+            height: sourceDisplay.height,
             left: sourceLeft,
             top: sourceTop,
             width: sourceDisplay.width,
-            height: sourceDisplay.height,
-            maxWidth: 'none',
           }}
         />
       </div>
@@ -211,68 +205,31 @@ export function ImageCompareSlider({
       {/* 分隔线与拖动手柄 */}
       {comparing && (
         <div
-          role="slider"
           aria-label="对比位置"
-          aria-valuemin={0}
           aria-valuemax={100}
+          aria-valuemin={0}
           aria-valuenow={Math.round(position)}
-          tabIndex={0}
+          className="easyx-image-toolkit__compare-handle"
           onKeyDown={handleKeyDown}
-          style={{
-            position: 'absolute',
-            left: `calc(${position}% - 1px)`,
-            top: 0,
-            bottom: 0,
-            width: 2,
-            background: '#fff',
-            boxShadow: '0 0 4px rgba(0,0,0,0.4)',
-            cursor: 'ew-resize',
-          }}
+          role="slider"
+          style={{ left: `calc(${position}% - 1px)` }}
+          tabIndex={0}
         >
-          <span
-            style={{
-              position: 'absolute',
-              top: '50%',
-              left: '50%',
-              transform: 'translate(-50%, -50%)',
-              width: 28,
-              height: 28,
-              borderRadius: '50%',
-              background: '#fff',
-              boxShadow: '0 1px 6px rgba(0,0,0,0.35)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontSize: 12,
-              color: '#666',
-            }}
-          >
-            ⇄
-          </span>
+          <span className="easyx-image-toolkit__compare-knob">⇄</span>
         </div>
       )}
 
       {/* 角标 */}
       {comparing && (
         <>
-          <span style={badgeStyle('left')}>原图</span>
-          <span style={badgeStyle('right')}>处理后</span>
+          <span className="easyx-image-toolkit__compare-badge easyx-image-toolkit__compare-badge--start">
+            原图
+          </span>
+          <span className="easyx-image-toolkit__compare-badge easyx-image-toolkit__compare-badge--end">
+            处理后
+          </span>
         </>
       )}
     </div>
   );
-}
-
-/** 左上/右上角标样式 */
-function badgeStyle(side: 'left' | 'right'): React.CSSProperties {
-  return {
-    position: 'absolute',
-    top: 8,
-    [side]: 8,
-    padding: '1px 6px',
-    fontSize: 12,
-    color: '#fff',
-    background: 'rgba(0,0,0,0.5)',
-    pointerEvents: 'none',
-  };
 }

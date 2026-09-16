@@ -5,11 +5,11 @@
  * objectFit 必须为 cover：contain 会让裁切框超出图像而产生越界坐标。
  * 容器尺寸为 0 时（隐藏 / 未测量）react-easy-crop 会算出 NaN，此处直接丢弃该回调。
  */
-import { Button, Radio, Slider, Space, Typography } from 'antd';
 import { useCallback, useState } from 'react';
 import Cropper, { type Area } from 'react-easy-crop';
 import 'react-easy-crop/react-easy-crop.css';
 import type { ImageCrop } from '../../types';
+import { Button, Field, Segmented, Slider, Text } from '../primitives';
 
 /** 裁切比例预设；aspect 为 undefined 表示自由裁切 */
 const ASPECT_PRESETS: { key: string; label: string; aspect?: number }[] = [
@@ -20,6 +20,10 @@ const ASPECT_PRESETS: { key: string; label: string; aspect?: number }[] = [
   { key: '16:9', label: '16:9', aspect: 16 / 9 },
   { key: '9:16', label: '9:16', aspect: 9 / 16 },
 ];
+
+/** 画布缩放区间 */
+const ZOOM_MIN = 1;
+const ZOOM_MAX = 3;
 
 /** 按比例值反查预设 key（undefined 命中「自由」） */
 function findAspectKey(aspect: number | undefined): string {
@@ -58,10 +62,10 @@ export function ImageCropStage({
         return;
       }
       onCropAreaChange({
+        height: Math.round(croppedAreaPixels.height),
         left: Math.round(croppedAreaPixels.x),
         top: Math.round(croppedAreaPixels.y),
         width: Math.round(croppedAreaPixels.width),
-        height: Math.round(croppedAreaPixels.height),
       });
     },
     [onCropAreaChange],
@@ -69,64 +73,58 @@ export function ImageCropStage({
 
   return (
     <div>
-      <div
-        style={{
-          position: 'relative',
-          width: '100%',
-          height,
-          background: '#000',
-        }}
-      >
+      <div className="easyx-image-toolkit__crop-stage" style={{ height }}>
         <Cropper
-          image={imageUrl}
-          crop={crop}
-          zoom={zoom}
           aspect={aspect}
+          crop={crop}
+          image={imageUrl}
           objectFit="cover"
           onCropChange={setCrop}
-          onZoomChange={setZoom}
           onCropComplete={handleComplete}
+          onZoomChange={setZoom}
+          zoom={zoom}
         />
       </div>
 
-      <Space size="small" wrap style={{ marginTop: 12 }}>
-        <Typography.Text type="secondary">比例</Typography.Text>
-        <Radio.Group
-          size="small"
-          optionType="button"
-          value={findAspectKey(aspect)}
-          onChange={(event) => {
-            const preset = ASPECT_PRESETS.find(
-              (item) => item.key === event.target.value,
-            );
+      <div className="easyx-image-toolkit__crop-toolbar">
+        <Text size="xs" tone="secondary">
+          比例
+        </Text>
+        <Segmented
+          aria-label="裁切比例"
+          onChange={(key) => {
+            const preset = ASPECT_PRESETS.find((item) => item.key === key);
             onAspectChange(preset?.aspect);
           }}
           options={ASPECT_PRESETS.map((preset) => ({
             label: preset.label,
             value: preset.key,
           }))}
+          value={findAspectKey(aspect)}
         />
         <Button
-          size="small"
           onClick={() => {
             setCrop({ x: 0, y: 0 });
             setZoom(1);
           }}
+          size="sm"
         >
           重置
         </Button>
-      </Space>
+      </div>
 
-      <div style={{ marginTop: 4 }}>
-        <Typography.Text type="secondary">缩放画布</Typography.Text>
-        <Slider
-          min={1}
-          max={3}
-          step={0.01}
-          value={zoom}
-          onChange={setZoom}
-          tooltip={{ formatter: (value) => `${value ?? 1}x` }}
-        />
+      <div className="easyx-image-toolkit__crop-zoom">
+        <Field label="缩放画布">
+          <Slider
+            aria-label="缩放画布"
+            format={(value) => `${value.toFixed(2)}×`}
+            max={ZOOM_MAX}
+            min={ZOOM_MIN}
+            onChange={setZoom}
+            step={0.01}
+            value={zoom}
+          />
+        </Field>
       </div>
     </div>
   );

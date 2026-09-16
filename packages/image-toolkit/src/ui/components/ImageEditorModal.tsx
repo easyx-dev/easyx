@@ -4,7 +4,6 @@
  * 单视图布局：左侧大预览（拖动对比 / 裁切台），右侧控制栏三组参数同屏可见，
  * 底部常驻体积对比与保存动作。参数变化后自动防抖预览，无需手动「生成」。
  */
-import { Alert, Modal, Spin, Typography } from 'antd';
 import { useCallback, useEffect, useState } from 'react';
 import { IMAGE_LIMITS, isProcessableFormat } from '../../limits';
 import { sniffImage } from '../../sniff';
@@ -23,6 +22,7 @@ import {
 import { probeImage } from '../engine/client';
 import { toErrorMessage } from '../engine/errors';
 import { useImagePreview } from '../hooks/useImagePreview';
+import { Alert, Modal, Spin, Text } from '../primitives';
 import { ImageEditorControls } from './ImageEditorControls';
 import { ImageEditorFooter } from './ImageEditorFooter';
 import { ImageEditorStage } from './ImageEditorStage';
@@ -54,6 +54,11 @@ export interface ImageEditorModalProps {
   onReplace: (result: ImageProcessResult) => Promise<void>;
   /** 另存为新文件；不传则不展示该选项 */
   onSaveAsNew?: (result: ImageProcessResult, fileName: string) => Promise<void>;
+  /**
+   * 显式主题；缺省时按「宿主 [data-theme] 祖先 → 系统偏好」判定
+   * 弹窗渲染在 portal 中，宿主若把 data-theme 挂在 html 之外的祖先上则继承不到
+   */
+  theme?: 'light' | 'dark';
   onClose: () => void;
 }
 
@@ -82,7 +87,7 @@ async function fetchSource(
 /** 嗅探能给出尺寸时直接采用；给出 null 的格式（如 TIFF）由引擎补测 */
 function sniffedSize(info: ImageSniffResult): ImageSize | null {
   if (info.width !== null && info.height !== null) {
-    return { width: info.width, height: info.height };
+    return { height: info.height, width: info.width };
   }
   return null;
 }
@@ -93,6 +98,7 @@ export function ImageEditorModal({
   fileName,
   onReplace,
   onSaveAsNew,
+  theme,
   onClose,
 }: ImageEditorModalProps) {
   const [source, setSource] = useState<{
@@ -135,45 +141,48 @@ export function ImageEditorModal({
 
   return (
     <Modal
+      onClose={onClose}
       open={open}
+      theme={theme}
       title={`编辑图片 · ${fileName}`}
       width="min(1280px, 92vw)"
-      centered
-      onCancel={onClose}
-      footer={null}
-      // 关闭即卸载：裁切器被隐藏时量得容器尺寸为 0，会算出 NaN 裁切区
-      destroyOnHidden
     >
       <Spin spinning={loadingSource}>
         {loadError ? (
           <Alert
-            type="error"
+            description={loadError}
             showIcon
             title="读取原图失败"
-            description={loadError}
+            type="error"
           />
         ) : !source ? (
-          <div style={{ height: 200 }} />
+          <div className="easyx-image-toolkit__placeholder" />
         ) : !processable ? (
-          <div style={{ padding: '32px 0', textAlign: 'center' }}>
-            <Typography.Text type="warning">
+          <div className="easyx-image-toolkit__center-note">
+            <Text
+              className="easyx-image-toolkit__center-note-line"
+              tone="warning"
+            >
               {source.info.format.toUpperCase()} 格式不支持编辑
-            </Typography.Text>
-            <br />
-            <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+            </Text>
+            <Text
+              className="easyx-image-toolkit__center-note-line"
+              size="xs"
+              tone="secondary"
+            >
               当前仅支持 JPEG / PNG / WebP / GIF / TIFF。
-            </Typography.Text>
+            </Text>
           </div>
         ) : (
           <ImageEngineGate>
             <EditorBody
               bytes={source.bytes}
-              info={source.info}
-              src={src}
               fileName={fileName}
+              info={source.info}
+              onClose={onClose}
               onReplace={onReplace}
               onSaveAsNew={onSaveAsNew}
-              onClose={onClose}
+              src={src}
             />
           </ImageEngineGate>
         )}
@@ -222,7 +231,7 @@ function EditorBody({
     let cancelled = false;
     probeImage(bytes).then((meta) => {
       if (cancelled || !meta) return;
-      const size = { width: meta.width, height: meta.height };
+      const size = { height: meta.height, width: meta.width };
       setSourceSize(size);
       setSettings(createDefaultSettings(size));
     });
@@ -234,9 +243,9 @@ function EditorBody({
   // 唯一的预览来源：预览区与底栏共用同一次处理结果
   const preview = useImagePreview({
     bytes,
-    sourceSize,
-    sourceFormat: info.format,
     settings,
+    sourceFormat: info.format,
+    sourceSize,
   });
   const result = preview.result;
 
@@ -255,7 +264,7 @@ function EditorBody({
     return () => URL.revokeObjectURL(url);
   }, [result]);
 
-  /** 统一的设置更新入口：收敛「无损不允许缩放」等模式联动 */
+  // 设置更新入口：收敛「无损不允许缩放」等模式联动
   const patchSettings = useCallback(
     (patch: Partial<EditorSettings>) => {
       setSettings((current) =>
@@ -267,21 +276,29 @@ function EditorBody({
     [sourceSize, info.format],
   );
 
-  if (!sourceSize || !settings) return <Spin spinning />;
+  if (!sourceSize || !settings)
+    return (
+      <div>
+        <Spin />
+      </div>
+    );
 
   // 像素上限：超大图在 wasm 内解码/编码会吃掉大量内存，直接拒绝而非硬跑
   if (sourceSize.width * sourceSize.height > IMAGE_LIMITS.maxInputPixels) {
     return (
-      <div style={{ padding: '32px 0', textAlign: 'center' }}>
-        <Typography.Text type="warning">
+      <div className="easyx-image-toolkit__center-note">
+        <Text className="easyx-image-toolkit__center-note-line" tone="warning">
           图片像素过大（{sourceSize.width} × {sourceSize.height}
           ），不在浏览器内处理
-        </Typography.Text>
-        <br />
-        <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+        </Text>
+        <Text
+          className="easyx-image-toolkit__center-note-line"
+          size="xs"
+          tone="secondary"
+        >
           当前上限为 {Math.round(IMAGE_LIMITS.maxInputPixels / 1_000_000)}{' '}
           万像素。
-        </Typography.Text>
+        </Text>
       </div>
     );
   }
@@ -290,49 +307,43 @@ function EditorBody({
 
   return (
     <>
-      <div style={{ display: 'flex', gap: 16, alignItems: 'flex-start' }}>
-        <div style={{ flex: 1, minWidth: 0 }}>
+      <div className="easyx-image-toolkit__editor">
+        <div className="easyx-image-toolkit__editor-stage">
           <ImageEditorStage
-            src={src}
-            sourceSize={sourceSize}
-            preview={bundle}
-            cropMode={cropMode}
             aspect={aspect}
+            cropMode={cropMode}
             onAspectChange={setAspect}
             onCropDraftChange={setCropDraft}
+            preview={bundle}
+            sourceSize={sourceSize}
+            src={src}
           />
         </div>
-        <div style={{ width: 360, flexShrink: 0 }}>
+        <div className="easyx-image-toolkit__editor-side">
           <ImageEditorControls
-            sourceSize={sourceSize}
-            info={info}
-            settings={settings}
-            onPatch={patchSettings}
             cropMode={cropMode}
+            info={info}
+            onPatch={patchSettings}
             onStartCrop={() => {
               setCropDraft(settings.crop);
               setAspect(undefined);
               setCropMode(true);
             }}
+            settings={settings}
+            sourceSize={sourceSize}
           />
         </div>
       </div>
 
       <ImageEditorFooter
-        sourceBytes={bytes.byteLength}
-        sourceMimeType={info.mimeType}
-        preview={bundle}
-        cropMode={cropMode}
+        allowSaveAs={onSaveAsNew !== undefined}
         cropDraft={cropDraft}
+        cropMode={cropMode}
+        onClose={onClose}
         onFinishCrop={(applied) => {
           if (applied) patchSettings({ crop: cropDraft });
           setCropMode(false);
         }}
-        settings={settings}
-        saveMode={saveMode}
-        onSaveModeChange={setSaveMode}
-        allowSaveAs={onSaveAsNew !== undefined}
-        saving={saving}
         onSave={async (next) => {
           setSaving(true);
           try {
@@ -343,14 +354,20 @@ function EditorBody({
             }
             onClose();
           } catch (error) {
-            // 用户可见的错误提示由宿主负责（SFn 调用方已统一提示）；
+            // 用户可见的错误提示由宿主负责（保存回调调用方已统一提示）；
             // 此处吞掉避免未捕获的 promise rejection，保留 console 诊断
             console.warn('[图片编辑] 保存失败', error);
           } finally {
             setSaving(false);
           }
         }}
-        onClose={onClose}
+        onSaveModeChange={setSaveMode}
+        preview={bundle}
+        saveMode={saveMode}
+        saving={saving}
+        settings={settings}
+        sourceBytes={bytes.byteLength}
+        sourceMimeType={info.mimeType}
       />
     </>
   );

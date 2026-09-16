@@ -2,10 +2,10 @@
  * 图片引擎门控：就绪后渲染子内容，加载中展示进度，失败提供重试入口
  */
 
-import { Alert, Button, Progress, Space, Typography } from 'antd';
 import { type ReactNode, useEffect } from 'react';
 import type { ImageEngineState } from '../engine/protocol';
 import { useImageEngine } from '../hooks/useImageEngine';
+import { Alert, Button, Progress, Stack, Text } from '../primitives';
 import { formatBytes } from '../utils/format-bytes';
 
 export interface ImageEngineGateProps {
@@ -40,15 +40,15 @@ export function ImageEngineGate({ children }: ImageEngineGateProps) {
   if (engine.stage === 'error') {
     return (
       <Alert
-        type="error"
-        showIcon
-        title="图片引擎加载失败"
-        description={engine.message}
         action={
-          <Button size="small" onClick={() => void engine.retry()}>
+          <Button onClick={() => void engine.retry()} size="sm">
             重试
           </Button>
         }
+        description={engine.message}
+        showIcon
+        title="图片引擎加载失败"
+        type="error"
       />
     );
   }
@@ -56,14 +56,14 @@ export function ImageEngineGate({ children }: ImageEngineGateProps) {
   const percent =
     engine.stage === 'downloading' && engine.ratio !== null
       ? Math.round(engine.ratio * 100)
-      : undefined;
+      : null;
 
   return (
-    <Space orientation="vertical" size="small" style={{ width: '100%' }}>
-      <Progress percent={percent} status="active" />
-      <Typography.Text type="secondary">
+    <Stack size="sm">
+      <Progress aria-label="图片引擎加载进度" percent={percent} />
+      <Text size="xs" tone="secondary">
         {buildLoadingHint(engine)}
-      </Typography.Text>
-    </Space>
+      </Text>
+    </Stack>
   );
 }

@@ -1,0 +1,125 @@
+/**
+ * 按钮：默认描边 / 主要 / 文字 / 链接 / 危险 五种外观，sm 与 md 两档高度
+ */
+@use 'variables' as v;
+
+.easyx-image-toolkit__btn {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: var(--easyx-image-toolkit-control-height);
+  padding: 0 12px;
+  border: 1px solid var(--easyx-image-toolkit-border);
+  border-radius: var(--easyx-image-toolkit-radius);
+  background: var(--easyx-image-toolkit-bg);
+  color: var(--easyx-image-toolkit-text);
+  font-size: var(--easyx-image-toolkit-font-size-md);
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    color 0.15s,
+    border-color 0.15s,
+    background-color 0.15s;
+
+  @include v.focus-ring;
+}
+
+.easyx-image-toolkit__btn:hover:not(:disabled) {
+  border-color: var(--easyx-image-toolkit-primary);
+  color: var(--easyx-image-toolkit-primary);
+}
+
+.easyx-image-toolkit__btn:disabled {
+  color: var(--easyx-image-toolkit-text-tertiary);
+  cursor: not-allowed;
+}
+
+/* 小号：与面板内其余控件同高 */
+.easyx-image-toolkit__btn--sm {
+  height: var(--easyx-image-toolkit-control-height-sm);
+  padding: 0 8px;
+  font-size: var(--easyx-image-toolkit-font-size-xs);
+}
+
+/* 主要动作：保存、应用裁切 */
+.easyx-image-toolkit__btn--primary {
+  border-color: var(--easyx-image-toolkit-primary);
+  background: var(--easyx-image-toolkit-primary);
+  color: var(--easyx-image-toolkit-on-primary);
+}
+
+.easyx-image-toolkit__btn--primary:hover:not(:disabled) {
+  border-color: var(--easyx-image-toolkit-primary-hover);
+  background: var(--easyx-image-toolkit-primary-hover);
+  color: var(--easyx-image-toolkit-on-primary);
+}
+
+.easyx-image-toolkit__btn--primary:disabled {
+  border-color: var(--easyx-image-toolkit-border);
+  background: var(--easyx-image-toolkit-bg-subtle);
+  color: var(--easyx-image-toolkit-text-tertiary);
+}
+
+/* 文字按钮：无描边，悬停出浅底 */
+.easyx-image-toolkit__btn--text {
+  height: auto;
+  padding: 4px 8px;
+  border-color: transparent;
+  background: transparent;
+}
+
+.easyx-image-toolkit__btn--text:hover:not(:disabled) {
+  background: var(--easyx-image-toolkit-bg-hover);
+}
+
+/* 链接按钮：无描边无底，主色文字 */
+.easyx-image-toolkit__btn--link {
+  height: auto;
+  padding: 0;
+  border-color: transparent;
+  background: transparent;
+  color: var(--easyx-image-toolkit-primary);
+}
+
+.easyx-image-toolkit__btn--link:hover:not(:disabled) {
+  color: var(--easyx-image-toolkit-primary-hover);
+}
+
+/* 危险外观：用于不可恢复的动作 */
+.easyx-image-toolkit__btn--danger:hover:not(:disabled) {
+  border-color: var(--easyx-image-toolkit-danger);
+  color: var(--easyx-image-toolkit-danger);
+}
+
+/* 纯图标按钮：方形无内边距，如弹窗关闭 */
+.easyx-image-toolkit__btn--icon {
+  width: var(--easyx-image-toolkit-control-height);
+  height: var(--easyx-image-toolkit-control-height);
+  padding: 0;
+  border-color: transparent;
+  background: transparent;
+  font-size: 16px;
+}
+
+.easyx-image-toolkit__btn--icon:hover:not(:disabled) {
+  background: var(--easyx-image-toolkit-bg-hover);
+}
+
+/* 撑满一行 */
+.easyx-image-toolkit__btn--block {
+  width: 100%;
+}
+
+/* 生成中：视觉上禁用但保留原色，避免整块变灰 */
+.easyx-image-toolkit__btn--loading {
+  cursor: progress;
+}
+
+.easyx-image-toolkit__btn-content {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}

@@ -1,17 +1,10 @@
 /**
  * 编码面板：有损压缩（格式 / 质量 / PNG 降色）与无损优化（可无损转 WebP）二选一
  *
- * 说明性文案统一用一行小字，不用 Alert —— Alert 只保留给错误与需要用户行动的提示。
+ * 说明性文案统一用一行小字（Hint），Alert 只保留给错误与需要用户行动的提示。
  */
-import {
-  Checkbox,
-  Divider,
-  Radio,
-  Select,
-  Slider,
-  Space,
-  Typography,
-} from 'antd';
+
+import { useId } from 'react';
 import { isOutputFormat, PALETTE_COLOR_PRESETS } from '../../limits';
 import { getLosslessStrategy, isOptimizableLosslessly } from '../../lossless';
 import type { ImageFormat, ImageOutputFormat } from '../../types';
@@ -20,24 +13,15 @@ import {
   type EditorSettings,
   resolveOutputFormat,
 } from '../editor-settings';
-
-/** 面板内的一行说明小字 */
-function Hint({
-  tone = 'secondary',
-  children,
-}: {
-  tone?: 'secondary' | 'warning' | 'danger';
-  children: React.ReactNode;
-}) {
-  return (
-    <Typography.Text
-      type={tone}
-      style={{ display: 'block', fontSize: 12, lineHeight: 1.6 }}
-    >
-      {children}
-    </Typography.Text>
-  );
-}
+import {
+  Checkbox,
+  Field,
+  Hint,
+  Segmented,
+  Select,
+  Slider,
+  Stack,
+} from '../primitives';
 
 export interface ImageEncodePanelProps {
   sourceFormat: ImageFormat;
@@ -57,40 +41,38 @@ export function ImageEncodePanel({
   const keepLabel = keepAvailable
     ? '保持原格式'
     : '保持原格式（源格式不可输出）';
+  // 关联 Field 的 label 与控件，让下拉在无障碍树里带上名字
+  const formatId = useId();
+  const paletteId = useId();
 
   return (
-    <Space direction="vertical" size="small" style={{ width: '100%' }}>
-      <Radio.Group
-        size="small"
-        optionType="button"
-        value={value.mode}
-        onChange={(event) =>
-          onChange({
-            mode: event.target.value as EditorSettings['mode'],
-            colors: null,
-          })
+    <Stack size="sm">
+      <Segmented
+        aria-label="压缩模式"
+        onChange={(mode) =>
+          onChange({ colors: null, mode: mode as EditorSettings['mode'] })
         }
         options={[
           { label: '有损压缩', value: 'lossy' },
           { label: '无损优化', value: 'lossless' },
         ]}
+        value={value.mode}
       />
 
       {value.mode === 'lossless' ? (
         <>
-          <Space size="small" wrap>
-            <Typography.Text type="secondary">目标格式</Typography.Text>
-            <Select<EditorSettings['format']>
-              size="small"
-              style={{ width: 180 }}
-              value={value.format}
+          <Field htmlFor={formatId} label="目标格式">
+            <Select
+              id={formatId}
               onChange={(format) => onChange({ format })}
               options={[
-                { label: keepLabel, value: 'keep', disabled: !keepAvailable },
+                { disabled: !keepAvailable, label: keepLabel, value: 'keep' },
                 { label: 'WebP（无损）', value: 'webp' },
               ]}
+              value={value.format}
+              width={180}
             />
-          </Space>
+          </Field>
           {losslessSupported ? (
             <Hint>
               {strategy.label}；像素不变。连续色调图片转 WebP 通常比 PNG
@@ -104,41 +86,35 @@ export function ImageEncodePanel({
         </>
       ) : (
         <>
-          <Space size="small" wrap>
-            <Typography.Text type="secondary">输出格式</Typography.Text>
-            <Select<EditorSettings['format']>
-              size="small"
-              style={{ width: 180 }}
-              value={value.format}
+          <Field htmlFor={formatId} label="输出格式">
+            <Select
+              id={formatId}
               onChange={(format) =>
                 onChange({
-                  format,
                   colors:
                     resolveOutputFormat({ ...value, format }, sourceFormat) ===
                     'png'
                       ? value.colors
                       : null,
+                  format,
                 })
               }
               options={[
-                { label: keepLabel, value: 'keep', disabled: !keepAvailable },
+                { disabled: !keepAvailable, label: keepLabel, value: 'keep' },
                 { label: 'WebP', value: 'webp' },
                 { label: 'JPEG', value: 'jpeg' },
                 { label: 'PNG', value: 'png' },
               ]}
+              value={value.format}
+              width={180}
             />
-          </Space>
-
-          <Divider style={{ margin: '4px 0' }} />
+          </Field>
 
           {effectiveFormat === 'png' ? (
             <>
-              <Space size="small" wrap>
-                <Typography.Text type="secondary">调色板</Typography.Text>
-                <Select<number | null>
-                  size="small"
-                  style={{ width: 180 }}
-                  value={value.colors}
+              <Field htmlFor={paletteId} label="调色板">
+                <Select
+                  id={paletteId}
                   onChange={(colors) => onChange({ colors })}
                   options={[
                     { label: '不降色（真彩）', value: null },
@@ -147,8 +123,10 @@ export function ImageEncodePanel({
                       value: colors,
                     })),
                   ]}
+                  value={value.colors}
+                  width={180}
                 />
-              </Space>
+              </Field>
               {value.colors !== null ? (
                 <Hint tone="warning">
                   降色至 {value.colors}{' '}
@@ -161,26 +139,23 @@ export function ImageEncodePanel({
               )}
             </>
           ) : (
-            <div>
-              <Typography.Text type="secondary">质量</Typography.Text>
+            <Field label="质量">
               <Slider
-                min={1}
+                aria-label="质量"
                 max={100}
-                value={value.quality}
+                min={1}
                 onChange={(quality) => onChange({ quality })}
+                value={value.quality}
               />
-            </div>
+            </Field>
           )}
         </>
       )}
 
-      <Checkbox
-        checked={value.strip}
-        onChange={(event) => onChange({ strip: event.target.checked })}
-      >
+      <Checkbox checked={value.strip} onChange={(strip) => onChange({ strip })}>
         剥离元数据（EXIF / ICC）
       </Checkbox>
-    </Space>
+    </Stack>
   );
 }
 

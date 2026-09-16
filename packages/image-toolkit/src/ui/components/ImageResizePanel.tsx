@@ -1,12 +1,18 @@
 /**
  * 缩放面板：等比改变图片尺寸（永远保持原始宽高比，默认不放大）
  */
-import { InputNumber, Radio, Space, Typography } from 'antd';
 import { resolveScaledSize, scalePercent } from '../../resize';
 import type { ImageSize } from '../../types';
+import { Hint, NumberInput, Segmented, Stack, Text } from '../primitives';
 
 /** 常用缩放比例预设 */
 const PERCENT_PRESETS = [100, 75, 50, 25] as const;
+
+/** 自定义比例的哨兵值：仅用于让分段控件落在「自定义」上，不可选中 */
+const CUSTOM = 'custom';
+
+/** 宽高输入上限 */
+const MAX_SIZE = 8192;
 
 export interface ImageResizePanelProps {
   sourceSize: ImageSize;
@@ -27,75 +33,72 @@ export function ImageResizePanel({
   const unchanged =
     value.width === sourceSize.width && value.height === sourceSize.height;
   const percent = scalePercent(sourceSize, value);
+  // 当前尺寸恰好等于某个预设时高亮该预设，否则落到不可选的「自定义」
+  const activePreset = PERCENT_PRESETS.some((preset) => preset === percent)
+    ? String(percent)
+    : CUSTOM;
 
-  const applyPercent = (next: number): void => {
-    onChange(resolveScaledSize(sourceSize, { kind: 'percent', percent: next }));
-  };
-
-  const applyWidth = (width: number | null): void => {
-    if (typeof width !== 'number') return;
-    onChange(resolveScaledSize(sourceSize, { kind: 'width', width }));
-  };
-
-  const applyHeight = (height: number | null): void => {
-    if (typeof height !== 'number') return;
-    onChange(resolveScaledSize(sourceSize, { kind: 'height', height }));
+  const applyPercent = (next: string): void => {
+    if (next === CUSTOM) return;
+    onChange(
+      resolveScaledSize(sourceSize, { kind: 'percent', percent: Number(next) }),
+    );
   };
 
   return (
-    <Space direction="vertical" size="small" style={{ width: '100%' }}>
-      <Radio.Group
-        size="small"
-        optionType="button"
+    <Stack size="sm">
+      <Segmented
+        aria-label="缩放比例"
         disabled={disabled}
-        value={PERCENT_PRESETS.find((preset) => preset === percent) ?? 'custom'}
-        onChange={(event) => applyPercent(Number(event.target.value))}
+        onChange={applyPercent}
         options={[
           ...PERCENT_PRESETS.map((preset) => ({
             label: `${preset}%`,
-            value: preset,
+            value: String(preset),
           })),
-          { label: '自定义', value: 'custom', disabled: true },
+          { disabled: true, label: '自定义', value: CUSTOM },
         ]}
+        value={activePreset}
       />
 
-      <Space size="small" wrap>
-        <Typography.Text type="secondary">宽</Typography.Text>
-        <InputNumber
-          size="small"
-          min={1}
-          max={8192}
+      <Stack direction="row" size="sm" wrap>
+        <Text size="xs" tone="secondary">
+          宽
+        </Text>
+        <NumberInput
+          aria-label="宽度"
           disabled={disabled}
-          style={{ width: 100 }}
+          max={MAX_SIZE}
+          min={1}
+          onChange={(width) =>
+            onChange(resolveScaledSize(sourceSize, { kind: 'width', width }))
+          }
           value={value.width}
-          onChange={applyWidth}
+          width={100}
         />
-        <Typography.Text type="secondary">× 高</Typography.Text>
-        <InputNumber
-          size="small"
-          min={1}
-          max={8192}
+        <Text size="xs" tone="secondary">
+          × 高
+        </Text>
+        <NumberInput
+          aria-label="高度"
           disabled={disabled}
-          style={{ width: 100 }}
+          max={MAX_SIZE}
+          min={1}
+          onChange={(height) =>
+            onChange(resolveScaledSize(sourceSize, { kind: 'height', height }))
+          }
           value={value.height}
-          onChange={applyHeight}
+          width={100}
         />
-      </Space>
+      </Stack>
 
-      <Typography.Text type="secondary">
+      <Text size="xs" tone="secondary">
         {unchanged
           ? `保持原尺寸 ${sourceSize.width} × ${sourceSize.height}`
           : `${sourceSize.width} × ${sourceSize.height} → ${value.width} × ${value.height}（${percent}%，等比不放大）`}
-      </Typography.Text>
+      </Text>
 
-      {disabled && disabledHint && (
-        <Typography.Text
-          type="secondary"
-          style={{ display: 'block', fontSize: 12, lineHeight: 1.6 }}
-        >
-          {disabledHint}
-        </Typography.Text>
-      )}
-    </Space>
+      {disabled && disabledHint && <Hint>{disabledHint}</Hint>}
+    </Stack>
   );
 }

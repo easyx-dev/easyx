@@ -1,0 +1,11 @@
+/**
+ * 样式入口：SCSS 经 rslib 编译后内联进 JS，宿主无需额外引入样式文件
+ * 顺序即层叠顺序：令牌与基础 → 排版 → 控件 → 反馈 → 浮层 → 业务布局
+ */
+@use 'base';
+@use 'typography';
+@use 'button';
+@use 'form';
+@use 'feedback';
+@use 'modal';
+@use 'editor';

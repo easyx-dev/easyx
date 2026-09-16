@@ -8,7 +8,7 @@
 | 入口 | 内容 | 依赖 |
 |------|------|------|
 | `@easyx/image-toolkit` | 同构纯逻辑：魔数嗅探、格式白名单、操作归一化、缩放换算 | 零重量依赖（服务端可安全引用） |
-| `@easyx/image-toolkit/ui` | 浏览器侧：引擎客户端、React hooks、编辑弹窗组件 | React + antd + wasm 引擎（惰性加载） |
+| `@easyx/image-toolkit/ui` | 浏览器侧：引擎客户端、React hooks、编辑弹窗组件 | React + wasm 引擎（惰性加载） |
 
 > 根入口**禁止**静态引用引擎，否则 wasm glue 会被打进服务端 bundle。
 
@@ -62,7 +62,7 @@ PNG compression-level 9 为 −41.5%（逐像素一致），WebP lossless + meth
 pnpm add @easyx/image-toolkit
 ```
 
-`react` / `react-dom` / `antd` / `@ant-design/icons` 为 peer 依赖，需宿主自行安装（`./ui` 入口才需要）。
+`react` / `react-dom` 为 peer 依赖，需宿主自行安装（`./ui` 入口才需要）。
 
 ## 使用
 
@@ -130,6 +130,20 @@ EASYX_IMAGE_TOOLKIT_REMOTE=1 pnpm build
 - **拖动对比的关键是「同区域对齐」**：两张图处于同一像素密度，分隔线两侧永远是同一块像素
 - **自动预览**：参数变化后防抖 500ms 触发，请求带序号、过期响应丢弃、处理中保留上一次结果
 - **无变更即不处理**：设置未产生实际变更时不调用引擎，界面提示「尚未做任何修改」
+
+## 主题
+
+样式走包内 SCSS + CSS 变量（`--easyx-image-toolkit-*`，定义见 `src/ui/styles/_variables.scss`），经 `injectStyles` 编译后内联进 JS，宿主无需单独引入样式文件，覆盖变量即可定制外观。
+
+界面为自研实现，除 React 外不依赖任何 UI 库；表单控件一律基于原生元素（`select` / `range` / `radio` / `checkbox` / `number`），`color-scheme` 随主题切换，系统控件的下拉与滚动条不会与自绘外观割裂。
+
+暗色按三级判定，命中即生效：
+
+1. 令牌作用域根上的 `easyx-image-toolkit-dark` class
+2. 宿主祖先的 `data-theme` 以 `dark` 结尾（如 `dark` / `admin-dark`）
+3. 宿主未声明主题时跟随 `prefers-color-scheme`
+
+弹窗渲染在 portal 中：`data-theme` 挂在 `<html>` 上时（常见做法）第 2 条依然命中；若挂在 `<html>` 之外的祖先上，请改用 `<ImageEditorModal theme="dark" />`。
 
 ## 已知取舍
 

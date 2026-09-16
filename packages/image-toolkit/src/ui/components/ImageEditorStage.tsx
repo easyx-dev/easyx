@@ -4,8 +4,8 @@
  * 状态（处理中 / 无变更 / 体积）集中在底部状态栏展示，预览区只保留画面本身，
  * 仅在处理失败时用 Alert —— 避免一屏堆叠多块提示色块。
  */
-import { Alert, Button } from 'antd';
 import type { ImageCrop, ImageSize } from '../../types';
+import { Alert, Button } from '../primitives';
 import { ImageCompareSlider } from './ImageCompareSlider';
 import { ImageCropStage } from './ImageCropStage';
 import type { PreviewBundle } from './ImageEditorModal';
@@ -35,11 +35,11 @@ export function ImageEditorStage({
   if (cropMode) {
     return (
       <ImageCropStage
-        imageUrl={src}
         aspect={aspect}
+        height={STAGE_HEIGHT}
+        imageUrl={src}
         onAspectChange={onAspectChange}
         onCropAreaChange={onCropDraftChange}
-        height={STAGE_HEIGHT}
       />
     );
   }
@@ -47,25 +47,25 @@ export function ImageEditorStage({
   return (
     <>
       <ImageCompareSlider
-        sourceUrl={src}
-        sourceSize={sourceSize}
-        resultUrl={preview.resultUrl}
+        height={STAGE_HEIGHT}
         resultSize={preview.result?.meta ?? null}
         resultSourceRect={preview.resultSourceRect}
-        height={STAGE_HEIGHT}
+        resultUrl={preview.resultUrl}
+        sourceSize={sourceSize}
+        sourceUrl={src}
       />
       {preview.error && (
         <Alert
-          style={{ marginTop: 8 }}
-          type="error"
-          showIcon
-          title="处理失败"
-          description={preview.error}
           action={
-            <Button size="small" onClick={preview.refresh}>
+            <Button onClick={preview.refresh} size="sm">
               重试
             </Button>
           }
+          className="easyx-image-toolkit__stage-alert"
+          description={preview.error}
+          showIcon
+          title="处理失败"
+          type="error"
         />
       )}
     </>

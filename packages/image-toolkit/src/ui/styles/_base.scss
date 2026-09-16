@@ -1,0 +1,37 @@
+/**
+ * 基础层：令牌作用域根、盒模型与字体继承
+ *
+ * 任何对外渲染的根节点（弹窗内容、独立面板、portal 出的浮层）都带 easyx-image-toolkit
+ * 类，令牌与暗色判定都挂在该类上，因此浮层脱离宿主 DOM 层级后依然成立。
+ */
+@use 'variables' as v;
+
+.easyx-image-toolkit {
+  @include v.theme-scope;
+
+  /* 字体继承宿主，不强制字体栈；等宽仅在代码类元素上单独指定 */
+  font-family: inherit;
+  font-size: var(--easyx-image-toolkit-font-size-md);
+  line-height: 1.5714;
+  color: var(--easyx-image-toolkit-text);
+  text-align: start;
+
+  *,
+  *::before,
+  *::after {
+    box-sizing: border-box;
+  }
+
+  button,
+  input,
+  select,
+  textarea {
+    font: inherit;
+    color: inherit;
+  }
+}
+
+/** 可滚动区域统一细窄滚动条 */
+.easyx-image-toolkit__scroll {
+  @include v.scrollbar;
+}

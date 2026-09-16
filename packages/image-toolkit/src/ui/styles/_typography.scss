@@ -1,0 +1,158 @@
+/**
+ * 排版与布局：文本、说明小字、字段行、标签、分割线、间隔容器
+ */
+
+/* 文本：语气与字号由修饰类决定，默认继承父级 */
+.easyx-image-toolkit__text--secondary {
+  color: var(--easyx-image-toolkit-text-secondary);
+}
+
+.easyx-image-toolkit__text--tertiary {
+  color: var(--easyx-image-toolkit-text-tertiary);
+}
+
+.easyx-image-toolkit__text--warning {
+  color: var(--easyx-image-toolkit-warning);
+}
+
+.easyx-image-toolkit__text--danger {
+  color: var(--easyx-image-toolkit-danger);
+}
+
+.easyx-image-toolkit__text--success {
+  color: var(--easyx-image-toolkit-success);
+}
+
+.easyx-image-toolkit__text--strong {
+  font-weight: 600;
+}
+
+.easyx-image-toolkit__text--xs {
+  font-size: var(--easyx-image-toolkit-font-size-xs);
+}
+
+.easyx-image-toolkit__text--sm {
+  font-size: var(--easyx-image-toolkit-font-size-sm);
+}
+
+.easyx-image-toolkit__text--block {
+  display: block;
+}
+
+.easyx-image-toolkit__text--mono {
+  font-family: var(--easyx-image-toolkit-font-mono);
+}
+
+/* 说明小字：固定为块级小字号，语气决定颜色 */
+.easyx-image-toolkit__hint {
+  display: block;
+  font-size: var(--easyx-image-toolkit-font-size-xs);
+  line-height: 1.6;
+  color: var(--easyx-image-toolkit-text-secondary);
+}
+
+.easyx-image-toolkit__hint--warning {
+  color: var(--easyx-image-toolkit-warning);
+}
+
+.easyx-image-toolkit__hint--danger {
+  color: var(--easyx-image-toolkit-danger);
+}
+
+/* 字段行：标签在上、控件在下 */
+.easyx-image-toolkit__field {
+  display: block;
+  width: 100%;
+}
+
+.easyx-image-toolkit__field-label {
+  display: block;
+  margin-bottom: 6px;
+  font-size: var(--easyx-image-toolkit-font-size-xs);
+  color: var(--easyx-image-toolkit-text-secondary);
+}
+
+.easyx-image-toolkit__field-control {
+  display: block;
+}
+
+/* 分组标题：控制栏内的「缩放 / 裁切 / 编码」 */
+.easyx-image-toolkit__group-title {
+  font-size: var(--easyx-image-toolkit-font-size-md);
+  font-weight: 600;
+  color: var(--easyx-image-toolkit-text);
+}
+
+/* 标签：体积增减、处理状态等短标记 */
+.easyx-image-toolkit__tag {
+  display: inline-flex;
+  align-items: center;
+  height: 20px;
+  padding: 0 7px;
+  border: 1px solid var(--easyx-image-toolkit-border);
+  border-radius: var(--easyx-image-toolkit-radius-sm);
+  background: var(--easyx-image-toolkit-bg-subtle);
+  font-size: var(--easyx-image-toolkit-font-size-xs);
+  color: var(--easyx-image-toolkit-text-secondary);
+  white-space: nowrap;
+}
+
+.easyx-image-toolkit__tag--success {
+  border-color: transparent;
+  background: var(--easyx-image-toolkit-success-soft);
+  color: var(--easyx-image-toolkit-success);
+}
+
+.easyx-image-toolkit__tag--warning {
+  border-color: transparent;
+  background: var(--easyx-image-toolkit-warning-soft);
+  color: var(--easyx-image-toolkit-warning);
+}
+
+.easyx-image-toolkit__tag--primary {
+  border-color: transparent;
+  background: var(--easyx-image-toolkit-primary-soft);
+  color: var(--easyx-image-toolkit-primary);
+}
+
+/* 间隔容器：纵向（默认）或横向排列，尺寸决定间距 */
+.easyx-image-toolkit__stack {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+
+.easyx-image-toolkit__stack--xs {
+  gap: 4px;
+}
+
+.easyx-image-toolkit__stack--sm {
+  gap: 8px;
+}
+
+.easyx-image-toolkit__stack--lg {
+  gap: 16px;
+}
+
+.easyx-image-toolkit__stack--row {
+  flex-direction: row;
+  align-items: center;
+}
+
+.easyx-image-toolkit__stack--wrap {
+  flex-wrap: wrap;
+}
+
+.easyx-image-toolkit__stack--between {
+  justify-content: space-between;
+}
+
+.easyx-image-toolkit__stack--end {
+  justify-content: flex-end;
+}
+
+.easyx-image-toolkit__stack--grow {
+  flex: 1;
+  min-width: 0;
+}

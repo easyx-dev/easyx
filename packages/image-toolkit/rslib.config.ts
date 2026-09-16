@@ -1,6 +1,7 @@
 import { createRequire } from 'node:module';
 import path from 'node:path';
 import { pluginReact } from '@rsbuild/plugin-react';
+import { pluginSass } from '@rsbuild/plugin-sass';
 import { defineConfig } from '@rslib/core';
 
 const require = createRequire(import.meta.url);
@@ -29,9 +30,10 @@ const magickWasmRoot = path.resolve(
  * - `@imagemagick/magick-wasm` 放在 devDependencies 参与打包：Worker 由浏览器直接加载，
  *   产物中残留裸模块说明符会加载失败（依赖自动外置只覆盖 dependencies / peerDependencies）
  * - `__EASYX_IMAGE_TOOLKIT_REMOTE_ONLY__` 供自定义构建剥离本地 wasm 副本
+ * - UI 样式走包内 SCSS + CSS 变量，`injectStyles` 编译后内联进 ./ui 入口产物，宿主零配置
  */
 export default defineConfig({
-  plugins: [pluginReact()],
+  plugins: [pluginReact(), pluginSass()],
   source: {
     entry: {
       index: './src/index.ts',
@@ -53,6 +55,8 @@ export default defineConfig({
   ],
   output: {
     target: 'web',
+    // UI 样式经 SCSS 编译后内联进 ./ui 入口产物，宿主无需单独引入样式文件
+    injectStyles: true,
     copy: [
       {
         // wasm 二进制与第三方许可声明：二者都随本包再分发，故随构建从依赖复制进 dist，

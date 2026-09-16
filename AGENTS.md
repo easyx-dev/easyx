@@ -154,9 +154,11 @@ packages/
     │       ├── index.ts          # 引擎客户端 + hooks + 组件统一出口
     │       ├── editor-settings.ts # UI 状态 → 引擎入参的唯一转换点（纯逻辑）
     │       ├── engine/           # 状态机、下载器、Worker、wasm 操作、资源定位
-    │       ├── hooks/            # useImageEngine / useImagePreview / useElementSize
+    │       ├── hooks/            # useImageEngine / useImagePreview / useElementSize / theme
+    │       ├── primitives/       # 自研 UI 原语（按钮/弹窗/分段/滑杆/下拉/提示…）
     │       ├── components/       # 弹窗布局、拖动对比、裁切台、缩放/编码面板、引擎门控
-    │       └── utils/            # format-bytes
+    │       ├── styles/           # UI 样式分片（令牌 + 基础 + 控件 + 反馈 + 浮层 + 业务）
+    │       └── utils/            # format-bytes / cx（类名与令牌作用域）
     └── tests/                # 纯逻辑 + 引擎编排 + 真实 wasm 实测
 site/                        # Astro + Starlight 文档站点（系列库共用）
 ├── astro.config.mjs         # Astro 配置（Starlight 插件 + React 集成 + 按库分组的侧边栏）
@@ -215,7 +217,7 @@ site/                        # Astro + Starlight 文档站点（系列库共用�
 | 构建模式 | 主入口打包 | Bundleless（`bundle: false`） | 主入口打包 | 打包，三入口（`.` / `./ui` / Worker） |
 | 输出格式 | ESM + CJS | 仅 ESM | 仅 ESM | 仅 ESM |
 | 声明文件 | `dts: true` | `dts: true` | `dts: true` | `dts: true` |
-| 样式处理 | `pluginSass()` + `injectStyles: true` | `sideEffects: [".css"]` | `pluginSass()` + `injectStyles: true` | 仅 antd 组件样式，无自有样式 |
+| 样式处理 | `pluginSass()` + `injectStyles: true` | `sideEffects: [".css"]` | `pluginSass()` + `injectStyles: true` | `pluginSass()` + `injectStyles: true` |
 | 构建目标 | `output.target: 'web'` | `output.target: 'web'` | `output.target: 'web'` | `output.target: 'web'` |
 | 语法目标 | `node 18` | `es2021` | `es2021` | `es2021` |
 | 特殊处理 | — | — | `pluginReact()` | `pluginReact()`；静态 `new URL()` 资源引用 + `output.copy` 复制 wasm |
@@ -374,6 +376,7 @@ const editor = createEditor(containerElement, {
 - 引擎为单例状态机 `idle → downloading → instantiating → ready`，主线程负责带进度的下载、Worker 负责 wasm 实例化与处理；并发调用共享同一次加载，失败后 `inflight` 复位可重试
 - `src/limits.ts` 是格式能力的单一事实来源，界面的可编辑 / 可输出 / 可无损优化判定都从它派生；`ui/editor-settings.ts` 是 UI 状态 → 引擎入参的唯一转换点
 - 引擎产物必须经 `sniffImage` 校验后才允许流入存储
+- **UI 层自研**：除 React 外不依赖任何 UI 库。原语集中在 `ui/primitives/`，全部基于原生元素（`select` / `range` / `radio` / `checkbox` / `number`）只由 CSS 承担外观，键盘操作与无障碍语义由此白送；弹窗、Tooltip 等浮层以 portal 渲染，**根节点必须补上 `easyx-image-toolkit` 令牌作用域类**，否则脱离宿主 DOM 层级后拿不到 CSS 变量
 - **运行时资源引用必须保持静态**：产物中是 `new Worker(new URL('./engine/worker.js', import.meta.url), { type: 'module' })` 与 `new URL('./engine/magick.wasm', import.meta.url)`，宿主打包器据此把资源复制进自己的产物。因此 `rslib.config.ts` 对 `client.ts` / `bundled-wasm.ts` 关闭了 `parser.url`，wasm 经 `output.copy` 落到 `dist/ui/engine/`；改这两处路径时必须同步核对产物目录结构
 - `@imagemagick/magick-wasm` 固定在 `devDependencies` 参与打包（Worker 由浏览器直接加载，产物中不能残留裸模块说明符），版本必须与 glue 严格同版
 - 该依赖的 wasm 二进制与第三方许可声明（`NOTICE`，含 ImageMagick 静态链接的各库）随包再分发，故在 `rslib.config.ts` 的 `output.copy` 中于构建期复制进 `dist`：既不把 220 KB 的 NOTICE 提交进仓库，也不会与依赖版本脱节
@@ -403,7 +406,7 @@ const editor = createEditor(containerElement, {
 ### AI 工作台与图片套件 CSS 变量
 
 - `--easyx-ai-rich-editor-*`：`bg` / `bg-subtle` / `border` / `text` / `text-secondary` / `text-tertiary` / `primary` / `shadow` / `radius` / `preview-bg`，亮暗两套取值由包内定义，宿主可覆盖
-- `--easyx-image-toolkit-*`：暂无自有样式变量，界面样式由 antd 承担
+- `--easyx-image-toolkit-*`：`bg` / `bg-subtle` / `bg-hover` / `bg-active` / `bg-mask` / `overlay` / `border` / `border-strong` / `text` / `text-secondary` / `text-tertiary` / `primary` / `primary-hover` / `primary-soft` / `on-primary` / `control-selected-bg` / `success` / `warning` / `danger`（各带 `-soft`）/ `shadow` / `shadow-lg` / `radius(-sm/-lg)` / `font-size(-xs/-sm/-md)` / `z-modal` / `z-tooltip`，亮暗两套取值由包内定义，宿主可覆盖
 
 ## 测试约定
 
