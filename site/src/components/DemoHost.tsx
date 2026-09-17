@@ -2,7 +2,7 @@
  * Demo 宿主：按 slug 懒加载并渲染对应的演示组件
  *
  * 以 Astro client:only 孤岛挂载，演示组件在浏览器端按需拉取，
- * 保证重依赖演示（React / wasm / Monaco 等）不随文档站主包一起加载。
+ * 保证重依赖演示（React / wasm / CodeMirror 等）不随文档站主包一起加载。
  * chunk 加载失败或演示渲染期抛错时由错误边界兜底，避免整块区域静默空白。
  */
 

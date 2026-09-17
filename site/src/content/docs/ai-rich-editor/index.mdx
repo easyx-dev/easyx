@@ -13,7 +13,7 @@ description: AI 驱动的 HTML 片段生产工作台：对话生成、所见即�
 pnpm add @easyx/ai-rich-editor
 ```
 
-`react` / `react-dom` / `monaco-editor` 为 peer 依赖，需宿主自行安装；其余运行时依赖随包安装。
+`react` / `react-dom` 为 peer 依赖，需宿主自行安装；其余运行时依赖（含代码面板的 CodeMirror）随包安装。
 
 界面为包内自研，**除 React 外不依赖任何 UI 库**（弹窗、表单、气泡、输入框、分栏均为自实现）。
 
@@ -41,7 +41,8 @@ export function MyPage() {
 顶栏 + 水平分割：左（预览区，可选编辑器）｜右（AI 对话面板）。
 
 - **顶栏**：预览控件「设备档位 / 脚本开关 / 刷新 / 新窗口预览」+ **编辑器**开关 + 复制 + 设置
-- **左栏**：默认整区为预览卡片；开启「编辑器」后变为 `[Monaco | 预览]` 内层横向分割
+- **左栏**：默认整区为预览卡片；开启「编辑器」后变为 `[代码编辑器 | 预览]` 内层横向分割
+- **代码编辑器**：CodeMirror 6 按需加载，HTML 语法高亮（含内嵌 `<style>` / `<script>` 的 CSS 与 JS）、标签与属性补全（`⌘/Ctrl+F` 查找替换、`⌘/Ctrl+Space` 补全、`⌘/Ctrl+Alt+G` 跳转行）
 - **右栏**：AI 对话（`Bubble` / `Sender` / `Welcome` + `Prompts` / `Think`），默认 420，min 400 / max 600
 
 ## 产物：自带作用域的 HTML 片段
@@ -85,7 +86,7 @@ AI 生成的片段在「应用到编辑器」（含 `autoApply`）时即完成**
 2. 最近的宿主 `[data-theme]` 祖先（值以 `dark` 结尾，如 `dark`、`admin-dark`）
 3. 两者都没有时跟随系统 `prefers-color-scheme`
 
-Monaco 主题同步跟随上述判定（它读不到 CSS 变量，由包内 hook 转达）。
+代码面板的语法高亮与结构配色全部走 `--easyx-ai-rich-editor-code-*` 令牌（跟随上述判定，无需 JS）；仅 CodeMirror 内置的光标 / 选区 / 当前行 / 面板变体由包内 hook 转达暗色判定。
 
 抽屉、下拉菜单、Tooltip、轻提示等浮层渲染在 portal 中：`data-theme` 挂在 `<html>` 上时第 2 条依然命中，包内还会把触发元素所处的主题一并带到浮层根上，因此浮层不会脱主题。所有颜色经 `--easyx-ai-rich-editor-*` CSS 变量控制，可在宿主覆盖。
 

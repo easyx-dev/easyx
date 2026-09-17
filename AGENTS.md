@@ -130,13 +130,14 @@ packages/
 │   │   ├── prompts.ts            # 内置 system 提示词构建
 │   │   ├── chat/                 # ChatProvider（headless 数据流 + 自研渲染）/ ChatComposer / ThinkBlock
 │   │   ├── markdown/renderer.tsx # marked 词法 → React 元素（裸 HTML 丢弃 + 协议白名单）
-│   │   ├── components/           # 顶栏 / 预览 / 代码面板 / 设置面板 / markdown 消息
+│   │   ├── components/           # 顶栏 / 预览 / 代码面板懒加载边界 / 设置面板 / markdown 消息
+│   │   ├── code-editor/          # CodeMirror 6 封装：CodeEditor / extensions / theme / phrases / doc-sync
 │   │   ├── hooks/                # useIsDark（三级主题判定）/ useElementSize
 │   │   ├── ui/                   # 自研 UI 原语（按钮/抽屉/菜单/分段/开关/输入/提示/轻提示）+ Splitter
 │   │   ├── utils/                # extract（片段提取与预览文档）/ scope（样式作用域化）/ clipboard
-│   │   ├── styles/               # SCSS 分片（变量/基础/原语/浮层/分栏/骨架/内容/对话）
+│   │   ├── styles/               # SCSS 分片（变量/基础/原语/浮层/分栏/骨架/内容/对话/代码面板）
 │   │   └── env.d.ts
-│   └── tests/                # 提取/提示词/作用域化/markdown 渲染（含安全边界）/UI 原语与分栏
+│   └── tests/                # 提取/提示词/作用域化/markdown 渲染（含安全边界）/UI 原语与分栏/代码面板
 └── image-toolkit/            # @easyx/image-toolkit — 浏览器端图片处理套件
     ├── package.json
     ├── README.md
@@ -201,6 +202,7 @@ site/                        # Astro + Starlight 文档站点（系列库共用�
 | 编辑器引擎 | Tiptap v3 / ProseMirror | 3.x |
 | 图片引擎 | `@imagemagick/magick-wasm`（ImageMagick 编译为 WebAssembly，跑在自建 Worker 中） | 0.0.43（版本固定，glue 与 wasm 必须同版） |
 | UI 层 | 全部自研：`@easyx/editor` 为纯 DOM；两个 React 类库各自实现原语（React 之外不引入 UI 库），浮层定位统一用 `@floating-ui/dom` | — |
+| 代码编辑器 | CodeMirror 6（仅 `@easyx/ai-rich-editor` 的代码面板使用，按需懒加载） | 6.x |
 | React | React 19 + react-dom（Demo 与 React 类库；库内声明为 `peerDependencies`） | 19.x |
 | 构建（包） | Rslib（Rspack）+ `@rslib/core` | — |
 | 构建（站点） | Astro + Starlight | 5.x |
@@ -248,7 +250,7 @@ site/                        # Astro + Starlight 文档站点（系列库共用�
 |----|------|
 | 目录 / 包名 | `packages/<lib>/`，包名 `@easyx/<lib>`，`version` 独立维护 |
 | 构建 | Rslib（`rslib.config.ts`）；公共库设 `dts: true` 并声明 `files: ["dist"]` |
-| 依赖声明 | 被消费方自行安装的运行时依赖（React / monaco 等）一律放 `peerDependencies`，构建中 external |
+| 依赖声明 | 被消费方自行安装的运行时依赖（React 等）一律放 `peerDependencies`，构建中 external；随包自动安装的普通运行时依赖放 `dependencies`，同样 external |
 | 类型入口 | `exports` 声明 `types`，包根提供 `types` 字段 |
 | 测试 | `rstest.config.ts` 使用 `@rstest/adapter-rslib`；DOM 场景按需选 happy-dom 或 jsdom |
 | 命名空间 | 类名与 CSS 变量统一 `easyx-<lib>` 前缀，避免多库样式互相污染 |
@@ -362,13 +364,16 @@ const editor = createEditor(containerElement, {
 
 `@easyx/ai-rich-editor` 是 React 重客户端组件，只产出可嵌入内容字段的 HTML 片段（fragment），不输出整页文档：
 
-- 两栏工作台：左预览（可选 Monaco 代码面板）｜右 AI 对话，顶栏统一收拢预览控件与开关
+- 两栏工作台：左预览（可选代码面板）｜右 AI 对话，顶栏统一收拢预览控件与开关
 - 对话能力经 `endpointUrl` 注入，**不持有**任何端点/鉴权知识；数据流用 TanStack AI headless UI（`createChatHook` 模块作用域注册一次），渲染侧为包内自研（气泡 / 输入框 / 推荐指令 / 思考块）
 - `createInstanceChatOverrides` 把每实例的 `endpointUrl` / 结束回调经 overrides 注入模块级 options（多实例互不串线）；`ChatProvider.tsx` 用 `ChatHookBinding` 收窄库返回类型，作为与库不可命名内部类型的唯一边界
 - **样式作用域化**在应用时刻完成（`utils/scope.ts`）：片段内 `<style>` 选择器被改写为 `.{前缀} …`，前缀在实例创建时生成一次（`easyx-rich-content-<id>`），产物自带 scope，宿主可直接 `dangerouslySetInnerHTML`
 - **对话 markdown 自研渲染**（`markdown/renderer.tsx`）：marked 词法 → React 元素，全程不经 `dangerouslySetInnerHTML`；markdown 里的裸 HTML 丢弃、链接协议白名单校验。未闭合的围栏代码块在 marked 里同样是 `code` token，因此流式半成品能直接渲染成「半成品卡片」
+- **代码面板**（`code-editor/`）：CodeMirror 6，经 `components/EditorPanel.tsx` 懒加载边界按需进入宿主产物；`html()` 同时带来内嵌 CSS / JS 的解析与补全，查找替换与行跳转文案经 `EditorState.phrases` 覆盖为中文。扩展装配在 `extensions.ts`、高亮配色在 `theme.ts`、外部 value 的落地策略在 `doc-sync.ts`
+- **外部写入策略**（`doc-sync.ts`）：与当前文档成前缀关系时只追加尾部，否则整篇替换；外部写入一律不进撤销栈、不回吐 `onChange`。光标归属：整篇替换落到新内容末尾（不显式指定的话 CodeMirror 会把落在被删区间内的位置映射到起点），尾部追加时仅在光标原本位于末尾的情况下跟随，否则原地不动。注意作用域化会回溯改写 `<style>` 选择器，因此流式同步的 value 常常并非前缀延伸，会走整篇替换
+- **代码面板样式**：CodeMirror 的样式在运行时注入且晚于本包样式，故 `styles/_code-editor*.scss` 一律以 `.easyx-ai-rich-editor__code-panel .cm-editor` 起头并完整镜像其选择器链，靠具体度（而非注入顺序）取胜；语法高亮的类名为运行时哈希，只能在 `theme.ts` 里声明，但色值引用 `--easyx-ai-rich-editor-code-*`，换主题仍是纯 CSS
 - **UI 层自研**：除 React 外不依赖任何 UI 库。原语在 `ui/primitives/`，浮层（抽屉/菜单/Tooltip/轻提示）以 portal 渲染，**根节点必须补上 `easyx-ai-rich-editor-scope` 令牌作用域类**；`Splitter` 支持拖拽与键盘，尺寸区间由两栏的 min/max 共同夹出
-- 暗色判定三级：令牌作用域 class `easyx-ai-rich-editor-scope-dark` → 宿主 `[data-theme]` 祖先（值以 `dark` 结尾）→ 系统 `prefers-color-scheme`；`useIsDark` 与包内样式保持同一优先级（Monaco 读不到 CSS 变量，只能由该 hook 转达）
+- 暗色判定三级：令牌作用域 class `easyx-ai-rich-editor-scope-dark` → 宿主 `[data-theme]` 祖先（值以 `dark` 结尾）→ 系统 `prefers-color-scheme`；`useIsDark` 与包内样式保持同一优先级，仅用于转达 CodeMirror 内置扩展的亮暗变体（它读不到 CSS 变量）
 - 预览 `iframe` 默认 `allow-scripts allow-same-origin`（为加载同源资源），**仅可用于受信产物**
 
 ### 图片处理套件
@@ -410,6 +415,7 @@ const editor = createEditor(containerElement, {
 ### AI 工作台与图片套件 CSS 变量
 
 - `--easyx-ai-rich-editor-*`：`bg` / `bg-subtle` / `bg-hover` / `bg-active` / `bg-mask` / `overlay` / `border` / `border-strong` / `text` / `text-secondary` / `text-tertiary` / `primary` / `primary-hover` / `primary-soft` / `on-primary` / `control-selected-bg` / `success` / `warning` / `danger`（各带 `-soft`）/ `shadow` / `shadow-lg` / `radius(-sm/-lg)` / `font-size(-xs/-sm/-md)` / `z-menu` / `z-drawer` / `z-tooltip` / `z-toast` / `preview-bg`，亮暗两套取值由包内定义，宿主可覆盖
+- `--easyx-ai-rich-editor-code-*`：代码面板专用 —— `selection` / `match` / `match-current`（选区与查找命中）与 `tag` / `attr` / `string` / `property` / `keyword` / `number` / `comment` / `punct`（语法高亮），亮暗两套取值由包内定义，宿主可覆盖
 - `--easyx-image-toolkit-*`：`bg` / `bg-subtle` / `bg-hover` / `bg-active` / `bg-mask` / `overlay` / `border` / `border-strong` / `text` / `text-secondary` / `text-tertiary` / `primary` / `primary-hover` / `primary-soft` / `on-primary` / `control-selected-bg` / `success` / `warning` / `danger`（各带 `-soft`）/ `shadow` / `shadow-lg` / `radius(-sm/-lg)` / `font-size(-xs/-sm/-md)` / `z-modal` / `z-tooltip`，亮暗两套取值由包内定义，宿主可覆盖
 
 ## 测试约定

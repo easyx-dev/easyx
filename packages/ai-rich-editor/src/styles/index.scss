@@ -1,6 +1,6 @@
 /**
  * 样式入口：SCSS 经 rslib 编译后内联进 JS，宿主无需额外引入样式文件
- * 顺序即层叠顺序：令牌与基础 → 原语 → 浮层 → 分栏 → 骨架 → 内容 → 对话
+ * 顺序即层叠顺序：令牌与基础 → 原语 → 浮层 → 分栏 → 骨架 → 内容 → 对话 → 代码面板
  */
 @use 'base';
 @use 'primitives';
@@ -9,3 +9,6 @@
 @use 'layout';
 @use 'content';
 @use 'chat';
+@use 'code-editor';
+@use 'code-editor-overlay';
+@use 'code-editor-autocomplete';

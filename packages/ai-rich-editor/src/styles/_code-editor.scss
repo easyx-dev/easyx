@@ -1,0 +1,121 @@
+/**
+ * 代码面板（CodeMirror 6）编辑器本体样式
+ *
+ * CodeMirror 的样式由它自己在运行时注入，且注入时机晚于本包样式，
+ * 因此这里的选择器一律以「.easyx-ai-rich-editor__code-panel .cm-editor」起头，
+ * 并完整镜像它的目标选择器链 —— 永远比它多一层类名，靠具体度取胜而非注入顺序。
+ * 配色全部走令牌，亮暗由令牌作用域切换，无需 JS 参与。
+ */
+@use 'variables' as v;
+
+/* 编辑器容器：填满面板，字体与底色由令牌给出 */
+.easyx-ai-rich-editor__code-panel .cm-editor {
+  flex: 1 1 auto;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  font-family: var(--easyx-ai-rich-editor-font-mono);
+  font-size: var(--easyx-ai-rich-editor-font-size-sm);
+  background: var(--easyx-ai-rich-editor-bg);
+}
+
+/* 聚焦不额外描边：编辑器在编辑时几乎总是聚焦态，常驻一圈强调色会成为噪音，
+   焦点由光标与当前行高亮表达（与主流代码编辑器一致）。
+   必须显式压掉：CodeMirror 的 baseTheme 自带一圈 `1px dotted #212121`，
+   它不走令牌、暗色下又几乎不可见，不压掉会漏出一圈与包内设计无关的描边 */
+.easyx-ai-rich-editor__code-panel .cm-editor.cm-focused {
+  outline: none;
+}
+
+.easyx-ai-rich-editor__code-panel .cm-editor .cm-scroller {
+  font-family: var(--easyx-ai-rich-editor-font-mono);
+  line-height: var(--easyx-ai-rich-editor-line-height-code);
+
+  @include v.scrollbar;
+}
+
+.easyx-ai-rich-editor__code-panel .cm-editor .cm-content {
+  padding: 12px 0;
+}
+
+.easyx-ai-rich-editor__code-panel .cm-editor .cm-line {
+  padding: 0 12px 0 8px;
+}
+
+/* 行号槽 */
+.easyx-ai-rich-editor__code-panel .cm-editor .cm-gutters {
+  background-color: var(--easyx-ai-rich-editor-bg-subtle);
+  color: var(--easyx-ai-rich-editor-text-tertiary);
+  border: 0 solid var(--easyx-ai-rich-editor-border);
+}
+
+.easyx-ai-rich-editor__code-panel .cm-editor .cm-gutters.cm-gutters-before {
+  border-right-width: 1px;
+}
+
+.easyx-ai-rich-editor__code-panel .cm-editor .cm-lineNumbers .cm-gutterElement {
+  padding: 0 8px 0 12px;
+  min-width: 28px;
+  cursor: default;
+}
+
+/* 光标与选区：原生选区与原生光标由 CodeMirror 的 drawSelection 以 !important 隐去，
+   可见的选区与光标分别是 .cm-selectionBackground 与 .cm-cursor，
+   其中「聚焦态选区」在 CodeMirror 里是更深一层选择器，需同样镜像才能覆盖 */
+.easyx-ai-rich-editor__code-panel .cm-editor .cm-cursor,
+.easyx-ai-rich-editor__code-panel .cm-editor .cm-dropCursor {
+  border-left-color: var(--easyx-ai-rich-editor-text);
+  border-left-width: 2px;
+  /* CodeMirror 按 1.2px 宽度的光标给了 -0.6px 的负外边距做居中，
+     这里加宽到 2px 就要同步改成 -1px，否则光标会压住右侧字符 */
+  margin-left: -1px;
+}
+
+.easyx-ai-rich-editor__code-panel .cm-editor .cm-selectionBackground {
+  background: var(--easyx-ai-rich-editor-code-selection);
+}
+
+.easyx-ai-rich-editor__code-panel
+  .cm-editor.cm-focused
+  > .cm-scroller
+  > .cm-selectionLayer
+  .cm-selectionBackground {
+  background: var(--easyx-ai-rich-editor-code-selection);
+}
+
+/* 当前行 */
+.easyx-ai-rich-editor__code-panel .cm-editor .cm-activeLine {
+  background-color: var(--easyx-ai-rich-editor-bg-hover);
+}
+
+.easyx-ai-rich-editor__code-panel .cm-editor .cm-activeLineGutter {
+  background-color: var(--easyx-ai-rich-editor-bg-active);
+  color: var(--easyx-ai-rich-editor-text-secondary);
+}
+
+/* 括号匹配 */
+.easyx-ai-rich-editor__code-panel .cm-editor.cm-focused .cm-matchingBracket {
+  background-color: var(--easyx-ai-rich-editor-primary-soft);
+  outline: 1px solid var(--easyx-ai-rich-editor-primary);
+  color: inherit;
+}
+
+.easyx-ai-rich-editor__code-panel .cm-editor.cm-focused .cm-nonmatchingBracket {
+  background-color: var(--easyx-ai-rich-editor-danger-soft);
+  outline: 1px solid var(--easyx-ai-rich-editor-danger);
+}
+
+/* 查找命中（当前命中由 code-match-current 区分） */
+.easyx-ai-rich-editor__code-panel .cm-editor .cm-searchMatch {
+  background-color: var(--easyx-ai-rich-editor-code-match);
+  border-radius: 2px;
+}
+
+.easyx-ai-rich-editor__code-panel .cm-editor .cm-searchMatch.cm-searchMatch-selected {
+  background-color: var(--easyx-ai-rich-editor-code-match-current);
+}
+
+.easyx-ai-rich-editor__code-panel .cm-editor .cm-selectionMatch {
+  background-color: var(--easyx-ai-rich-editor-code-match);
+  border-radius: 2px;
+}

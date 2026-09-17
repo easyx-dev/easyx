@@ -6,7 +6,8 @@
  * → 未声明主题时跟随系统 prefers-color-scheme。
  * 三处任一变化都实时联动（属性监听 + 媒体查询订阅）。
  *
- * 说明：Monaco 读不到 CSS 变量，只能由本 hook 把判定结果交给它，因此这份判定
+ * 说明：CodeMirror 读不到 CSS 变量，它内置扩展的亮暗变体（光标 / 选区 / 当前行 / 面板）
+ * 由 darkTheme facet 决定，只能由本 hook 把判定结果交给它，因此这份判定
  * 必须与 src/styles/_variables.scss 的 theme-scope 保持一致。
  */
 import { type RefObject, useEffect, useState } from 'react';

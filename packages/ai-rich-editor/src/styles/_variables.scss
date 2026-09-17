@@ -31,6 +31,19 @@
   --easyx-ai-rich-editor-shadow: 0 2px 8px rgb(0 0 0 / 8%);
   --easyx-ai-rich-editor-shadow-lg: 0 12px 40px rgb(0 0 0 / 16%);
   --easyx-ai-rich-editor-scrollbar-thumb: #d4d4d8;
+  /* 代码面板：选区与查找命中 */
+  --easyx-ai-rich-editor-code-selection: rgb(22 119 255 / 22%);
+  --easyx-ai-rich-editor-code-match: rgb(250 204 21 / 55%);
+  --easyx-ai-rich-editor-code-match-current: rgb(249 115 22 / 55%);
+  /* 代码面板：语法高亮（HTML 标签 / 属性 / 字符串 / CSS 属性 / 关键字 / 数字 / 注释 / 标点） */
+  --easyx-ai-rich-editor-code-tag: #0f766e;
+  --easyx-ai-rich-editor-code-attr: #1d4ed8;
+  --easyx-ai-rich-editor-code-string: #b45309;
+  --easyx-ai-rich-editor-code-property: #0369a1;
+  --easyx-ai-rich-editor-code-keyword: #9333ea;
+  --easyx-ai-rich-editor-code-number: #c2410c;
+  --easyx-ai-rich-editor-code-comment: #6b7280;
+  --easyx-ai-rich-editor-code-punct: #64748b;
 }
 
 /** 暗色令牌 */
@@ -60,6 +73,17 @@
   --easyx-ai-rich-editor-shadow: 0 2px 8px rgb(0 0 0 / 32%);
   --easyx-ai-rich-editor-shadow-lg: 0 12px 40px rgb(0 0 0 / 48%);
   --easyx-ai-rich-editor-scrollbar-thumb: #3f3f46;
+  --easyx-ai-rich-editor-code-selection: rgb(64 150 255 / 34%);
+  --easyx-ai-rich-editor-code-match: rgb(250 204 21 / 30%);
+  --easyx-ai-rich-editor-code-match-current: rgb(249 115 22 / 45%);
+  --easyx-ai-rich-editor-code-tag: #5eead4;
+  --easyx-ai-rich-editor-code-attr: #93c5fd;
+  --easyx-ai-rich-editor-code-string: #fcd34d;
+  --easyx-ai-rich-editor-code-property: #7dd3fc;
+  --easyx-ai-rich-editor-code-keyword: #d8b4fe;
+  --easyx-ai-rich-editor-code-number: #fdba74;
+  --easyx-ai-rich-editor-code-comment: #71717a;
+  --easyx-ai-rich-editor-code-punct: #a1a1aa;
 }
 
 /** 尺寸、字体与层级令牌（不随主题变化） */

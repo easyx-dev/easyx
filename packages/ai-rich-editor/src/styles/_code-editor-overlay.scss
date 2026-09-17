@@ -1,0 +1,228 @@
+/**
+ * 代码面板（CodeMirror 6）面板样式：查找替换面板与跳转行对话框
+ *
+ * 与 _code-editor.scss 同一约定：选择器完整镜像 CodeMirror 的目标链并多一层类名，
+ * 靠具体度稳定胜过它运行时注入的样式。配色与控件外观全部取包内令牌。
+ * 补全弹窗另见 _code-editor-autocomplete.scss。
+ */
+
+/* 面板容器（查找 / 跳转行共用） */
+.easyx-ai-rich-editor__code-panel .cm-editor .cm-panels {
+  background: var(--easyx-ai-rich-editor-bg-subtle);
+  color: var(--easyx-ai-rich-editor-text);
+}
+
+.easyx-ai-rich-editor__code-panel .cm-editor .cm-panels.cm-panels-top {
+  border-bottom: 1px solid var(--easyx-ai-rich-editor-border);
+}
+
+.easyx-ai-rich-editor__code-panel .cm-editor .cm-panels.cm-panels-bottom {
+  border-top: 1px solid var(--easyx-ai-rich-editor-border);
+}
+
+/* ── 面板内通用控件：查找面板与行跳转面板共用 ── */
+
+.easyx-ai-rich-editor__code-panel .cm-editor .cm-textfield {
+  padding: 3px 8px;
+  border: 1px solid var(--easyx-ai-rich-editor-border-strong);
+  border-radius: var(--easyx-ai-rich-editor-radius-sm);
+  background: var(--easyx-ai-rich-editor-bg);
+  color: var(--easyx-ai-rich-editor-text);
+  font-family: inherit;
+  font-size: var(--easyx-ai-rich-editor-font-size-xs);
+}
+
+/* 聚焦只加深边框并加一圈中性描边，不引入强调色。
+   用 --text-secondary 而非 --text-tertiary：后者在亮色下对白底约 2.5:1，
+   达不到 WCAG 1.4.11 对状态指示的 3:1 要求 */
+.easyx-ai-rich-editor__code-panel .cm-editor .cm-textfield:focus {
+  border-color: var(--easyx-ai-rich-editor-text-secondary);
+  outline: none;
+}
+
+.easyx-ai-rich-editor__code-panel .cm-editor .cm-textfield::placeholder {
+  color: var(--easyx-ai-rich-editor-text-tertiary);
+}
+
+.easyx-ai-rich-editor__code-panel .cm-editor .cm-button {
+  padding: 3px 10px;
+  border: 1px solid var(--easyx-ai-rich-editor-border-strong);
+  border-radius: var(--easyx-ai-rich-editor-radius-sm);
+  background-color: var(--easyx-ai-rich-editor-bg);
+  background-image: none;
+  color: var(--easyx-ai-rich-editor-text-secondary);
+  font-family: inherit;
+  font-size: var(--easyx-ai-rich-editor-font-size-xs);
+  cursor: pointer;
+}
+
+.easyx-ai-rich-editor__code-panel .cm-editor .cm-button:hover {
+  border-color: var(--easyx-ai-rich-editor-text-tertiary);
+  color: var(--easyx-ai-rich-editor-text);
+}
+
+.easyx-ai-rich-editor__code-panel .cm-editor .cm-button:active {
+  background-color: var(--easyx-ai-rich-editor-bg-active);
+  background-image: none;
+}
+
+.easyx-ai-rich-editor__code-panel .cm-editor .cm-button:focus-visible {
+  border-color: var(--easyx-ai-rich-editor-text-secondary);
+  outline: 1px solid var(--easyx-ai-rich-editor-text-secondary);
+  outline-offset: 1px;
+}
+
+/* ── 查找面板：两行 flex 布局（查找行 / 替换行），由 CodeMirror 的 <br> 断行 ── */
+
+.easyx-ai-rich-editor__code-panel .cm-editor .cm-panel.cm-search {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  /* 右侧留出关闭按钮的位置，避免与控件重叠 */
+  padding: 8px 34px 8px 10px;
+  font-size: var(--easyx-ai-rich-editor-font-size-xs);
+}
+
+/* 各控件的间距统一交给 gap，清掉 CodeMirror 加的零散外边距 */
+.easyx-ai-rich-editor__code-panel .cm-editor .cm-panel.cm-search > * {
+  margin: 0;
+}
+
+/* <br> 只承担断行 */
+.easyx-ai-rich-editor__code-panel .cm-editor .cm-panel.cm-search br {
+  flex-basis: 100%;
+  height: 0;
+}
+
+.easyx-ai-rich-editor__code-panel
+  .cm-editor
+  .cm-panel.cm-search
+  .cm-textfield {
+  flex: 0 0 auto;
+  width: 180px;
+}
+
+/* 选项：勾选框自绘，与包内 Checkbox 同一外观（不用主色 accent-color） */
+.easyx-ai-rich-editor__code-panel .cm-editor .cm-panel.cm-search label {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 5px;
+  font-size: inherit;
+  color: var(--easyx-ai-rich-editor-text-secondary);
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.easyx-ai-rich-editor__code-panel
+  .cm-editor
+  .cm-panel.cm-search
+  input[type='checkbox'] {
+  position: relative;
+  top: auto;
+  flex-shrink: 0;
+  width: 15px;
+  height: 15px;
+  margin: 0;
+  border: 1px solid var(--easyx-ai-rich-editor-border-strong);
+  border-radius: var(--easyx-ai-rich-editor-radius-sm);
+  background: var(--easyx-ai-rich-editor-bg);
+  appearance: none;
+  cursor: pointer;
+}
+
+.easyx-ai-rich-editor__code-panel
+  .cm-editor
+  .cm-panel.cm-search
+  input[type='checkbox']:checked {
+  border-color: var(--easyx-ai-rich-editor-primary);
+  background: var(--easyx-ai-rich-editor-primary);
+}
+
+/* 对勾：inset + margin auto 在 13×13 的 padding box 内居中
+   （控件 15×15 含 1px 边框，绝对定位伪元素的包含块是 padding box，用 top/left 硬编码会偏上） */
+.easyx-ai-rich-editor__code-panel
+  .cm-editor
+  .cm-panel.cm-search
+  input[type='checkbox']:checked::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  width: 4px;
+  height: 8px;
+  margin: auto;
+  border: solid var(--easyx-ai-rich-editor-on-primary);
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
+
+.easyx-ai-rich-editor__code-panel
+  .cm-editor
+  .cm-panel.cm-search
+  input[type='checkbox']:focus-visible {
+  outline: 1px solid var(--easyx-ai-rich-editor-text-secondary);
+  outline-offset: 1px;
+}
+
+/* ── 跳转行面板：与查找面板同一套控件与留白 ── */
+
+.easyx-ai-rich-editor__code-panel .cm-editor .cm-dialog {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 34px 8px 10px;
+  font-size: var(--easyx-ai-rich-editor-font-size-xs);
+}
+
+.easyx-ai-rich-editor__code-panel .cm-editor .cm-dialog form {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+}
+
+.easyx-ai-rich-editor__code-panel .cm-editor .cm-dialog label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: inherit;
+  color: var(--easyx-ai-rich-editor-text-secondary);
+  white-space: nowrap;
+}
+
+/* 行号输入不需要查找框那么宽 */
+.easyx-ai-rich-editor__code-panel .cm-editor .cm-dialog .cm-textfield {
+  width: 76px;
+}
+
+/* ── 关闭按钮：查找面板与跳转行面板共用 ── */
+
+.easyx-ai-rich-editor__code-panel .cm-editor .cm-panel.cm-search [name='close'],
+.easyx-ai-rich-editor__code-panel .cm-editor .cm-dialog .cm-dialog-close {
+  position: absolute;
+  top: 7px;
+  right: 7px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--easyx-ai-rich-editor-radius-sm);
+  background: transparent;
+  color: var(--easyx-ai-rich-editor-text-secondary);
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.easyx-ai-rich-editor__code-panel
+  .cm-editor
+  .cm-panel.cm-search
+  [name='close']:hover,
+.easyx-ai-rich-editor__code-panel .cm-editor .cm-dialog .cm-dialog-close:hover {
+  background: var(--easyx-ai-rich-editor-bg-active);
+  color: var(--easyx-ai-rich-editor-text);
+}
