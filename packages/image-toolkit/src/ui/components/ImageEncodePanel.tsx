@@ -1,10 +1,11 @@
 /**
  * 编码面板：有损压缩（格式 / 质量 / PNG 降色）与无损优化（可无损转 WebP）二选一
  *
+ * 选项都不多，因此格式与调色板一律用分段控件（与压缩模式同一控件）而非下拉：
+ * 少一次点击、选项一眼可见，也免去浮层定位与焦点管理。
+ *
  * 说明性文案统一用一行小字（Hint），Alert 只保留给错误与需要用户行动的提示。
  */
-
-import { useId } from 'react';
 import { isOutputFormat, PALETTE_COLOR_PRESETS } from '../../limits';
 import { getLosslessStrategy, isOptimizableLosslessly } from '../../lossless';
 import type { ImageFormat, ImageOutputFormat } from '../../types';
@@ -13,15 +14,13 @@ import {
   type EditorSettings,
   resolveOutputFormat,
 } from '../editor-settings';
-import {
-  Checkbox,
-  Field,
-  Hint,
-  Segmented,
-  Select,
-  Slider,
-  Stack,
-} from '../primitives';
+import { Checkbox, Field, Hint, Segmented, Slider, Stack } from '../primitives';
+
+/** 调色板的「不降色」哨兵：分段控件的取值只能是字符串 */
+const PALETTE_NONE = 'none';
+
+/** 保持原格式的展示文案（不可用时由 Hint 说明原因） */
+const KEEP_LABEL = '保持原格式';
 
 export interface ImageEncodePanelProps {
   sourceFormat: ImageFormat;
@@ -38,12 +37,7 @@ export function ImageEncodePanel({
   const losslessSupported = isOptimizableLosslessly(sourceFormat);
   const strategy = getLosslessStrategy(sourceFormat);
   const keepAvailable = canKeepSourceFormat(sourceFormat);
-  const keepLabel = keepAvailable
-    ? '保持原格式'
-    : '保持原格式（源格式不可输出）';
-  // 关联 Field 的 label 与控件，让下拉在无障碍树里带上名字
-  const formatId = useId();
-  const paletteId = useId();
+  const sourceLabel = sourceFormat.toUpperCase();
 
   return (
     <Stack size="sm">
@@ -59,18 +53,27 @@ export function ImageEncodePanel({
         value={value.mode}
       />
 
+      {!keepAvailable && (
+        <Hint>源格式 {sourceLabel} 不可作为输出格式，请另选一种。</Hint>
+      )}
+
       {value.mode === 'lossless' ? (
         <>
-          <Field htmlFor={formatId} label="目标格式">
-            <Select
-              id={formatId}
-              onChange={(format) => onChange({ format })}
+          <Field label="目标格式">
+            <Segmented
+              aria-label="目标格式"
+              onChange={(format) =>
+                onChange({ format: format as EditorSettings['format'] })
+              }
               options={[
-                { disabled: !keepAvailable, label: keepLabel, value: 'keep' },
+                {
+                  disabled: !keepAvailable,
+                  label: KEEP_LABEL,
+                  value: 'keep',
+                },
                 { label: 'WebP（无损）', value: 'webp' },
               ]}
               value={value.format}
-              width={180}
             />
           </Field>
           {losslessSupported ? (
@@ -80,51 +83,61 @@ export function ImageEncodePanel({
             </Hint>
           ) : (
             <Hint tone="warning">
-              {sourceFormat.toUpperCase()} 不支持无损优化：{strategy.label}
+              {sourceLabel} 不支持无损优化：{strategy.label}
             </Hint>
           )}
         </>
       ) : (
         <>
-          <Field htmlFor={formatId} label="输出格式">
-            <Select
-              id={formatId}
+          <Field label="输出格式">
+            <Segmented
+              aria-label="输出格式"
               onChange={(format) =>
                 onChange({
                   colors:
-                    resolveOutputFormat({ ...value, format }, sourceFormat) ===
-                    'png'
+                    resolveOutputFormat(
+                      { ...value, format: format as EditorSettings['format'] },
+                      sourceFormat,
+                    ) === 'png'
                       ? value.colors
                       : null,
-                  format,
+                  format: format as EditorSettings['format'],
                 })
               }
               options={[
-                { disabled: !keepAvailable, label: keepLabel, value: 'keep' },
+                {
+                  disabled: !keepAvailable,
+                  label: KEEP_LABEL,
+                  value: 'keep',
+                },
                 { label: 'WebP', value: 'webp' },
                 { label: 'JPEG', value: 'jpeg' },
                 { label: 'PNG', value: 'png' },
               ]}
               value={value.format}
-              width={180}
             />
           </Field>
 
           {effectiveFormat === 'png' ? (
             <>
-              <Field htmlFor={paletteId} label="调色板">
-                <Select
-                  id={paletteId}
-                  onChange={(colors) => onChange({ colors })}
+              <Field label="调色板">
+                <Segmented
+                  aria-label="调色板"
+                  onChange={(key) =>
+                    onChange({
+                      colors: key === PALETTE_NONE ? null : Number(key),
+                    })
+                  }
                   options={[
-                    { label: '不降色（真彩）', value: null },
+                    { label: '不降色', value: PALETTE_NONE },
                     ...PALETTE_COLOR_PRESETS.map((colors) => ({
                       label: `${colors} 色`,
-                      value: colors,
+                      value: String(colors),
                     })),
                   ]}
-                  value={value.colors}
-                  width={180}
+                  value={
+                    value.colors === null ? PALETTE_NONE : String(value.colors)
+                  }
                 />
               </Field>
               {value.colors !== null ? (

@@ -136,7 +136,7 @@ EASYX_IMAGE_TOOLKIT_REMOTE=1 pnpm build
 
 样式走包内 SCSS + CSS 变量（`--easyx-image-toolkit-*`，定义见 `src/ui/styles/_variables.scss`），经 `injectStyles` 编译后内联进 JS，宿主无需单独引入样式文件，覆盖变量即可定制外观。
 
-界面为自研实现，除 React 外不依赖任何 UI 库；表单控件一律基于原生元素（`select` / `range` / `radio` / `checkbox` / `number`），`color-scheme` 随主题切换，系统控件的下拉与滚动条不会与自绘外观割裂。
+界面为自研实现，除 React 外不依赖任何 UI 库；表单控件一律基于原生元素（`range` / `radio` / `checkbox` / `number`），`color-scheme` 随主题切换，系统控件的下拉与滚动条不会与自绘外观割裂。
 
 暗色按三级判定，命中即生效：
 

@@ -64,22 +64,18 @@ export function Hint({ tone = 'secondary', children, className }: HintProps) {
 }
 
 export interface FieldProps {
-  /** 字段名；传入 htmlFor 时与控件关联 */
+  /** 字段名（分段控件等自带 aria-label 的控件无需再关联） */
   label?: ReactNode;
-  /** 关联控件的 id */
-  htmlFor?: string;
   children: ReactNode;
   className?: string;
 }
 
 /** 字段行：标签在上、控件在下，用于控制栏内成组的表单 */
-export function Field({ label, htmlFor, children, className }: FieldProps) {
+export function Field({ label, children, className }: FieldProps) {
   return (
     <div className={cx('easyx-image-toolkit__field', className)}>
       {label !== undefined && (
-        <label className="easyx-image-toolkit__field-label" htmlFor={htmlFor}>
-          {label}
-        </label>
+        <span className="easyx-image-toolkit__field-label">{label}</span>
       )}
       <div className="easyx-image-toolkit__field-control">{children}</div>
     </div>

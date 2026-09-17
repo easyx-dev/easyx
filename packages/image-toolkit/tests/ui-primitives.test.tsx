@@ -1,7 +1,7 @@
 // @rstest-environment jsdom
 /**
  * UI 原语测试：覆盖「原生控件包装」中容易出错的三处 ——
- * number 输入的草稿与夹取时机、select 的 null 值映射、modal 的 portal/关闭/主题
+ * number 输入的草稿与夹取时机、分段控件的选中与禁用、modal 的 portal/关闭/主题
  */
 
 import { afterEach, describe, expect, it, rs } from '@rstest/core';
@@ -10,7 +10,6 @@ import { Checkbox } from '../src/ui/primitives/Checkbox';
 import { Modal } from '../src/ui/primitives/Modal';
 import { NumberInput } from '../src/ui/primitives/NumberInput';
 import { Segmented } from '../src/ui/primitives/Segmented';
-import { Select } from '../src/ui/primitives/Select';
 
 afterEach(() => {
   cleanup();
@@ -69,31 +68,6 @@ describe('NumberInput', () => {
     fireEvent.keyDown(input, { key: 'Enter' });
 
     expect(onChange).toHaveBeenCalledWith(42);
-  });
-});
-
-describe('Select', () => {
-  const options = [
-    { label: '不降色（真彩）', value: null },
-    { label: '256 色', value: 256 },
-  ];
-
-  it('null 值映射为空串，选中数字项时回传原始值', () => {
-    const onChange = rs.fn();
-    render(
-      <Select
-        aria-label="调色板"
-        onChange={onChange}
-        options={options}
-        value={null}
-      />,
-    );
-    const select = screen.getByLabelText('调色板') as HTMLSelectElement;
-
-    expect(select.value).toBe('');
-
-    fireEvent.change(select, { target: { value: '256' } });
-    expect(onChange).toHaveBeenCalledWith(256);
   });
 });
 

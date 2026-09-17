@@ -23,7 +23,6 @@ export {
   type SegmentedOption,
   type SegmentedProps,
 } from './Segmented';
-export { Select, type SelectOption, type SelectProps } from './Select';
 export { Slider, type SliderProps } from './Slider';
 export { Spin, type SpinProps } from './Spin';
 export { Tooltip, type TooltipProps } from './Tooltip';

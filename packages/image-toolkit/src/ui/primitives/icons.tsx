@@ -38,21 +38,6 @@ export function IconClose({ size = 16, ...rest }: IconProps) {
   );
 }
 
-export function IconCaretDown({ size = 14, ...rest }: IconProps) {
-  return (
-    <svg
-      aria-hidden="true"
-      height={size}
-      viewBox="0 0 24 24"
-      width={size}
-      {...stroke}
-      {...rest}
-    >
-      <path d="m6 9 6 6 6-6" />
-    </svg>
-  );
-}
-
 export function IconInfoCircle({ size = 16, ...rest }: IconProps) {
   return (
     <svg
