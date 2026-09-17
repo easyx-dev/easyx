@@ -85,6 +85,53 @@
   margin-left: auto;
 }
 
+/* 控件组标签：与分段切换同排 */
+.demo-control-bar-label {
+  font-size: 12px;
+  color: var(--demo-text-dim);
+  white-space: nowrap;
+}
+
+/*
+ * 分段切换：同一组内的互斥选项
+ * 组容器压底色、选中项浮起（而不是把主色填满），与库内 Segmented 的观感一致，
+ * 也避免与旁边的普通按钮抢视觉优先级
+ */
+.demo-control-bar .demo-segmented {
+  display: inline-flex;
+  gap: 2px;
+  padding: 2px;
+  border: 1px solid var(--demo-border);
+  border-radius: 7px;
+  background: var(--demo-surface);
+}
+
+.demo-control-bar .demo-segmented button {
+  padding: 3px 10px;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--demo-text-muted);
+  font-size: 12px;
+  font-weight: 400;
+  cursor: pointer;
+  transition:
+    background 0.15s,
+    color 0.15s;
+}
+
+.demo-control-bar .demo-segmented button:hover {
+  background: var(--demo-hover-bg);
+  color: var(--demo-text);
+}
+
+.demo-control-bar .demo-segmented button[aria-pressed="true"] {
+  background: var(--demo-bg);
+  box-shadow: var(--demo-shadow);
+  color: var(--demo-text);
+  font-weight: 600;
+}
+
 /* ── 编辑器主体 ── */
 .demo-editor-body {
   flex: 1;

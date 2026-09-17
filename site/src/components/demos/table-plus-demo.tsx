@@ -100,65 +100,56 @@ export default function TablePlusDemo() {
     [editor],
   );
 
-  const themeBtnStyle = (active: boolean): React.CSSProperties => ({
-    background: active ? 'var(--demo-accent)' : 'transparent',
-    color: active ? '#fff' : 'var(--demo-text)',
-    fontWeight: active ? 600 : 400,
-  });
-
   return (
     <div className="demo-editor-container">
       <div className="demo-control-bar">
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-          <span style={{ fontSize: 12, color: 'var(--demo-text-dim)' }}>
-            主题：
-          </span>
+        <span className="demo-control-bar-label">主题</span>
+        <div className="demo-segmented">
           <button
-            type="button"
-            style={themeBtnStyle(tableTheme === 'light')}
+            aria-pressed={tableTheme === 'light'}
             onClick={() => setTableTheme('light')}
+            type="button"
           >
             浅色
           </button>
           <button
-            type="button"
-            style={themeBtnStyle(tableTheme === 'dark')}
+            aria-pressed={tableTheme === 'dark'}
             onClick={() => setTableTheme('dark')}
+            type="button"
           >
             深色
           </button>
         </div>
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-          <span style={{ fontSize: 12, color: 'var(--demo-text-dim)' }}>
-            语言：
-          </span>
+
+        <span className="demo-control-bar-label">语言</span>
+        <div className="demo-segmented">
           <button
-            type="button"
-            style={themeBtnStyle(locale === 'zh-CN')}
+            aria-pressed={locale === 'zh-CN'}
             onClick={() => setLocale('zh-CN')}
+            type="button"
           >
             简体中文
           </button>
           <button
-            type="button"
-            style={themeBtnStyle(locale === 'en-US')}
+            aria-pressed={locale === 'en-US'}
             onClick={() => setLocale('en-US')}
+            type="button"
           >
             English
           </button>
         </div>
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-          <span style={{ fontSize: 12, color: 'var(--demo-text-dim)' }}>
-            菜单：
-          </span>
+
+        <span className="demo-control-bar-label">菜单</span>
+        <div className="demo-segmented">
           <button
-            type="button"
-            style={themeBtnStyle(customMenu)}
+            aria-pressed={customMenu}
             onClick={() => setCustomMenu(!customMenu)}
+            type="button"
           >
             自定义菜单
           </button>
         </div>
+
         <span className="demo-control-bar-hint">TablePlus 演示</span>
       </div>
       <div className="demo-toolbar">
