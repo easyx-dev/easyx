@@ -76,10 +76,18 @@
   margin-top: 4px;
 }
 
-/* 对比预览：容器宽度为基准，两层图像各自按数据定位 */
+/* 对比预览：外层只负责居中，舞台收缩到图像自身的适配矩形 */
 .easyx-image-toolkit__compare {
-  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   width: 100%;
+  overflow: hidden;
+}
+
+.easyx-image-toolkit__compare-stage {
+  position: relative;
+  flex: none;
   overflow: hidden;
   /* 透明区域的棋盘底纹：让 PNG 的透明与留白可区分 */
   background: repeating-conic-gradient(
@@ -91,18 +99,19 @@
   touch-action: none;
 }
 
-.easyx-image-toolkit__compare--draggable {
+.easyx-image-toolkit__compare-stage--draggable {
   cursor: ew-resize;
 }
 
 .easyx-image-toolkit__compare-img {
   position: absolute;
+  top: 0;
+  left: 0;
   max-width: none;
 }
 
 .easyx-image-toolkit__compare-clip {
   position: absolute;
-  inset: 0;
 }
 
 .easyx-image-toolkit__compare-handle {
@@ -150,11 +159,110 @@
   right: 8px;
 }
 
-/* 裁切台：黑底画布 + 比例/缩放工具行 */
+/* 裁切台：黑底画布 + 可拖拽的裁切框 */
 .easyx-image-toolkit__crop-stage {
   position: relative;
   width: 100%;
+  overflow: hidden;
   background: #000;
+  touch-action: none;
+  user-select: none;
+}
+
+.easyx-image-toolkit__crop-image {
+  position: absolute;
+  max-width: none;
+}
+
+.easyx-image-toolkit__crop-rect {
+  position: absolute;
+  padding: 0;
+  border: 1px solid rgb(255 255 255 / 90%);
+  background: transparent;
+  cursor: move;
+  /* 裁切区之外压暗：外阴影铺满画布，再由画布的 overflow 裁掉 */
+  box-shadow: 0 0 0 9999px rgb(0 0 0 / 55%);
+}
+
+.easyx-image-toolkit__crop-rect:focus-visible {
+  outline: 2px solid var(--easyx-image-toolkit-primary);
+  outline-offset: 2px;
+}
+
+/* 三分构图参考线 */
+.easyx-image-toolkit__crop-grid {
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(to right, rgb(255 255 255 / 30%) 1px, transparent 1px),
+    linear-gradient(to bottom, rgb(255 255 255 / 30%) 1px, transparent 1px);
+  background-size: 33.334% 33.334%;
+  pointer-events: none;
+}
+
+/*
+ * 拖拽手柄：一律贴在裁切框内侧 —— 裁切框初始就是整幅图，向外突出的手柄
+ * 会被画布的 overflow 裁掉，导致边缘拖不动。
+ */
+.easyx-image-toolkit__crop-handle {
+  position: absolute;
+  width: 14px;
+  height: 14px;
+  border-radius: 2px;
+  background: #fff;
+  box-shadow: 0 0 2px rgb(0 0 0 / 45%);
+}
+
+.easyx-image-toolkit__crop-handle--nw {
+  top: 0;
+  left: 0;
+  cursor: nwse-resize;
+}
+
+.easyx-image-toolkit__crop-handle--n {
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  cursor: ns-resize;
+}
+
+.easyx-image-toolkit__crop-handle--ne {
+  top: 0;
+  right: 0;
+  cursor: nesw-resize;
+}
+
+.easyx-image-toolkit__crop-handle--e {
+  top: 50%;
+  right: 0;
+  transform: translateY(-50%);
+  cursor: ew-resize;
+}
+
+.easyx-image-toolkit__crop-handle--se {
+  right: 0;
+  bottom: 0;
+  cursor: nwse-resize;
+}
+
+.easyx-image-toolkit__crop-handle--s {
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  cursor: ns-resize;
+}
+
+.easyx-image-toolkit__crop-handle--sw {
+  bottom: 0;
+  left: 0;
+  cursor: nesw-resize;
+}
+
+.easyx-image-toolkit__crop-handle--w {
+  top: 50%;
+  left: 0;
+  transform: translateY(-50%);
+  cursor: ew-resize;
 }
 
 .easyx-image-toolkit__crop-toolbar {

@@ -311,6 +311,7 @@ function EditorBody({
         <div className="easyx-image-toolkit__editor-stage">
           <ImageEditorStage
             aspect={aspect}
+            cropDraft={cropDraft}
             cropMode={cropMode}
             onAspectChange={setAspect}
             onCropDraftChange={setCropDraft}
@@ -325,7 +326,15 @@ function EditorBody({
             info={info}
             onPatch={patchSettings}
             onStartCrop={() => {
-              setCropDraft(settings.crop);
+              // 用当前裁切区；没有则从整幅图起步（与裁切台的初始框保持一致）
+              setCropDraft(
+                settings.crop ?? {
+                  height: sourceSize.height,
+                  left: 0,
+                  top: 0,
+                  width: sourceSize.width,
+                },
+              );
               setAspect(undefined);
               setCropMode(true);
             }}
@@ -341,7 +350,16 @@ function EditorBody({
         cropMode={cropMode}
         onClose={onClose}
         onFinishCrop={(applied) => {
-          if (applied) patchSettings({ crop: cropDraft });
+          if (applied) {
+            // 框住整幅图等价于未裁切：归一化为 null，省掉引擎里一次无意义的裁切
+            const full =
+              cropDraft !== null &&
+              cropDraft.left === 0 &&
+              cropDraft.top === 0 &&
+              cropDraft.width === sourceSize.width &&
+              cropDraft.height === sourceSize.height;
+            patchSettings({ crop: full ? null : cropDraft });
+          }
           setCropMode(false);
         }}
         onSave={async (next) => {

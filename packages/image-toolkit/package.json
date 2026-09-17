@@ -27,8 +27,7 @@
     "test:watch": "rstest --watch"
   },
   "dependencies": {
-    "@floating-ui/dom": "^1.7.6",
-    "react-easy-crop": "^6.2.3"
+    "@floating-ui/dom": "^1.7.6"
   },
   "peerDependencies": {
     "react": "^19.2.0",

@@ -158,7 +158,7 @@ packages/
     │       ├── engine/           # 状态机、下载器、Worker、wasm 操作、资源定位
     │       ├── hooks/            # useImageEngine / useImagePreview / useElementSize / theme
     │       ├── primitives/       # 自研 UI 原语（按钮/弹窗/分段/滑杆/下拉/提示…）
-    │       ├── components/       # 弹窗布局、拖动对比、裁切台、缩放/编码面板、引擎门控
+    │       ├── components/       # 弹窗布局、拖动对比、裁切台（含 crop-geometry 纯几何）、编码面板、引擎门控
     │       ├── styles/           # UI 样式分片（令牌 + 基础 + 控件 + 反馈 + 浮层 + 业务）
     │       └── utils/            # format-bytes / cx（类名与令牌作用域）
     └── tests/                # 纯逻辑 + 引擎编排 + 真实 wasm 实测
@@ -380,6 +380,7 @@ const editor = createEditor(containerElement, {
 - `src/limits.ts` 是格式能力的单一事实来源，界面的可编辑 / 可输出 / 可无损优化判定都从它派生；`ui/editor-settings.ts` 是 UI 状态 → 引擎入参的唯一转换点
 - 引擎产物必须经 `sniffImage` 校验后才允许流入存储
 - **UI 层自研**：除 React 外不依赖任何 UI 库。原语集中在 `ui/primitives/`，全部基于原生元素（`select` / `range` / `radio` / `checkbox` / `number`）只由 CSS 承担外观，键盘操作与无障碍语义由此白送；弹窗、Tooltip 等浮层以 portal 渲染，**根节点必须补上 `easyx-image-toolkit` 令牌作用域类**，否则脱离宿主 DOM 层级后拿不到 CSS 变量
+- **裁切几何独立成纯函数**（`ui/components/crop-geometry.ts`）：边界、下限、锚点与比例锁定的规则用交互验证成本高，故全部走单测；裁切框一律以「EXIF 定向后的原图像素坐标」表示，与引擎 `autoOrient → crop` 的顺序一致
 - **运行时资源引用必须保持静态**：产物中是 `new Worker(new URL('./engine/worker.js', import.meta.url), { type: 'module' })` 与 `new URL('./engine/magick.wasm', import.meta.url)`，宿主打包器据此把资源复制进自己的产物。因此 `rslib.config.ts` 对 `client.ts` / `bundled-wasm.ts` 关闭了 `parser.url`，wasm 经 `output.copy` 落到 `dist/ui/engine/`；改这两处路径时必须同步核对产物目录结构
 - `@imagemagick/magick-wasm` 固定在 `devDependencies` 参与打包（Worker 由浏览器直接加载，产物中不能残留裸模块说明符），版本必须与 glue 严格同版
 - 该依赖的 wasm 二进制与第三方许可声明（`NOTICE`，含 ImageMagick 静态链接的各库）随包再分发，故在 `rslib.config.ts` 的 `output.copy` 中于构建期复制进 `dist`：既不把 220 KB 的 NOTICE 提交进仓库，也不会与依赖版本脱节

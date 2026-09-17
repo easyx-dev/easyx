@@ -18,6 +18,8 @@ export interface ImageEditorStageProps {
   sourceSize: ImageSize;
   preview: PreviewBundle;
   cropMode: boolean;
+  /** 进入裁切时的初始裁切区；null 表示整幅图 */
+  cropDraft: ImageCrop | null;
   aspect: number | undefined;
   onAspectChange: (aspect: number | undefined) => void;
   onCropDraftChange: (crop: ImageCrop) => void;
@@ -28,6 +30,7 @@ export function ImageEditorStage({
   sourceSize,
   preview,
   cropMode,
+  cropDraft,
   aspect,
   onAspectChange,
   onCropDraftChange,
@@ -38,8 +41,10 @@ export function ImageEditorStage({
         aspect={aspect}
         height={STAGE_HEIGHT}
         imageUrl={src}
+        initialCrop={cropDraft}
         onAspectChange={onAspectChange}
         onCropAreaChange={onCropDraftChange}
+        sourceSize={sourceSize}
       />
     );
   }

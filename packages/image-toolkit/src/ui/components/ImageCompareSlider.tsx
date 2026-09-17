@@ -1,21 +1,21 @@
 /**
  * 原图 / 处理后 拖动对比
  *
+ * 对比舞台收缩到「处理后图像的适配矩形」：两张图都只在舞台内渲染，
+ * 分隔线的百分比因此始终落在图像上，不会走到空白区域。
+ *
  * 关键点是「同区域对齐」：处理结果可能来自裁切与缩放，直接把两张图都按 contain 铺开
  * 会导致左右显示的是不同区域，对比没有意义。做法是让两张图处于**同一像素密度**：
- * - 处理后按容器 contain 得到显示比例 k
- * - 原图按 k × (处理后宽 / 裁切区宽) 渲染，并平移 −裁切偏移 × 该比例
- * 这样分隔线两侧永远是同一块像素，才能真正判断质量损失。
+ * - 处理后铺满舞台（舞台即其结果尺寸的适配矩形）
+ * - 原图按「舞台宽 / 裁切区宽」缩放，并平移 −裁切偏移 × 该比例
+ * 于是裁切区左上角与舞台左上角重合，分隔线两侧永远是同一块像素。
  *
- * 另一处必须注意的是裁剪基准：`clip-path` 的百分比按**元素自身**宽度解析，
- * 而分隔线按**容器**宽度定位。原图元素的宽度/偏移通常都不等于容器，
- * 因此裁剪要套在「容器尺寸的 wrapper」上，否则裁切边界会与分隔线分离。
- * 该 wrapper 的 inset/clip-path 属于算法几何（百分比基准），故仍以内联样式给出。
+ * 裁剪基准因此天然一致：`clip-path` 的百分比按**元素自身**解析，而承载裁剪的 wrapper
+ * 与分隔线都以舞台为基准，两者对齐。
  */
 import { useCallback, useRef, useState } from 'react';
 import type { ImageCrop, ImageSize } from '../../types';
 import { useElementSize } from '../hooks/useElementSize';
-import { cx } from '../utils/cx';
 
 export interface ImageCompareSliderProps {
   /** 原图地址 */
@@ -35,6 +35,15 @@ export interface ImageCompareSliderProps {
 /** 分隔线位置（0-100）的键盘步进 */
 const KEY_STEP = 2;
 
+/** 按容器 contain 适配给定像素尺寸，返回显示尺寸 */
+function fitBox(container: ImageSize, size: ImageSize): ImageSize {
+  const scale = Math.min(
+    container.width / size.width,
+    container.height / size.height,
+  );
+  return { height: size.height * scale, width: size.width * scale };
+}
+
 export function ImageCompareSlider({
   sourceUrl,
   sourceSize,
@@ -44,20 +53,19 @@ export function ImageCompareSlider({
   height,
 }: ImageCompareSliderProps) {
   const [containerRef, container] = useElementSize<HTMLDivElement>();
+  const stageRef = useRef<HTMLDivElement>(null);
   const [position, setPosition] = useState(50);
   const draggingRef = useRef(false);
 
-  const updateFromClientX = useCallback(
-    (clientX: number): void => {
-      const element = containerRef.current;
-      if (!element) return;
-      const rect = element.getBoundingClientRect();
-      if (rect.width === 0) return;
-      const ratio = ((clientX - rect.left) / rect.width) * 100;
-      setPosition(Math.min(100, Math.max(0, ratio)));
-    },
-    [containerRef],
-  );
+  // 分隔线的百分比以舞台为基准，因此按舞台矩形换算（舞台可能比容器窄，两侧留白）
+  const updateFromClientX = useCallback((clientX: number): void => {
+    const element = stageRef.current;
+    if (!element) return;
+    const rect = element.getBoundingClientRect();
+    if (rect.width === 0) return;
+    const ratio = ((clientX - rect.left) / rect.width) * 100;
+    setPosition(Math.min(100, Math.max(0, ratio)));
+  }, []);
 
   const handlePointerDown = useCallback(
     (event: React.PointerEvent<HTMLDivElement>): void => {
@@ -109,127 +117,115 @@ export function ImageCompareSlider({
   }
 
   const comparing = resultUrl !== null && resultSize !== null;
-  // 处理后按 contain 适配容器
-  const resultScale = comparing
-    ? Math.min(
-        container.width / resultSize.width,
-        container.height / resultSize.height,
-      )
-    : 0;
-  const displayWidth = comparing ? resultSize.width * resultScale : 0;
-  const displayHeight = comparing ? resultSize.height * resultScale : 0;
+  // 舞台：有结果时取其适配矩形，否则取原图适配矩形（两者都是图像自身的画幅）
+  const stage = fitBox(container, comparing ? resultSize : sourceSize);
 
-  // 原图与处理后同像素密度；无处理结果时原图自行 contain
+  // 原图与处理后同像素密度：舞台宽即裁切区宽的显示值
   const rect = resultSourceRect ?? {
     height: sourceSize.height,
     left: 0,
     top: 0,
     width: sourceSize.width,
   };
-  const sourceScale = comparing
-    ? resultScale * (resultSize.width / rect.width)
-    : Math.min(
-        container.width / sourceSize.width,
-        container.height / sourceSize.height,
-      );
-  const sourceDisplay = {
-    height: sourceSize.height * sourceScale,
-    width: sourceSize.width * sourceScale,
+  const scale = stage.width / rect.width;
+  const sourceBox = {
+    height: sourceSize.height * scale,
+    width: sourceSize.width * scale,
   };
-  // 处理后图像居中显示；原图按同一像素密度渲染，并把裁切区左上角对齐到该位置
-  const resultLeft = (container.width - displayWidth) / 2;
-  const resultTop = (container.height - displayHeight) / 2;
+  // 裁切区左上角对齐舞台左上角；无裁切时居中铺开
   const sourceLeft = comparing
-    ? resultLeft - rect.left * sourceScale
-    : (container.width - sourceDisplay.width) / 2;
+    ? -rect.left * scale
+    : (stage.width - sourceBox.width) / 2;
   const sourceTop = comparing
-    ? resultTop - rect.top * sourceScale
-    : (container.height - sourceDisplay.height) / 2;
+    ? -rect.top * scale
+    : (stage.height - sourceBox.height) / 2;
 
   return (
     <div
-      className={cx(
-        'easyx-image-toolkit__compare',
-        comparing && 'easyx-image-toolkit__compare--draggable',
-      )}
-      onPointerCancel={comparing ? handlePointerUp : undefined}
-      onPointerDown={comparing ? handlePointerDown : undefined}
-      onPointerMove={comparing ? handlePointerMove : undefined}
-      onPointerUp={comparing ? handlePointerUp : undefined}
+      className="easyx-image-toolkit__compare"
       ref={containerRef}
       style={{ height }}
     >
-      {/* 底层：处理后（占满其显示区域） */}
-      {comparing && (
-        <img
-          alt="处理后"
-          className="easyx-image-toolkit__compare-img"
-          draggable={false}
-          src={resultUrl}
-          style={{
-            height: displayHeight,
-            left: resultLeft,
-            top: resultTop,
-            width: displayWidth,
-          }}
-        />
-      )}
-
-      {/*
-				上层：原图，按分隔线只露出左侧。
-				裁剪必须套一层「容器尺寸」的 wrapper —— clip-path 的百分比按元素自身宽度解析，
-				而原图元素为了与处理后保持同一像素密度，宽度/偏移通常都不等于容器，
-				直接在 img 上裁剪会让裁切边界与分隔线分离（偏移裁切时偏差可达数百像素）。
-			*/}
       <div
-        style={{
-          clipPath: comparing ? `inset(0 ${100 - position}% 0 0)` : undefined,
-          inset: 0,
-          position: 'absolute',
-        }}
+        className={
+          comparing
+            ? 'easyx-image-toolkit__compare-stage easyx-image-toolkit__compare-stage--draggable'
+            : 'easyx-image-toolkit__compare-stage'
+        }
+        onPointerCancel={comparing ? handlePointerUp : undefined}
+        onPointerDown={comparing ? handlePointerDown : undefined}
+        onPointerMove={comparing ? handlePointerMove : undefined}
+        onPointerUp={comparing ? handlePointerUp : undefined}
+        ref={stageRef}
+        style={{ height: stage.height, width: stage.width }}
       >
-        <img
-          alt="原图"
-          className="easyx-image-toolkit__compare-img"
-          draggable={false}
-          src={sourceUrl}
-          style={{
-            height: sourceDisplay.height,
-            left: sourceLeft,
-            top: sourceTop,
-            width: sourceDisplay.width,
-          }}
-        />
-      </div>
+        {/* 底层：处理后，铺满舞台 */}
+        {comparing && (
+          <img
+            alt="处理后"
+            className="easyx-image-toolkit__compare-img"
+            draggable={false}
+            src={resultUrl}
+            style={{ height: stage.height, width: stage.width }}
+          />
+        )}
 
-      {/* 分隔线与拖动手柄 */}
-      {comparing && (
+        {/*
+					上层：原图，按分隔线只露出左侧。
+					裁剪套一层与舞台等大的 wrapper —— clip-path 的百分比按元素自身解析，
+					而原图元素为了与处理后保持同一像素密度，尺寸/偏移通常都超出舞台，
+					直接在 img 上裁剪会让裁切边界与分隔线分离。
+				*/}
         <div
-          aria-label="对比位置"
-          aria-valuemax={100}
-          aria-valuemin={0}
-          aria-valuenow={Math.round(position)}
-          className="easyx-image-toolkit__compare-handle"
-          onKeyDown={handleKeyDown}
-          role="slider"
-          style={{ left: `calc(${position}% - 1px)` }}
-          tabIndex={0}
+          className="easyx-image-toolkit__compare-clip"
+          style={{
+            clipPath: comparing ? `inset(0 ${100 - position}% 0 0)` : undefined,
+            inset: 0,
+          }}
         >
-          <span className="easyx-image-toolkit__compare-knob">⇄</span>
+          <img
+            alt="原图"
+            className="easyx-image-toolkit__compare-img"
+            draggable={false}
+            src={sourceUrl}
+            style={{
+              height: sourceBox.height,
+              left: sourceLeft,
+              top: sourceTop,
+              width: sourceBox.width,
+            }}
+          />
         </div>
-      )}
 
-      {/* 角标 */}
-      {comparing && (
-        <>
-          <span className="easyx-image-toolkit__compare-badge easyx-image-toolkit__compare-badge--start">
-            原图
-          </span>
-          <span className="easyx-image-toolkit__compare-badge easyx-image-toolkit__compare-badge--end">
-            处理后
-          </span>
-        </>
-      )}
+        {/* 分隔线与拖动手柄 */}
+        {comparing && (
+          <div
+            aria-label="对比位置"
+            aria-valuemax={100}
+            aria-valuemin={0}
+            aria-valuenow={Math.round(position)}
+            className="easyx-image-toolkit__compare-handle"
+            onKeyDown={handleKeyDown}
+            role="slider"
+            style={{ left: `calc(${position}% - 1px)` }}
+            tabIndex={0}
+          >
+            <span className="easyx-image-toolkit__compare-knob">⇄</span>
+          </div>
+        )}
+
+        {/* 角标 */}
+        {comparing && (
+          <>
+            <span className="easyx-image-toolkit__compare-badge easyx-image-toolkit__compare-badge--start">
+              原图
+            </span>
+            <span className="easyx-image-toolkit__compare-badge easyx-image-toolkit__compare-badge--end">
+              处理后
+            </span>
+          </>
+        )}
+      </div>
     </div>
   );
 }
