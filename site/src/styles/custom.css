@@ -132,6 +132,125 @@
   font-weight: 600;
 }
 
+/* ── 模型连接面板（AI 工作台演示） ── */
+.demo-connect-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px;
+  background: var(--demo-surface);
+  border-bottom: 1px solid var(--demo-border);
+}
+
+.demo-connect-grid {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.demo-connect-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.demo-connect-field:has(.demo-connect-input) {
+  flex: 1;
+  min-width: 220px;
+}
+
+.demo-connect-label {
+  font-size: 11px;
+  color: var(--demo-text-dim);
+}
+
+.demo-connect-input,
+.demo-connect-select {
+  padding: 5px 8px;
+  border: 1px solid var(--demo-border);
+  border-radius: 6px;
+  background: var(--demo-bg);
+  color: var(--demo-text);
+  font-size: 12px;
+  font-family: inherit;
+}
+
+.demo-connect-input:focus,
+.demo-connect-select:focus {
+  outline: 2px solid var(--demo-accent);
+  outline-offset: -1px;
+}
+
+.demo-connect-badge {
+  align-self: center;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: var(--demo-hover-bg);
+  color: var(--demo-text-muted);
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.demo-connect-badge[data-level="ok"] {
+  color: #059669;
+}
+
+.demo-connect-badge[data-level="blocked"] {
+  color: #dc2626;
+}
+
+.demo-connect-note,
+.demo-connect-warn,
+.demo-connect-status {
+  margin: 0;
+  font-size: 11px;
+  line-height: 1.6;
+  color: var(--demo-text-muted);
+}
+
+.demo-connect-warn {
+  color: #b45309;
+}
+
+.demo-connect-status[data-status="ok"] {
+  color: #059669;
+}
+
+.demo-connect-status[data-status="error"] {
+  color: #dc2626;
+}
+
+.demo-connect-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.demo-connect-actions button {
+  padding: 4px 10px;
+  border: 1px solid var(--demo-border);
+  border-radius: 6px;
+  background: var(--demo-bg);
+  color: var(--demo-text);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.demo-connect-actions button:hover:not(:disabled) {
+  background: var(--demo-hover-bg);
+}
+
+.demo-connect-actions button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.demo-connect-actions .demo-connect-primary {
+  border-color: var(--demo-accent);
+  background: var(--demo-accent);
+  color: #fff;
+}
+
 /* ── 编辑器主体 ── */
 .demo-editor-body {
   flex: 1;

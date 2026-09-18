@@ -74,6 +74,8 @@ export const PREVIEW_DEVICES: PreviewDevice[] = [
 export const DEFAULT_CONFIG = {
   /** 自动应用到编辑器 */
   autoApply: true,
+  /** 图片附件以多模态 content parts 发送 */
+  sendImagesAsMultimodal: true,
 } as const;
 
 /** 对话单次发送的附件数量上限（防止一次塞入过多文件） */

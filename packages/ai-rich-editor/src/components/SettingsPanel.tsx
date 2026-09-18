@@ -41,6 +41,9 @@ export function SettingsPanel({
   const [autoApply, setAutoApply] = useState(config.autoApply ?? true);
   const [systemPrompt, setSystemPrompt] = useState(config.systemPrompt ?? '');
   const [previewHead, setPreviewHead] = useState(config.previewHead ?? '');
+  const [sendImagesAsMultimodal, setSendImagesAsMultimodal] = useState(
+    config.sendImagesAsMultimodal ?? true,
+  );
 
   // 打开时用当前配置重置草稿，避免上次未保存的编辑残留
   useEffect(() => {
@@ -48,6 +51,7 @@ export function SettingsPanel({
     setAutoApply(config.autoApply ?? true);
     setSystemPrompt(config.systemPrompt ?? '');
     setPreviewHead(config.previewHead ?? '');
+    setSendImagesAsMultimodal(config.sendImagesAsMultimodal ?? true);
   }, [open, config]);
 
   const hasCustomPrompt = Boolean(systemPrompt.trim());
@@ -57,6 +61,7 @@ export function SettingsPanel({
       ...config,
       autoApply,
       previewHead: previewHead.trim() ? previewHead : undefined,
+      sendImagesAsMultimodal,
       systemPrompt: systemPrompt.trim() ? systemPrompt : undefined,
     });
   };
@@ -101,6 +106,22 @@ export function SettingsPanel({
             <Tag tone={hasCustomPrompt ? 'primary' : 'default'}>
               {hasCustomPrompt ? '自定义' : '内置默认'}
             </Tag>
+          </div>
+        </Section>
+
+        <Section title="对话">
+          <div className="easyx-ai-rich-editor__settings-row">
+            <div className="easyx-ai-rich-editor__settings-row-main">
+              <Text>图片以多模态发送</Text>
+              <Text block size="xs" tone="secondary">
+                关闭后图片只以文本地址出现，兼容不支持多模态的纯文本模型
+              </Text>
+            </div>
+            <Checkbox
+              aria-label="图片以多模态发送"
+              checked={sendImagesAsMultimodal}
+              onChange={setSendImagesAsMultimodal}
+            />
           </div>
         </Section>
 

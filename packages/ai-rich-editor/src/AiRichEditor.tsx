@@ -1,7 +1,7 @@
 /**
  * AI Rich Editor 主容器：顶栏 + 左(预览，可选编辑器)/右(AI 对话) 两栏工作台
  * 默认两栏：左=预览区、右=AI 对话面板（min400/max600）；「编辑器」为顶栏开关，打开后在左栏与预览并排。
- * value / onChange 兼容受控注入；对话能力经 endpointUrl 注入；
+ * value / onChange 兼容受控注入；对话能力经 OpenAI 兼容端点（endpointUrl + model + requestHeaders）注入；
  * 包配置项统一收拢到 config（经设置面板编辑保存生效），函数型注入项（media/onNotify/onError）留在顶层
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -34,7 +34,9 @@ export function AiRichEditor({
   value = DEFAULT_HTML,
   onChange,
   endpointUrl,
-  requestMeta,
+  model,
+  requestHeaders,
+  requestBody,
   media,
   allowedUrlSchemes,
   onNotify,
@@ -57,7 +59,8 @@ export function AiRichEditor({
       ...config,
     }),
   );
-  const { autoApply, systemPrompt, previewHead } = runtimeConfig;
+  const { autoApply, systemPrompt, previewHead, sendImagesAsMultimodal } =
+    runtimeConfig;
   // 通知与错误各走各的通道：宿主注入即完全接管，未注入用包内兜底
   const notify = onNotify ?? defaultOnNotify;
   // 错误一律先经通知呈现给用户，再上报错误实例（见 createErrorReporter）
@@ -110,11 +113,20 @@ export function AiRichEditor({
     win.document.close();
   }, [value, previewHead]);
 
-  // 每实例 chat 运行时值：endpointUrl / onComplete（autoApply）经 overrides 注入，多实例互不串线
+  // 每实例 chat 连接信息：endpointUrl / model / requestHeaders 经 overrides 注入，多实例互不串线；
+  // 三者都在每次请求时从 ref 读取，因此宿主更换连接后无需重挂载
   const endpointUrlRef = useRef(endpointUrl);
   useEffect(() => {
     endpointUrlRef.current = endpointUrl;
   }, [endpointUrl]);
+  const modelRef = useRef(model);
+  useEffect(() => {
+    modelRef.current = model;
+  }, [model]);
+  const requestHeadersRef = useRef(requestHeaders);
+  useEffect(() => {
+    requestHeadersRef.current = requestHeaders;
+  }, [requestHeaders]);
   const onCompleteRef = useRef<((content: string) => void) | undefined>(
     handleAiComplete,
   );
@@ -123,10 +135,16 @@ export function AiRichEditor({
   }, [handleAiComplete]);
 
   const chatOverrides = useMemo(
-    () => createInstanceChatOverrides(endpointUrlRef, onCompleteRef),
+    () =>
+      createInstanceChatOverrides(
+        endpointUrlRef,
+        modelRef,
+        requestHeadersRef,
+        onCompleteRef,
+      ),
     [],
   );
-  // 对话实例（headless UI）：endpointUrl 与结束回调经 overrides 注入，多实例互不串线
+  // 对话实例（headless UI）：连接信息与结束回调经 overrides 注入，多实例互不串线
   const chat = useAppChat(chatOverrides);
 
   // 流式实时同步：AI 生成中，最后一条 assistant 消息的 HTML 代码块累计新增达到阈值，
@@ -164,13 +182,15 @@ export function AiRichEditor({
       onApplyHtml: handleApplyHtml,
       onError: reportError,
       onNotify: notify,
-      requestMeta,
+      requestBody,
+      sendImagesAsMultimodal,
       systemPrompt,
       urlOptions,
     }),
     [
       systemPrompt,
-      requestMeta,
+      sendImagesAsMultimodal,
+      requestBody,
       media,
       handleApplyHtml,
       notify,

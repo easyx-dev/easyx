@@ -31,6 +31,7 @@ export type {
   AiRichEditorProps,
   AiRichErrorHandler,
   AiRichNotify,
+  AiRichRequestHeaders,
 } from './types';
 export { buildPreviewDocument, extractHtmlFragments } from './utils/extract';
 export { listAllowedSchemes, sanitizeUrl } from './utils/url';

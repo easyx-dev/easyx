@@ -2,14 +2,14 @@
  * AI 富编辑器对话区：TanStack AI headless 数据流 + 包内自研渲染层
  * 基于 @tanstack/ai-react/ui 的 createChatHook：模块作用域注册一次，
  * components（layout/message/input）+ partsComponents（text/thinking/fallback）
- * 驱动消息渲染；宿主经 EditorCfgContext 注入 runtime 配置（systemPrompt/requestMeta/onApplyHtml/notify）。
+ * 驱动消息渲染；宿主经 EditorCfgContext 注入 runtime 配置（systemPrompt/requestBody/onApplyHtml/notify）。
+ * 数据流底层是标准 OpenAI Chat Completions 流式连接（见 chat/openai-connection.ts），
  * 渲染侧全部走包内原语：气泡、输入框、推荐指令、思考块均为自研实现。
  *
  * 单实例假设：编辑器一页一个；createChatHook 的 options 在模块作用域固定，
- * 每实例的 endpointUrl / 结束回调经 createInstanceChatOverrides 注入。
+ * 每实例的连接信息（endpointUrl/model/requestHeaders）与结束回调经 overrides 注入。
  */
-import type { UIMessage } from '@tanstack/ai-react';
-import { fetchServerSentEvents } from '@tanstack/ai-react';
+import type { ConnectConnectionAdapter, UIMessage } from '@tanstack/ai-react';
 import type {
   ChatUIHost,
   InputProps,
@@ -48,7 +48,11 @@ import {
 import type { AiRichMediaConfig, SentAttachment } from '../media/types';
 import { uploadMediaFile } from '../media/upload';
 import { buildDefaultSystemPrompt } from '../prompts';
-import type { AiRichErrorHandler, AiRichNotify } from '../types';
+import type {
+  AiRichErrorHandler,
+  AiRichNotify,
+  AiRichRequestHeaders,
+} from '../types';
 import { IconRobot, IconTrash } from '../ui/icons';
 import { Alert } from '../ui/primitives/Alert';
 import { Button } from '../ui/primitives/Button';
@@ -56,14 +60,17 @@ import { Tooltip } from '../ui/primitives/Tooltip';
 import type { SanitizeUrlOptions } from '../utils/url';
 import { AttachmentBar } from './AttachmentBar';
 import { ChatComposer } from './ChatComposer';
+import { createOpenAiConnection } from './openai-connection';
 import { ThinkBlock } from './ThinkBlock';
 
-/** 运行期注入给 chat 组件的配置（不含 endpointUrl/onComplete，二者走模块 ref） */
+/** 运行期注入给 chat 组件的配置（不含连接信息，后者走模块 ref） */
 export interface EditorChatConfig {
   /** 自定义 system 提示词（缺省用包内置模板） */
   systemPrompt?: string;
-  /** 随每次发送透传的服务端元数据（如 { providerId }，经 body 进入 forwardedProps） */
-  requestMeta?: Record<string, unknown>;
+  /** 图片是否以多模态 content parts 发送（缺省 true） */
+  sendImagesAsMultimodal?: boolean;
+  /** 追加进对话请求体的字段（如 { temperature: 0.7 }） */
+  requestBody?: Record<string, unknown>;
   /** 「应用到编辑器」回调（代码块替换当前内容） */
   onApplyHtml?: (html: string) => void;
   /** 通知回调（复制代码等轻提示） */
@@ -82,14 +89,10 @@ export const EditorCfgContext = createContext<EditorChatConfig>({});
 // ---- createChatHook options（模块作用域固定；connection/onFinish 由各实例经 overrides 注入） ----
 const chatOptions = {};
 
-/**
- * 每实例 chat 覆盖项
- * connection 由库消费，其具体适配器类型未导出，此处以 unknown 占位；
- * 二者都不在该库 overrides 的公开类型里，因此单独声明后由 useAppChat 注入。
- */
+/** 每实例 chat 覆盖项：connection 为包内自研的 OpenAI 适配器 */
 export interface InstanceChatOverrides {
-  /** 由 fetchServerSentEvents 构建的连接适配器（不透明，仅库内部消费） */
-  connection: unknown;
+  /** OpenAI Chat Completions 连接适配器 */
+  connection: ConnectConnectionAdapter;
   /** 流结束回调，取回复全文 */
   onFinish: (message: UIMessage) => void;
 }
@@ -140,26 +143,38 @@ function toReadonlyAttachments(items: SentAttachment[]): PendingAttachment[] {
   }));
 }
 
-/** 组装每次发送的 body（合并 requestMeta 与 systemPrompt） */
+/**
+ * 组装每次发送的保留字段与透传请求体
+ *
+ * systemPrompt / sendImagesAsMultimodal 是适配器的保留键（会被摘出并单独处理），
+ * 其余字段（requestBody）原样合并进 OpenAI 请求体。保留键放在最后，避免被透传字段覆盖。
+ */
 function sendBody(cfg: EditorChatConfig): Record<string, unknown> {
   return {
-    ...cfg.requestMeta,
+    ...cfg.requestBody,
     systemPrompt: cfg.systemPrompt ?? buildDefaultSystemPrompt(),
+    sendImagesAsMultimodal: cfg.sendImagesAsMultimodal ?? true,
   };
 }
 
 /**
  * 构建每个实例的 chat 运行时覆盖项（connection / onFinish）。
- * createChatHook 的 options 在模块作用域固定，而 endpointUrl / onComplete 是每实例动态值，
+ * createChatHook 的 options 在模块作用域固定，而连接信息是每实例动态值，
  * 故经 useAppChat 的 overrides 注入（运行时 {...options, ...overrides} 覆盖同名字段），
  * 使多实例互不串线。
  */
 export function createInstanceChatOverrides(
   endpointUrlRef: { current: string },
+  modelRef: { current: string },
+  requestHeadersRef: { current: AiRichRequestHeaders | undefined },
   onCompleteRef: { current: ((content: string) => void) | undefined },
 ): InstanceChatOverrides {
   return {
-    connection: fetchServerSentEvents(() => endpointUrlRef.current),
+    connection: createOpenAiConnection({
+      endpointUrl: endpointUrlRef,
+      model: modelRef,
+      requestHeaders: requestHeadersRef,
+    }),
     onFinish: (message: UIMessage) => {
       const content = textOf(message);
       if (content.trim()) onCompleteRef.current?.(content);

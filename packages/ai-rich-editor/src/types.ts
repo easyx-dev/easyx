@@ -1,6 +1,8 @@
 /**
  * AI Rich Editor 开放类型：会话消息、控制器配置与组件 Props
- * 协议层与 UI 库无关，由宿主透传 SSE 端点（TanStack AI useChat 消费）
+ *
+ * 对话对外协议是标准 OpenAI Chat Completions 流式接口：宿主只需提供一个
+ * OpenAI 兼容端点（endpointUrl + model + requestHeaders），无需配套服务端 SDK。
  */
 import type { AiRichMediaConfig } from './media/types';
 
@@ -20,8 +22,16 @@ export type AiRichNotify = (
 export type AiRichErrorHandler = (error: Error) => void;
 
 /**
+ * 对话请求头：静态对象，或每次请求求值的函数（便于轮换 token）。
+ * 用于鉴权（如 `Authorization: Bearer …`），包内不持有任何密钥知识。
+ */
+export type AiRichRequestHeaders =
+  | Record<string, string>
+  | (() => Record<string, string>);
+
+/**
  * 统一包配置项（设置面板展示/编辑，保存后生效）
- * 其余顶层属性（endpointUrl / height / media / onNotify / onError 等）不归入此对象
+ * 其余顶层属性（endpointUrl / model / media / onNotify / onError 等）不归入此对象
  */
 export interface AiRichEditorConfig {
   /** AI 回复结束后是否自动把内容应用到编辑器（默认 true，仍保留手动「应用到编辑器」按钮） */
@@ -30,6 +40,11 @@ export interface AiRichEditorConfig {
   systemPrompt?: string;
   /** 预览容器 <head> 附加代码（一段原始 HTML，如内置 <style>/<script>，原样注入） */
   previewHead?: string;
+  /**
+   * 图片附件是否以多模态 content parts 发送（默认 true）
+   * 关闭后图片只以文本清单里的地址出现，兼容不支持多模态的纯文本网关
+   */
+  sendImagesAsMultimodal?: boolean;
 }
 
 /** 编辑器 Props */
@@ -38,10 +53,17 @@ export interface AiRichEditorProps {
   value?: string;
   /** 内容变化回调 */
   onChange?: (value: string) => void;
-  /** 对话流式 SSE 端点 URL（由宿主提供，经 useChat 消费 TanStack AI SSE） */
+  /** 对话流式端点（**OpenAI Chat Completions 兼容**，如 `/v1/chat/completions`） */
   endpointUrl: string;
-  /** 随每次对话请求透传的服务端附加元数据（如 { providerId }，经 forwardedProps 到达服务端） */
-  requestMeta?: Record<string, unknown>;
+  /** 模型名（OpenAI 协议必填，如 `gpt-4o-mini`、`deepseek-chat`） */
+  model: string;
+  /** 对话请求头（鉴权等，如 `{ Authorization: 'Bearer …' }`） */
+  requestHeaders?: AiRichRequestHeaders;
+  /**
+   * 追加进每次对话请求体的字段（如 `{ temperature: 0.7 }`）。
+   * `model` / `stream` / `messages` 由包内决定，同名键不会被覆盖。
+   */
+  requestBody?: Record<string, unknown>;
   /**
    * 媒体能力（**顶层属性，非 config**）：按类型注入上传与媒体库接口。
    * - 图片 / 视频 / 音频：对话里粘贴、拖入或选择文件后，发送时经对应 upload 上传，地址随消息给模型

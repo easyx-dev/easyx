@@ -11,8 +11,10 @@ description: AI Rich Editor 组件 Props、配置项与导出清单
 |------|------|--------|------|
 | `value` | `string` | `DEFAULT_HTML` | 当前 HTML 内容（兼容受控注入） |
 | `onChange` | `(value: string) => void` | — | 内容变化回调（应用时刻已作用域化） |
-| `endpointUrl` | `string` | — | **必填**，对话流式 SSE 端点 |
-| `requestMeta` | `Record<string, unknown>` | — | 随每次对话请求透传的服务端元数据 |
+| `endpointUrl` | `string` | — | **必填**，对话流式端点（**OpenAI Chat Completions 兼容**，如 `/v1/chat/completions`） |
+| `model` | `string` | — | **必填**，模型名（`gpt-4o-mini` / `deepseek-chat` …） |
+| `requestHeaders` | `AiRichRequestHeaders` | — | 请求头（鉴权等），静态对象或每次请求求值的函数 |
+| `requestBody` | `Record<string, unknown>` | — | 追加进请求体的字段（如 `temperature`）；`model` / `stream` / `messages` 不可覆盖 |
 | `media` | `AiRichMediaConfig` | — | 媒体能力（上传 / 媒体库），**顶层属性，非 config** |
 | `allowedUrlSchemes` | `readonly string[]` | `[]` | 追加允许的 URL 协议（只增不减） |
 | `onNotify` | `AiRichNotify` | 包内置轻提示 | 通知上报（成功 / 提醒 / 错误的可见文案） |
@@ -26,8 +28,9 @@ description: AI Rich Editor 组件 Props、配置项与导出清单
 | 字段 | 类型 | 默认值 | 说明 |
 |------|------|--------|------|
 | `autoApply` | `boolean` | `true` | AI 回复后自动应用到编辑器 |
-| `systemPrompt` | `string` | 内置模板 | 自定义 system 提示词 |
+| `systemPrompt` | `string` | 内置模板 | 自定义 system 提示词（作为 `messages[0]` 的 system 发送） |
 | `previewHead` | `string` | — | 预览 `<head>` 附加代码（原始 HTML） |
+| `sendImagesAsMultimodal` | `boolean` | `true` | 图片附件以多模态 content parts 发送；关闭后兼容纯文本网关 |
 
 ## 通知与错误
 
@@ -43,7 +46,7 @@ description: AI Rich Editor 组件 Props、配置项与导出清单
 
 ## 设置面板
 
-顶栏「设置」直接打开模态框（无下拉菜单）。模态框就地渲染在编辑器容器内（不 portal），高度为容器的 90%、宽度上限 800px；只承载 `config` 的可编辑项，函数型注入项与协议清单为只读展示。
+顶栏「设置」直接打开模态框（无下拉菜单）。模态框就地渲染在编辑器容器内（不 portal），高度随内容自适应、上限为容器的 90%，宽度上限 800px；只承载 `config` 的可编辑项，函数型注入项与协议清单为只读展示。
 
 ## AiRichMediaConfig
 
@@ -92,6 +95,7 @@ description: AI Rich Editor 组件 Props、配置项与导出清单
 | `AiRichEditorConfig` | 包配置项（仅可序列化项，经设置面板编辑） |
 | `AiRichNotify` | 通知回调（成功 / 提醒） |
 | `AiRichErrorHandler` | 错误上报回调 |
+| `AiRichRequestHeaders` | 对话请求头（静态对象或求值函数） |
 | `PreviewDevice` | 预览设备档位（`{ key, label, width?, height? }`） |
 | `AiRichMediaConfig` | 媒体能力配置（按类型） |
 | `AiRichMediaUploadConfig` | 单一类型的上传 + 媒体库配置 |
