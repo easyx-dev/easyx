@@ -227,23 +227,104 @@
 }
 
 /**
- * 设置面板：生效状态标识与只读提示词展示
+ * 设置面板：分区标题、配置行、生效状态与只读运行时信息
  */
+.easyx-ai-rich-editor__settings {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+}
+
+.easyx-ai-rich-editor__section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.easyx-ai-rich-editor__section-head {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.easyx-ai-rich-editor__section-title {
+  margin: 0;
+  font-size: var(--easyx-ai-rich-editor-font-size-sm);
+  font-weight: 600;
+  color: var(--easyx-ai-rich-editor-text);
+}
+
+.easyx-ai-rich-editor__section-desc {
+  margin: 0;
+  font-size: var(--easyx-ai-rich-editor-font-size-xs);
+  color: var(--easyx-ai-rich-editor-text-tertiary);
+}
+
+/* 配置行：说明在左、控件在右的整块可点区域 */
+.easyx-ai-rich-editor__settings-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 10px 10px 12px;
+  border: 1px solid var(--easyx-ai-rich-editor-border);
+  border-radius: var(--easyx-ai-rich-editor-radius);
+  background: var(--easyx-ai-rich-editor-bg-subtle);
+}
+
+.easyx-ai-rich-editor__settings-row-main {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
 .easyx-ai-rich-editor__settings-status {
   display: flex;
   align-items: center;
   gap: 8px;
 }
 
-.easyx-ai-rich-editor__settings-prompt {
-  padding: 12px;
+/* 只读运行时信息：标签与取值同行的定义列表 */
+.easyx-ai-rich-editor__settings-meta {
+  padding: 2px 12px;
   margin: 0;
   border: 1px solid var(--easyx-ai-rich-editor-border);
   border-radius: var(--easyx-ai-rich-editor-radius);
+}
+
+.easyx-ai-rich-editor__settings-meta-item {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 0;
+  border-top: 1px solid var(--easyx-ai-rich-editor-border);
+  font-size: var(--easyx-ai-rich-editor-font-size-xs);
+}
+
+.easyx-ai-rich-editor__settings-meta-item:first-child {
+  border-top: 0;
+}
+
+.easyx-ai-rich-editor__settings-meta-item dt {
+  flex-shrink: 0;
+  color: var(--easyx-ai-rich-editor-text-secondary);
+}
+
+.easyx-ai-rich-editor__settings-meta-item dd {
+  margin: 0;
+  color: var(--easyx-ai-rich-editor-text);
+  text-align: end;
+  overflow-wrap: anywhere;
+}
+
+.easyx-ai-rich-editor__settings-prompt {
+  padding: 12px;
+  margin: 0;
   font-family: var(--easyx-ai-rich-editor-font-mono);
   font-size: var(--easyx-ai-rich-editor-font-size-xs);
   line-height: 1.625;
   color: var(--easyx-ai-rich-editor-text-secondary);
   white-space: pre-wrap;
-  background: var(--easyx-ai-rich-editor-bg-subtle);
 }

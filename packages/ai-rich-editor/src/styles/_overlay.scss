@@ -82,6 +82,7 @@
   display: flex;
   flex-direction: column;
   width: 100%;
+  overflow: hidden;
   border: 1px solid var(--easyx-ai-rich-editor-border);
   border-radius: var(--easyx-ai-rich-editor-radius-lg);
   background: var(--easyx-ai-rich-editor-bg);
@@ -94,7 +95,7 @@
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 12px;
+  padding: 12px 12px 12px 20px;
   border-bottom: 1px solid var(--easyx-ai-rich-editor-border);
 }
 
@@ -104,20 +105,24 @@
   font-weight: 600;
 }
 
-.easyx-ai-rich-editor__modal-actions {
-  display: flex;
-  flex-shrink: 0;
-  align-items: center;
-  gap: 8px;
-}
-
 .easyx-ai-rich-editor__modal-body {
   flex: 1;
   min-height: 0;
-  padding: 16px;
+  padding: 20px;
   overflow: auto;
 
   @include v.scrollbar;
+}
+
+.easyx-ai-rich-editor__modal-foot {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 12px 20px;
+  border-top: 1px solid var(--easyx-ai-rich-editor-border);
+  background: var(--easyx-ai-rich-editor-bg);
 }
 
 /* 轻提示 */

@@ -26,18 +26,24 @@ describe('Modal', () => {
     expect(dialog.textContent).toContain('设置');
   });
 
-  it('默认高度 90%、宽度上限 800px', () => {
+  it('默认高度上限 90%、宽度上限 800px', () => {
     renderModal();
     const dialog = screen.getByRole('dialog') as HTMLElement;
-    expect(dialog.style.height).toBe('90%');
+    expect(dialog.style.maxHeight).toBe('90%');
     expect(dialog.style.maxWidth).toBe('800px');
   });
 
   it('可覆盖尺寸参数', () => {
-    renderModal({ heightRatio: 0.5, maxWidth: 420 });
+    renderModal({ maxHeightRatio: 0.5, maxWidth: 420 });
     const dialog = screen.getByRole('dialog') as HTMLElement;
-    expect(dialog.style.height).toBe('50%');
+    expect(dialog.style.maxHeight).toBe('50%');
     expect(dialog.style.maxWidth).toBe('420px');
+  });
+
+  it('传入 footer 时渲染底部操作区', () => {
+    renderModal({ footer: <button type="button">保存</button> });
+    const foot = document.querySelector('.easyx-ai-rich-editor__modal-foot');
+    expect(foot?.textContent).toContain('保存');
   });
 
   it('Esc 关闭', () => {

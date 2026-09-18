@@ -54,15 +54,6 @@
   background: var(--easyx-ai-rich-editor-border);
 }
 
-.easyx-ai-rich-editor__toolbar-label {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  margin-right: 4px;
-  font-size: var(--easyx-ai-rich-editor-font-size-xs);
-  color: var(--easyx-ai-rich-editor-text-secondary);
-}
-
 /* 主体分栏 */
 .easyx-ai-rich-editor__body {
   flex: 1;

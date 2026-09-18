@@ -15,9 +15,9 @@ import {
   render,
   screen,
 } from '@testing-library/react';
+import { Checkbox } from '../src/ui/primitives/Checkbox';
 import { Dropdown } from '../src/ui/primitives/Dropdown';
 import { Segmented } from '../src/ui/primitives/Segmented';
-import { Switch } from '../src/ui/primitives/Switch';
 import { Splitter, SplitterPane } from '../src/ui/Splitter';
 
 const CONTAINER_WIDTH = 1000;
@@ -222,17 +222,43 @@ describe('Dropdown', () => {
   });
 });
 
-describe('Switch', () => {
-  it('是原生 checkbox + switch 语义，回调新状态', () => {
+describe('Checkbox', () => {
+  it('是原生 checkbox，回调新状态', () => {
     const onChange = rs.fn();
     render(
-      <Switch aria-label="允许脚本" checked={false} onChange={onChange} />,
+      <Checkbox aria-label="允许脚本" checked={false} onChange={onChange}>
+        允许脚本
+      </Checkbox>,
     );
-    const input = screen.getByRole('switch', { name: '允许脚本' });
-    expect(input.getAttribute('aria-checked')).toBe('false');
+    const input = screen.getByRole('checkbox', { name: '允许脚本' });
+    expect((input as HTMLInputElement).checked).toBe(false);
 
     fireEvent.click(input);
     expect(onChange).toHaveBeenCalledWith(true);
+  });
+
+  it('方框与标签是原生控件的兄弟节点，勾选态由受控 checked 决定', () => {
+    const { rerender } = render(
+      <Checkbox aria-label="显示编辑器" checked={false} onChange={() => {}}>
+        编辑器
+      </Checkbox>,
+    );
+    const input = screen.getByRole('checkbox', { name: '显示编辑器' });
+    expect((input as HTMLInputElement).checked).toBe(false);
+    // 方框与标签都是原生控件的兄弟节点，保证样式选择器可命中
+    expect(input.nextElementSibling?.className).toContain(
+      'easyx-ai-rich-editor__checkbox-box',
+    );
+
+    rerender(
+      <Checkbox aria-label="显示编辑器" checked onChange={() => {}}>
+        编辑器
+      </Checkbox>,
+    );
+    expect(
+      (screen.getByRole('checkbox', { name: '显示编辑器' }) as HTMLInputElement)
+        .checked,
+    ).toBe(true);
   });
 });
 

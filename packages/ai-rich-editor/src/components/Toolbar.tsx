@@ -6,16 +6,15 @@
 import { PREVIEW_DEVICES } from '../constants';
 import type { AiRichErrorHandler, AiRichNotify } from '../types';
 import {
-  IconCode,
   IconCopy,
   IconExternalLink,
   IconReload,
   IconSetting,
 } from '../ui/icons';
 import { Button } from '../ui/primitives/Button';
+import { Checkbox } from '../ui/primitives/Checkbox';
 import { Text } from '../ui/primitives/layout';
 import { Segmented } from '../ui/primitives/Segmented';
-import { Switch } from '../ui/primitives/Switch';
 import { Tooltip } from '../ui/primitives/Tooltip';
 import { copyToClipboard } from '../utils/clipboard';
 
@@ -87,13 +86,13 @@ export function Toolbar({
           value={deviceKey}
         />
         <Tooltip title="允许预览中的脚本执行">
-          <Switch
+          <Checkbox
             aria-label="允许预览中的脚本执行"
             checked={scriptsEnabled}
-            checkedChildren="JS"
             onChange={onToggleScripts}
-            unCheckedChildren="JS"
-          />
+          >
+            JS
+          </Checkbox>
         </Tooltip>
         <Tooltip title="刷新预览（重新执行脚本）">
           <Button
@@ -119,15 +118,15 @@ export function Toolbar({
         <Sep />
 
         {/* 编辑器开关 */}
-        <span className="easyx-ai-rich-editor__toolbar-label">
-          <IconCode />
-          编辑器
-        </span>
-        <Switch
-          aria-label="显示代码编辑器"
-          checked={showEditor}
-          onChange={onToggleEditor}
-        />
+        <Tooltip title="显示代码编辑器">
+          <Checkbox
+            aria-label="显示代码编辑器"
+            checked={showEditor}
+            onChange={onToggleEditor}
+          >
+            编辑器
+          </Checkbox>
+        </Tooltip>
 
         <Sep />
 

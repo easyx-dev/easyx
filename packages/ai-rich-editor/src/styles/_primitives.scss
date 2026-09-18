@@ -1,5 +1,5 @@
 /**
- * UI 原语样式：文本、间隔容器、标签、字段、按钮、开关、分段选择、多行输入、提示、折叠块
+ * UI 原语样式：文本、间隔容器、标签、按钮、勾选框、分段选择、多行输入、提示、折叠块
  *
  * 控件一律基于原生元素，只由 CSS 承担外观；键盘操作与无障碍语义由浏览器提供。
  */
@@ -42,39 +42,6 @@
   display: block;
 }
 
-/* 间隔容器 */
-.easyx-ai-rich-editor__stack {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  min-width: 0;
-}
-
-.easyx-ai-rich-editor__stack--xs {
-  gap: 4px;
-}
-
-.easyx-ai-rich-editor__stack--sm {
-  gap: 8px;
-}
-
-.easyx-ai-rich-editor__stack--lg {
-  gap: 16px;
-}
-
-.easyx-ai-rich-editor__stack--row {
-  flex-direction: row;
-  align-items: center;
-}
-
-.easyx-ai-rich-editor__stack--wrap {
-  flex-wrap: wrap;
-}
-
-.easyx-ai-rich-editor__stack--between {
-  justify-content: space-between;
-}
-
 /* 标签 */
 .easyx-ai-rich-editor__tag {
   display: inline-flex;
@@ -93,14 +60,6 @@
   border-color: transparent;
   background: var(--easyx-ai-rich-editor-primary-soft);
   color: var(--easyx-ai-rich-editor-primary);
-}
-
-/* 字段行 */
-.easyx-ai-rich-editor__field-label {
-  display: block;
-  margin-bottom: 6px;
-  font-size: var(--easyx-ai-rich-editor-font-size-sm);
-  color: var(--easyx-ai-rich-editor-text);
 }
 
 /* 按钮 */
@@ -204,15 +163,28 @@
   cursor: progress;
 }
 
-/* 开关 */
-.easyx-ai-rich-editor__switch {
+/* 勾选框 */
+.easyx-ai-rich-editor__checkbox {
   display: inline-flex;
+  flex-shrink: 0;
+  gap: 6px;
   align-items: center;
-  gap: 8px;
+  padding: 4px 6px;
+  border-radius: var(--easyx-ai-rich-editor-radius-sm);
+  color: var(--easyx-ai-rich-editor-text-secondary);
+  font-size: var(--easyx-ai-rich-editor-font-size-xs);
   cursor: pointer;
+  transition:
+    color 0.15s,
+    background-color 0.15s;
 }
 
-.easyx-ai-rich-editor__switch-input {
+.easyx-ai-rich-editor__checkbox:hover {
+  background: var(--easyx-ai-rich-editor-bg-hover);
+  color: var(--easyx-ai-rich-editor-text);
+}
+
+.easyx-ai-rich-editor__checkbox-input {
   position: absolute;
   width: 1px;
   height: 1px;
@@ -220,54 +192,68 @@
   opacity: 0;
 }
 
-.easyx-ai-rich-editor__switch-track {
+.easyx-ai-rich-editor__checkbox-box {
   position: relative;
   flex-shrink: 0;
-  width: 34px;
-  height: 18px;
-  border-radius: 9px;
-  background: var(--easyx-ai-rich-editor-border-strong);
-  transition: background-color 0.2s;
+  width: 15px;
+  height: 15px;
+  border: 1px solid var(--easyx-ai-rich-editor-border-strong);
+  border-radius: var(--easyx-ai-rich-editor-radius-sm);
+  background: var(--easyx-ai-rich-editor-bg);
+  transition:
+    border-color 0.15s,
+    background-color 0.15s;
 }
 
-.easyx-ai-rich-editor__switch-track::after {
-  content: '';
-  position: absolute;
-  top: 2px;
-  left: 2px;
-  width: 14px;
-  height: 14px;
-  border-radius: 50%;
-  background: #fff;
-  box-shadow: 0 1px 2px rgb(0 0 0 / 20%);
-  transition: transform 0.2s;
+.easyx-ai-rich-editor__checkbox:hover .easyx-ai-rich-editor__checkbox-box {
+  border-color: var(--easyx-ai-rich-editor-primary);
 }
 
-.easyx-ai-rich-editor__switch-input:checked
-  + .easyx-ai-rich-editor__switch-track {
+.easyx-ai-rich-editor__checkbox-input:checked
+  + .easyx-ai-rich-editor__checkbox-box {
+  border-color: var(--easyx-ai-rich-editor-primary);
   background: var(--easyx-ai-rich-editor-primary);
 }
 
-.easyx-ai-rich-editor__switch-input:checked
-  + .easyx-ai-rich-editor__switch-track::after {
-  transform: translateX(16px);
+/* 对勾：inset + margin auto 在 padding box 内居中
+   （控件 15×15 含 1px 边框，绝对定位伪元素的包含块是 padding box，硬编码 top/left 会偏上） */
+.easyx-ai-rich-editor__checkbox-input:checked
+  + .easyx-ai-rich-editor__checkbox-box::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  width: 4px;
+  height: 8px;
+  margin: auto;
+  border: solid var(--easyx-ai-rich-editor-on-primary);
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
 }
 
-.easyx-ai-rich-editor__switch-input:focus-visible
-  + .easyx-ai-rich-editor__switch-track {
+.easyx-ai-rich-editor__checkbox-input:focus-visible
+  + .easyx-ai-rich-editor__checkbox-box {
   outline: 2px solid var(--easyx-ai-rich-editor-primary);
   outline-offset: 2px;
 }
 
-.easyx-ai-rich-editor__switch-input:disabled
-  + .easyx-ai-rich-editor__switch-track {
+.easyx-ai-rich-editor__checkbox-input:disabled
+  + .easyx-ai-rich-editor__checkbox-box,
+.easyx-ai-rich-editor__checkbox-input:disabled
+  ~ .easyx-ai-rich-editor__checkbox-label {
   opacity: 0.5;
+}
+
+.easyx-ai-rich-editor__checkbox:has(
+  .easyx-ai-rich-editor__checkbox-input:disabled
+) {
   cursor: not-allowed;
 }
 
-.easyx-ai-rich-editor__switch-text {
-  font-size: var(--easyx-ai-rich-editor-font-size-xs);
-  color: var(--easyx-ai-rich-editor-text-secondary);
+.easyx-ai-rich-editor__checkbox-label {
+  display: inline-flex;
+  gap: 4px;
+  align-items: center;
+  white-space: nowrap;
 }
 
 /* 分段选择 */

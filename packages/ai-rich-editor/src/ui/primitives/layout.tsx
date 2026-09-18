@@ -1,5 +1,5 @@
 /**
- * 纯展示型原语：文本、说明小字、字段行、间隔容器、标签
+ * 纯展示型原语：文本、标签、分区
  *
  * 这几者没有交互逻辑，合并在一个文件里；带交互的原语各自独立成文件。
  */
@@ -46,41 +46,6 @@ export function Text({
   );
 }
 
-export interface StackProps extends HTMLAttributes<HTMLDivElement> {
-  /** 排列方向，默认纵向 */
-  direction?: 'column' | 'row';
-  /** 间距档位 */
-  size?: 'xs' | 'sm' | 'md' | 'lg';
-  /** 允许换行（横向排列时） */
-  wrap?: boolean;
-  /** 主轴对齐 */
-  justify?: 'start' | 'between';
-}
-
-/** 间隔容器：以 gap 表达间距，替代散落的 margin */
-export function Stack({
-  direction = 'column',
-  size = 'md',
-  wrap,
-  justify = 'start',
-  className,
-  ...rest
-}: StackProps) {
-  return (
-    <div
-      className={cx(
-        'easyx-ai-rich-editor__stack',
-        size !== 'md' && `easyx-ai-rich-editor__stack--${size}`,
-        direction === 'row' && 'easyx-ai-rich-editor__stack--row',
-        wrap && 'easyx-ai-rich-editor__stack--wrap',
-        justify !== 'start' && `easyx-ai-rich-editor__stack--${justify}`,
-        className,
-      )}
-      {...rest}
-    />
-  );
-}
-
 export interface TagProps {
   tone?: 'default' | 'primary';
   children: ReactNode;
@@ -102,25 +67,31 @@ export function Tag({ tone = 'default', children, className }: TagProps) {
   );
 }
 
-export interface FieldProps {
-  /** 字段名；传入 htmlFor 时与控件关联 */
-  label?: ReactNode;
-  /** 关联控件的 id */
-  htmlFor?: string;
+export interface SectionProps {
+  /** 分区标题 */
+  title: ReactNode;
+  /** 标题下的补充说明 */
+  description?: ReactNode;
   children: ReactNode;
   className?: string;
 }
 
-/** 字段行：标签在上、控件在下 */
-export function Field({ label, htmlFor, children, className }: FieldProps) {
+/** 分区：标题 + 说明 + 内容，用于把设置项成组呈现 */
+export function Section({
+  title,
+  description,
+  children,
+  className,
+}: SectionProps) {
   return (
-    <div className={cx('easyx-ai-rich-editor__field', className)}>
-      {label !== undefined && (
-        <label className="easyx-ai-rich-editor__field-label" htmlFor={htmlFor}>
-          {label}
-        </label>
-      )}
-      <div className="easyx-ai-rich-editor__field-control">{children}</div>
-    </div>
+    <section className={cx('easyx-ai-rich-editor__section', className)}>
+      <div className="easyx-ai-rich-editor__section-head">
+        <h3 className="easyx-ai-rich-editor__section-title">{title}</h3>
+        {description !== undefined && (
+          <p className="easyx-ai-rich-editor__section-desc">{description}</p>
+        )}
+      </div>
+      {children}
+    </section>
   );
 }
