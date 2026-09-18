@@ -36,18 +36,19 @@
 
 .easyx-ai-rich-editor__code-panel .cm-editor .cm-content {
   padding: 12px 0;
+  /* 正文始终可选中：宿主若在全局禁用 user-select，不应连带让代码面板拖拽选择失效 */
+  user-select: text;
 }
 
 .easyx-ai-rich-editor__code-panel .cm-editor .cm-line {
   padding: 0 12px 0 8px;
 }
 
-/* 行号槽：不可选中（拖到槽上不应选中一串行号，那是误导性的假选区） */
+/* 行号槽：只做配色，行为交给 CodeMirror 默认（自研的整行选择未装配） */
 .easyx-ai-rich-editor__code-panel .cm-editor .cm-gutters {
   background-color: var(--easyx-ai-rich-editor-bg-subtle);
   color: var(--easyx-ai-rich-editor-text-tertiary);
   border: 0 solid var(--easyx-ai-rich-editor-border);
-  user-select: none;
 }
 
 .easyx-ai-rich-editor__code-panel .cm-editor .cm-gutters.cm-gutters-before {
@@ -84,9 +85,10 @@
   background: var(--easyx-ai-rich-editor-code-selection);
 }
 
-/* 当前行 */
+/* 当前行：底色必须半透明。选区层（.cm-selectionLayer）在内容层之下（z-index: -2），
+   不透明的当前行底色会把当前行内的选区整个盖掉（横向选择、Cmd+A 时表现为「选中背景丢失」） */
 .easyx-ai-rich-editor__code-panel .cm-editor .cm-activeLine {
-  background-color: var(--easyx-ai-rich-editor-bg-hover);
+  background-color: var(--easyx-ai-rich-editor-code-active-line);
 }
 
 .easyx-ai-rich-editor__code-panel .cm-editor .cm-activeLineGutter {

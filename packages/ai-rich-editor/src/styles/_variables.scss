@@ -35,6 +35,9 @@
   --easyx-ai-rich-editor-code-selection: rgb(22 119 255 / 22%);
   --easyx-ai-rich-editor-code-match: rgb(250 204 21 / 55%);
   --easyx-ai-rich-editor-code-match-current: rgb(249 115 22 / 55%);
+  /* 当前行底色必须半透明：选区层在内容层之下（z-index: -2），
+     不透明底色会把当前行的选区整个盖住 */
+  --easyx-ai-rich-editor-code-active-line: rgb(24 24 27 / 6%);
   /* 代码面板：语法高亮（HTML 标签 / 属性 / 字符串 / CSS 属性 / 关键字 / 数字 / 注释 / 标点） */
   --easyx-ai-rich-editor-code-tag: #0f766e;
   --easyx-ai-rich-editor-code-attr: #1d4ed8;
@@ -76,6 +79,8 @@
   --easyx-ai-rich-editor-code-selection: rgb(64 150 255 / 34%);
   --easyx-ai-rich-editor-code-match: rgb(250 204 21 / 30%);
   --easyx-ai-rich-editor-code-match-current: rgb(249 115 22 / 45%);
+  /* 当前行底色必须半透明，理由同亮色 */
+  --easyx-ai-rich-editor-code-active-line: rgb(255 255 255 / 8%);
   --easyx-ai-rich-editor-code-tag: #5eead4;
   --easyx-ai-rich-editor-code-attr: #93c5fd;
   --easyx-ai-rich-editor-code-string: #fcd34d;

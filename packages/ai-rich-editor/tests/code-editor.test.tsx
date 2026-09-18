@@ -17,6 +17,7 @@ import {
 } from '../src/code-editor/doc-sync';
 import { createCodeExtensions } from '../src/code-editor/extensions';
 import { cursorLineChanged } from '../src/code-editor/gutter-add';
+import { lineSelectionRange } from '../src/code-editor/gutter-line-select';
 import { InvalidMediaUrlError } from '../src/media/errors';
 
 // jsdom 未实现 Range 的布局测量，而 CodeMirror 计算选区矩形时会调用
@@ -228,13 +229,11 @@ describe('createCodeExtensions', () => {
     light.destroy();
   });
 
-  it('查找面板与行号槽可正常挂载，文案为中文', () => {
+  it('查找面板与行号槽可正常挂载（官方默认装配）', () => {
     const view = mount({ isDark: false });
     openSearchPanel(view);
     expect(document.querySelector('.cm-panel.cm-search')).toBeTruthy();
     expect(document.querySelector('.cm-lineNumbers')).toBeTruthy();
-    expect(view.state.phrase('Find')).toBe('查找');
-    expect(view.state.phrase('match case')).toBe('区分大小写');
     view.destroy();
   });
 });
@@ -326,6 +325,28 @@ describe('cursorLineChanged', () => {
     } finally {
       view.destroy();
     }
+  });
+});
+
+describe('lineSelectionRange', () => {
+  const state = EditorState.create({ doc: '<p>a</p>\n<p>b</p>\n<p>c</p>' });
+
+  it('自上而下选中整行范围', () => {
+    const first = state.doc.line(1);
+    const third = state.doc.line(3);
+    expect(lineSelectionRange(state, first.from, third.from)).toEqual({
+      anchor: first.from,
+      head: third.to,
+    });
+  });
+
+  it('自下而上时 caret 落在上端', () => {
+    const first = state.doc.line(1);
+    const second = state.doc.line(2);
+    expect(lineSelectionRange(state, second.to, first.from)).toEqual({
+      anchor: second.to,
+      head: first.from,
+    });
   });
 });
 
