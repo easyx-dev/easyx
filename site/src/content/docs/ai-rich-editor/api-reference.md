@@ -13,6 +13,10 @@ description: AI Rich Editor 组件 Props、配置项与导出清单
 | `onChange` | `(value: string) => void` | — | 内容变化回调（应用时刻已作用域化） |
 | `endpointUrl` | `string` | — | **必填**，对话流式 SSE 端点 |
 | `requestMeta` | `Record<string, unknown>` | — | 随每次对话请求透传的服务端元数据 |
+| `media` | `AiRichMediaConfig` | — | 媒体能力（上传 / 媒体库），**顶层属性，非 config** |
+| `allowedUrlSchemes` | `readonly string[]` | `[]` | 追加允许的 URL 协议（只增不减） |
+| `onNotify` | `AiRichNotify` | 包内置轻提示 | 通知上报（成功 / 提醒 / 错误的可见文案） |
+| `onError` | `(error: Error) => void` | `console.error` | 错误上报（错误实例，不负责可见提示） |
 | `height` | `number \| string` | `640` | 工作台整体高度 |
 | `config` | `AiRichEditorConfig` | 见下 | 统一配置（**仅初始值，非受控**） |
 | `onConfigChange` | `(config: AiRichEditorConfig) => void` | — | 设置面板保存后回写（用于宿主持久化） |
@@ -24,9 +28,41 @@ description: AI Rich Editor 组件 Props、配置项与导出清单
 | `autoApply` | `boolean` | `true` | AI 回复后自动应用到编辑器 |
 | `systemPrompt` | `string` | 内置模板 | 自定义 system 提示词 |
 | `previewHead` | `string` | — | 预览 `<head>` 附加代码（原始 HTML） |
-| `notify` | `AiRichNotify` | 包内置轻提示 | 消息提示回调 |
+
+## 通知与错误
+
+错误会**同时**走两条通道：可见文案走 `onNotify`，错误实例走 `onError`。
+
+| 通道 | 类型 | 承载 | 未注入时的兜底 |
+|------|------|------|----------------|
+| `onNotify` | `AiRichNotify` | 用户可见文案（成功 / 提醒 / 错误） | 包内置轻提示 |
+| `onError` | `AiRichErrorHandler` | 错误实例（日志 / 上报 / 分支） | `console.error`（不上浮 UI） |
 
 `AiRichNotify` 签名：`(type: 'success' | 'warning' | 'error', content: string) => void`
+`AiRichErrorHandler` 签名：`(error: Error) => void`（错误类：`MediaNotConfiguredError`、`InvalidMediaUrlError`）
+
+## 设置面板
+
+顶栏「设置」直接打开模态框（无下拉菜单）。模态框就地渲染在编辑器容器内（不 portal），高度为容器的 90%、宽度上限 800px；只承载 `config` 的可编辑项，函数型注入项与协议清单为只读展示。
+
+## AiRichMediaConfig
+
+按媒体类型给出上传与媒体库能力；未配置的类型即不可用。
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `image` / `video` / `audio` / `attachment` | `AiRichMediaUploadConfig` | 各类型的上传与媒体库配置（`attachment` 是其余文件的兜底） |
+
+`AiRichMediaUploadConfig`：
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `upload` | `(file: File, onProgress?: (p: number) => void) => Promise<AiRichMediaItem>` | 上传接口；未配置时该类型不可添加 |
+| `getList` | `(params: AiRichMediaListParams) => Promise<AiRichMediaListResult>` | 媒体库列表；决定「媒体库」入口是否出现 |
+
+`AiRichMediaItem`：`{ id, url, name, size?, thumbnailUrl?, fileType? }`
+`AiRichMediaListParams`：`{ page, pageSize, keyword? }`；`AiRichMediaListResult`：`{ items, total }`
+`AiRichMediaKind`：`'image' | 'video' | 'audio' | 'attachment'`
 
 ## 导出
 
@@ -41,15 +77,28 @@ description: AI Rich Editor 组件 Props、配置项与导出清单
 | `buildDefaultSystemPrompt()` | `() => string` | 构建内置 system 提示词 |
 | `extractHtmlFragments(content)` | `(content: string) => string[]` | 提取回复中的全部 HTML 代码块 |
 | `buildPreviewDocument(html, head?)` | `(html: string, head?: string) => string` | 构建预览 iframe 文档 |
+| `buildMediaSnippet(input)` | `(input: { kind, url, name?, size? }) => string \| undefined` | 生成自包含媒体片段（默认校验地址；宿主返回的地址可传 `{ trusted: true }` 跳过） |
+| `mediaKindLabel(kind)` | `(kind: AiRichMediaKind) => string` | 媒体类型中文名 |
+| `resolveMediaKind(fileType)` | `(fileType: string) => AiRichMediaKind` | 文件 MIME → 媒体类型 |
+| `sanitizeUrl(url, options?)` | `(url: string, options?: { extraSchemes? }) => string \| undefined` | 地址协议白名单校验（不安全返回 `undefined`） |
+| `listAllowedSchemes(options?)` | `(options?: { extraSchemes? }) => readonly string[]` | 当前生效的协议清单（默认 + 追加） |
+| `MediaNotConfiguredError` / `InvalidMediaUrlError` | 错误类 | 供 `onError` 分支判断 |
 
 ## 类型
 
 | 类型 | 说明 |
 |------|------|
 | `AiRichEditorProps` | 组件 Props |
-| `AiRichEditorConfig` | 包配置项 |
-| `AiRichNotify` | 消息提示回调 |
+| `AiRichEditorConfig` | 包配置项（仅可序列化项，经设置面板编辑） |
+| `AiRichNotify` | 通知回调（成功 / 提醒） |
+| `AiRichErrorHandler` | 错误上报回调 |
 | `PreviewDevice` | 预览设备档位（`{ key, label, width?, height? }`） |
+| `AiRichMediaConfig` | 媒体能力配置（按类型） |
+| `AiRichMediaUploadConfig` | 单一类型的上传 + 媒体库配置 |
+| `AiRichMediaItem` | 媒体条目（上传结果与列表项共用） |
+| `AiRichMediaListParams` / `AiRichMediaListResult` | 媒体库分页参数与结果 |
+| `AiRichMediaKind` | 媒体类型 |
+| `AiRichMediaUploadProgress` | 上传进度回调 |
 
 ## CSS 变量
 

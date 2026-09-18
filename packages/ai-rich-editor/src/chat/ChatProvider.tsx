@@ -27,13 +27,34 @@ import {
   useState,
 } from 'react';
 import { MarkdownContent } from '../components/MarkdownContent';
-import { CHAT_INPUT_PLACEHOLDER, PRESET_PROMPTS } from '../constants';
+import type { MediaPick } from '../components/MediaPicker';
+import {
+  CHAT_INPUT_PLACEHOLDER,
+  MEDIA_ATTACHMENT_LIMIT,
+  PRESET_PROMPTS,
+} from '../constants';
+import {
+  createLibraryAttachment,
+  type PendingAttachment,
+  parseSentAttachments,
+  planFileAttachments,
+  toSentAttachment,
+} from '../media/attachment';
+import { toError } from '../media/errors';
+import {
+  buildAttachmentBlock,
+  stripAttachmentBlock,
+} from '../media/prompt-text';
+import type { AiRichMediaConfig, SentAttachment } from '../media/types';
+import { uploadMediaFile } from '../media/upload';
 import { buildDefaultSystemPrompt } from '../prompts';
-import type { AiRichNotify } from '../types';
+import type { AiRichErrorHandler, AiRichNotify } from '../types';
 import { IconRobot, IconTrash } from '../ui/icons';
 import { Alert } from '../ui/primitives/Alert';
 import { Button } from '../ui/primitives/Button';
 import { Tooltip } from '../ui/primitives/Tooltip';
+import type { SanitizeUrlOptions } from '../utils/url';
+import { AttachmentBar } from './AttachmentBar';
 import { ChatComposer } from './ChatComposer';
 import { ThinkBlock } from './ThinkBlock';
 
@@ -45,8 +66,14 @@ export interface EditorChatConfig {
   requestMeta?: Record<string, unknown>;
   /** 「应用到编辑器」回调（代码块替换当前内容） */
   onApplyHtml?: (html: string) => void;
-  /** 消息提示回调（复制代码等轻提示） */
-  notify?: AiRichNotify;
+  /** 通知回调（复制代码等轻提示） */
+  onNotify?: AiRichNotify;
+  /** 错误上报（上传失败、会话流错误等） */
+  onError?: AiRichErrorHandler;
+  /** 媒体能力（上传 / 媒体库）：对话附件与代码面板插入共用 */
+  media?: AiRichMediaConfig;
+  /** 链接与图片地址的白名单选项（宿主可追加协议） */
+  urlOptions?: SanitizeUrlOptions;
 }
 
 /** 供宿主在 <chat.AppChat/> 外层提供运行期配置 */
@@ -94,6 +121,25 @@ function textOf(message: UIMessage): string {
   return text;
 }
 
+/** 消息 metadata 里携带的已上传附件（键名由包内约定，逐项校验后使用） */
+function readMessageAttachments(message: UIMessage): SentAttachment[] {
+  const raw = (message.metadata as Record<string, unknown> | undefined)
+    ?.easyxAttachments;
+  return parseSentAttachments(raw);
+}
+
+/** 已上传附件 → 只读附件条所需形态（进度视为完成） */
+function toReadonlyAttachments(items: SentAttachment[]): PendingAttachment[] {
+  return items.map((item, index) => ({
+    id: `sent-${index}`,
+    kind: item.kind,
+    name: item.name,
+    size: item.size,
+    url: item.url,
+    progress: 1,
+  }));
+}
+
 /** 组装每次发送的 body（合并 requestMeta 与 systemPrompt） */
 function sendBody(cfg: EditorChatConfig): Record<string, unknown> {
   return {
@@ -130,11 +176,20 @@ const MessageStreamContext = createContext(false);
 function ChatMessage({ message, Parts }: MessageProps<typeof chatOptions>) {
   const chat = useChatContext();
   if (message.role === 'user') {
+    // 发送时附在末尾的附件清单只用于喂模型，气泡里还原成原话 + 只读附件条
+    const attachments = readMessageAttachments(message);
+    const text = stripAttachmentBlock(textOf(message));
     return (
       <div className="easyx-ai-rich-editor__bubble easyx-ai-rich-editor__bubble--user">
-        <span className="easyx-ai-rich-editor__chat-user-text">
-          {textOf(message)}
-        </span>
+        {attachments.length > 0 && (
+          <AttachmentBar
+            attachments={toReadonlyAttachments(attachments)}
+            variant="message"
+          />
+        )}
+        {text && (
+          <span className="easyx-ai-rich-editor__chat-user-text">{text}</span>
+        )}
       </div>
     );
   }
@@ -157,8 +212,10 @@ function TextPart({ part }: PartProps<typeof chatOptions, 'text'>) {
   return (
     <MarkdownContent
       content={part.content}
-      notify={cfg.notify}
       onApplyHtml={cfg.onApplyHtml}
+      onError={cfg.onError}
+      onNotify={cfg.onNotify}
+      urlOptions={cfg.urlOptions}
     />
   );
 }
@@ -184,7 +241,7 @@ function ThinkingPart({ part }: PartProps<typeof chatOptions, 'thinking'>) {
       title={isStreaming ? '思考中…' : '已思考'}
     >
       <div className="easyx-ai-rich-editor__think-scroll" ref={scrollRef}>
-        <MarkdownContent content={content} notify={cfg.notify} />
+        <MarkdownContent content={content} onError={cfg.onError} />
       </div>
     </ThinkBlock>
   );
@@ -200,22 +257,137 @@ function ChatInput(_props: InputProps<typeof chatOptions>) {
   const chat = useChatContext();
   const cfg = useEditorCfg();
   const [input, setInput] = useState('');
+  const [attachments, setAttachments] = useState<PendingAttachment[]>([]);
+  const [uploading, setUploading] = useState(false);
+
+  // 新会话（消息清空）时一并清掉未发出的附件
+  useEffect(() => {
+    if (chat.messages.length === 0) setAttachments([]);
+  }, [chat.messages.length]);
+
+  /** 附件容量已满时提示（媒体库条目没有「类型未配置」问题） */
+  const appendLibraryAttachment = (attachment: PendingAttachment) => {
+    if (attachments.length >= MEDIA_ATTACHMENT_LIMIT) {
+      cfg.onNotify?.(
+        'warning',
+        `一次最多添加 ${MEDIA_ATTACHMENT_LIMIT} 个附件`,
+      );
+      return;
+    }
+    setAttachments([...attachments, attachment]);
+  };
+
+  /** 粘贴 / 拖入 / 选择文件：先按类型校验上传能力，避免发送时才发现未配置 */
+  const handleAddFiles = (files: File[]) => {
+    const plan = planFileAttachments(
+      files,
+      cfg.media,
+      attachments,
+      MEDIA_ATTACHMENT_LIMIT,
+    );
+    for (const error of plan.errors) cfg.onError?.(error);
+    for (const message of plan.warnings) cfg.onNotify?.('warning', message);
+    if (plan.accepted.length > 0) {
+      setAttachments([...attachments, ...plan.accepted]);
+    }
+  };
+
+  const handlePickMedia = (pick: MediaPick) => {
+    if (pick.type === 'upload') {
+      handleAddFiles([pick.file]);
+      return;
+    }
+    if (pick.type === 'library') {
+      appendLibraryAttachment(createLibraryAttachment(pick.item, pick.kind));
+    }
+  };
+
+  /**
+   * 发送：先把本地文件并发上传，再把附件清单拼进消息文本
+   * （模型需要真实地址），附件明细同时写入 metadata 供气泡渲染。
+   * 上传失败则不发送，保留输入与附件供重试。
+   */
+  const sendWithAttachments = async (value: string) => {
+    setUploading(true);
+    try {
+      const sent = await Promise.all(
+        attachments.map(async (attachment) => {
+          if (attachment.url) return toSentAttachment(attachment);
+          const file = attachment.file;
+          if (!file) return undefined;
+          const item = await uploadMediaFile(
+            cfg.media,
+            attachment.kind,
+            file,
+            (progress) => {
+              setAttachments((prev) =>
+                prev.map((current) =>
+                  current.id === attachment.id
+                    ? { ...current, progress }
+                    : current,
+                ),
+              );
+            },
+          );
+          // 记回地址：发送失败重试时不再重复上传
+          setAttachments((prev) =>
+            prev.map((current) =>
+              current.id === attachment.id
+                ? { ...current, url: item.url, progress: 1 }
+                : current,
+            ),
+          );
+          return toSentAttachment({ ...attachment, url: item.url });
+        }),
+      );
+      const items = sent.filter(
+        (item): item is SentAttachment => item !== undefined,
+      );
+      const content = [value, buildAttachmentBlock(items)]
+        .filter(Boolean)
+        .join('\n\n');
+
+      setInput('');
+      setAttachments([]);
+      chat
+        .sendMessage(
+          // 附件明细只在本条消息真的带附件时写入 metadata
+          items.length > 0
+            ? { content, metadata: { easyxAttachments: items } }
+            : { content },
+          { body: sendBody(cfg) },
+        )
+        .catch(() => {});
+    } catch (error) {
+      cfg.onError?.(toError(error));
+    } finally {
+      setUploading(false);
+    }
+  };
 
   const handleSubmit = (text: string) => {
+    if (chat.isLoading || uploading) return;
     const value = text.trim();
-    if (!value || chat.isLoading) return;
-    // 失败由 chat.error 驱动界面提示；此处吞掉 rejection 避免未处理 promise
-    chat.sendMessage(value, { body: sendBody(cfg) }).catch(() => {});
-    setInput('');
+    if (!value && attachments.length === 0) return;
+    void sendWithAttachments(value);
   };
 
   return (
     <ChatComposer
+      attachments={attachments}
       loading={chat.isLoading}
+      media={cfg.media}
+      onAddFiles={handleAddFiles}
       onCancel={() => chat.stop()}
       onChange={setInput}
+      onError={(error) => cfg.onError?.(error)}
+      onPickMedia={handlePickMedia}
+      onRemoveAttachment={(id) =>
+        setAttachments((prev) => prev.filter((item) => item.id !== id))
+      }
       onSubmit={handleSubmit}
       placeholder={CHAT_INPUT_PLACEHOLDER}
+      uploading={uploading}
       value={input}
     />
   );
@@ -243,9 +415,18 @@ function ChatLayout({
     el.scrollTop = el.scrollHeight;
   }, [chat.messages]);
 
+  // 会话流错误：对话区保留 Alert（属对话状态），同时向上抛给宿主的 onError
+  const onErrorRef = useRef(cfg.onError);
+  useEffect(() => {
+    onErrorRef.current = cfg.onError;
+  }, [cfg.onError]);
+  useEffect(() => {
+    if (chat.error) onErrorRef.current?.(chat.error);
+  }, [chat.error]);
+
   const handlePreset = (preset: string) => {
     if (chat.isLoading) return;
-    // 失败由 chat.error 驱动界面提示；此处吞掉 rejection 避免未处理 promise
+    // 失败由 chat.error 驱动界面提示并上报 onError；此处吞掉 rejection 避免未处理 promise
     chat.sendMessage(preset, { body: sendBody(cfg) }).catch(() => {});
   };
 

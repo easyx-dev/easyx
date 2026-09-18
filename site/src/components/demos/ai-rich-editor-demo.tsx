@@ -6,11 +6,83 @@
  *
  * 主题无需桥接：演示页把 data-theme 挂在 <html> 上，包内样式直接据此判定。
  */
+
+import type { AiRichMediaConfig, AiRichMediaItem } from '@easyx/ai-rich-editor';
 import { AiRichEditor, DEFAULT_HTML } from '@easyx/ai-rich-editor';
 import { useEffect, useState } from 'react';
 
 /** 演示端点：只在本次演示内被拦截，不影响页面其他请求 */
 const MOCK_ENDPOINT = '/__easyx_demo__/ai-chat';
+
+/**
+ * 演示上传：延时后返回同源 Blob 地址
+ *
+ * 站点无服务端，用 Blob URL 让「上传 → 插入片段 → 预览显示」这条链路真实可跑，
+ * 顺带能观察到进度与真实图片。
+ */
+function uploadToBlobUrl(
+  file: File,
+  onProgress?: (progress: number) => void,
+): Promise<AiRichMediaItem> {
+  return new Promise((resolve) => {
+    onProgress?.(0.35);
+    window.setTimeout(() => {
+      onProgress?.(1);
+      resolve({
+        id: file.name,
+        url: URL.createObjectURL(file),
+        name: file.name,
+        size: file.size,
+        fileType: file.type,
+      });
+    }, 450);
+  });
+}
+
+/** 演示媒体库：内联 SVG 转 Blob 地址，避免依赖站点静态资源；模块级只建一次 */
+let libraryCache: AiRichMediaItem[] | undefined;
+
+function getLibraryItems(): AiRichMediaItem[] {
+  if (libraryCache) return libraryCache;
+  const make = (
+    id: string,
+    name: string,
+    label: string,
+    color: string,
+    size: number,
+  ): AiRichMediaItem => {
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="240" height="160"><rect width="240" height="160" rx="12" fill="${color}"/><text x="120" y="90" font-family="system-ui" font-size="20" fill="#fff" text-anchor="middle">${label}</text></svg>`;
+    const url = URL.createObjectURL(new Blob([svg], { type: 'image/svg+xml' }));
+    return {
+      fileType: 'image/svg+xml',
+      id,
+      name,
+      size,
+      thumbnailUrl: url,
+      url,
+    };
+  };
+  libraryCache = [
+    make('lib-1', '示例图-品牌蓝.svg', '示例图 A', '#1677ff', 1280),
+    make('lib-2', '示例图-暖橙.svg', '示例图 B', '#f97316', 1340),
+    make('lib-3', '示例图-青绿.svg', '示例图 C', '#0f766e', 1310),
+  ];
+  return libraryCache;
+}
+
+/** 演示媒体配置：图片/视频/音频/附件均可上传，媒体库共用同一份示例数据 */
+function createDemoMedia(): AiRichMediaConfig {
+  const getList = async () => {
+    const items = getLibraryItems();
+    return { items, total: items.length };
+  };
+  return {
+    attachment: { upload: uploadToBlobUrl },
+    audio: { getList, upload: uploadToBlobUrl },
+    image: { getList, upload: uploadToBlobUrl },
+    video: { getList, upload: uploadToBlobUrl },
+  };
+}
 
 /** 预录回复：markdown 正文 + ```html 片段（片段内含 <style>，用于演示作用域化） */
 const CANNED_REPLY = [
@@ -129,6 +201,8 @@ function installFetchMock(): () => void {
 }
 export default function AiRichEditorDemo() {
   const [html, setHtml] = useState(DEFAULT_HTML);
+  // 媒体配置只建一次，避免每次渲染重建 Blob 地址
+  const [media] = useState(createDemoMedia);
 
   useEffect(installFetchMock, []);
 
@@ -136,7 +210,7 @@ export default function AiRichEditorDemo() {
     <div className="demo-editor-container">
       <div className="demo-control-bar">
         <span className="demo-control-bar-hint">
-          对话由浏览器侧回放预录 SSE 流，链路走真实实现
+          对话由浏览器侧回放预录 SSE 流；媒体上传为本地 Blob，媒体库为内置示例图
         </span>
       </div>
       <div style={{ padding: 16 }}>
@@ -145,6 +219,9 @@ export default function AiRichEditorDemo() {
           onChange={setHtml}
           endpointUrl={MOCK_ENDPOINT}
           height={620}
+          media={media}
+          // 演示里只接错误上报（打到控制台）；错误对用户的提示走包内轻提示
+          onError={(error) => console.error(error)}
         />
       </div>
     </div>

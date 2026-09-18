@@ -89,16 +89,95 @@ AI 生成的片段在「应用到编辑器」（含 `autoApply`）时已做**样
 - 外部写入（流式同步 / 应用片段）与用户输入区别对待：与当前文档成前缀关系时只追加尾部，否则整篇替换；不进撤销栈（Ctrl+Z 只回退自己的输入），也不回吐 `onChange`。整篇替换后光标落到新内容末尾
 - 注意作用域化会回溯改写 `<style>` 选择器，因此流式同步的 value 常常不是前缀延伸，会走整篇替换 —— 生成过程中手动改写的代码会被下一轮同步覆盖，这符合「生成期间内容归 AI 所有」的定位
 
+## 媒体插入
+
+媒体能力经**顶层 `media` 属性**注入（不在 `config` 里：上传与列表都是函数，设置面板无法编辑）：
+```tsx
+<AiRichEditor
+  endpointUrl="/api/ai-chat"
+  media={{
+    image: {
+      upload: async (file, onProgress) => ({
+        id: file.name,
+        url: await myUpload(file, onProgress),
+        name: file.name,
+        size: file.size,
+      }),
+      getList: async ({ page, pageSize, keyword }) => ({ items, total }),
+    },
+    video: { upload, getList },
+    audio: { upload, getList },
+    attachment: { upload },
+  }}
+/>
+```
+
+`AiRichMediaItem` 字段与 `@easyx/editor` 的媒体配置一致（`id` / `url` / `name` / `size?` / `thumbnailUrl?` / `fileType?`），两包的宿主接口可以复用。
+
+| 路径 | 交互 |
+|------|------|
+| 对话 | 粘贴 / 拖入输入框，或点回形针从上传与媒体库中选择；**点发送时**才调用对应类型的 `upload` |
+| 代码面板 | 行号**左侧、跟随光标所在行**的「+」（上传 / 网络地址 / 媒体库），或把文件拖进代码区（按落点插入） |
+
+- 上传成功后，附件以 `[已上传附件]` 清单形式拼进用户消息（模型需要真实地址），附件明细同时写入消息 `metadata`，气泡里还原成「用户原话 + 附件缩略条」
+- 插入的是自包含片段：`<img src alt style="max-width:100%;height:auto;">`、`<video src controls playsinline style="max-width:100%">`、`<audio src controls>`、`<a href download>文件名（尺寸）</a>`
+- 未配置 `upload` 的类型不可上传，**添加那一刻即报错**（不会等到发送才失败）；上传失败则不发送，输入与附件保留可重试
+- 「媒体库」入口由 `getList` 决定是否出现，列表取自第一个配置了 `getList` 的类型，条目类型按 `fileType` 或扩展名推断
+
+### 地址校验的信任边界
+
+| 来源 | 是否校验 |
+|------|----------|
+| 用户手输（「网络地址」页签） | 校验 |
+| AI 回复里的链接与图片 | 校验 |
+| 宿主 `upload` / `getList` 返回的地址 | **不校验**（宿主服务端产物，属可信来源） |
+
+校验规则是协议白名单：默认放行 `http(s)` / `mailto` / `tel` / `blob` 与相对路径，拦下 `javascript:` / `data:` 等。`blob:` 放行是因为它只能由同源脚本现场铸造，无法像 `data:` 那样从字符串直接构造。
+
+宿主可用 `allowedUrlSchemes` **追加**协议（只增不减；`javascript:` / `data:` / `vbscript:` 等危险协议写进去也会被忽略）：
+
+```tsx
+<AiRichEditor allowedUrlSchemes={['ipfs:', 'app:']} … />
+```
+
+> 不走 TanStack AI 的工具调用：工具由服务端报备（客户端工具定义不随请求上送），「模型自主调上传接口」需要宿主 SSE 路由登记同名 stub。本包改为「发送时客户端上传 + 把地址写进消息」，效果一致且宿主服务端零改动。
+
+## 通知与错误
+
+两条通道分开，均为顶层属性；**错误会同时走两条** —— 一条给人看，一条给程序看：
+
+| 通道 | 承载 | 未注入时的兜底 |
+|------|------|----------------|
+| `onNotify(type, content)` | 用户可见文案：复制成功、暂无内容可复制、附件数量上限、未检测到 HTML 代码块，以及**所有错误提示** | 包内置轻提示 |
+| `onError(error)` | 错误实例，供日志 / 上报 / 分支处理（不负责用户可见提示） | `console.error`（不上浮任何 UI） |
+
+```tsx
+<AiRichEditor
+  endpointUrl="/api/ai-chat"
+  onNotify={(type, content) => myToast(type, content)}
+  onError={(error) => myReporter(error)}
+/>
+```
+
+- 错误提示的文案取自 `error.message`，宿主无需自己翻译；`onError` 收到的是错误实例，可按类分支：`error instanceof MediaNotConfiguredError` / `InvalidMediaUrlError`（两包均导出）
+- 兜底刻意做得很轻：通知用包内轻提示，错误只打 `console.error`，绝不弹原生 alert
+- 会话流错误（SSE / 发送失败）在对话区保留 `Alert`（属对话状态），同时也会走 `onNotify` / `onError`，因此会同时看到气泡区的说明与一条轻提示
+
+## 设置面板
+
+顶栏「设置」直接打开模态框（不再有下拉菜单）。模态框**就地渲染在编辑器容器内**（不 portal），高度为容器的 90%、宽度上限 800px，只承载可序列化的配置（`autoApply` / `systemPrompt` / `previewHead`）；`media` / `onNotify` / `onError` / `allowedUrlSchemes` 这些函数型或代码级注入项只做只读展示。
+
 ## 配置与设置面板
 
-包配置项统一收拢到 `config` 属性（`endpointUrl` / `value` / `onChange` / `height` 保持顶层），经顶栏「设置」面板编辑，**保存后生效**：
+包配置项统一收拢到 `config` 属性，经顶栏「设置」面板编辑，**保存后生效**：
 
 | 配置项 | 说明 | 默认 |
 |--------|------|------|
 | `autoApply` | AI 回复后自动应用到编辑器 | `true` |
 | `systemPrompt` | 自定义 system 提示词 | 内置模板 |
 | `previewHead` | 预览 `<head>` 附加代码（原始 HTML） | 空 |
-| `notify` | 消息提示回调 | 包内置轻提示 |
+
+`config` 只放可序列化的配置；函数型注入项（`media` / `onNotify` / `onError`）与 `allowedUrlSchemes` 一律顶层。
 
 > **注意**：`config` 为**仅初始值（非受控）**——挂载后改动 `config` 不会生效；运行期请经设置面板修改，如需持久化再用 `onConfigChange` 回写宿主。
 
@@ -132,6 +211,10 @@ AI 生成的片段在「应用到编辑器」（含 `autoApply`）时已做**样
 | `DEFAULT_CONFIG` / `DEFAULT_HTML` / `DEFAULT_SYSTEM_PROMPT_TEMPLATE` / `PRESET_PROMPTS` / `PREVIEW_DEVICES` | 默认常量 |
 | `buildDefaultSystemPrompt` | 构建内置 system 提示词 |
 | `extractHtmlFragments` / `buildPreviewDocument` | 片段提取与预览文档构建 |
+| `buildMediaSnippet` / `mediaKindLabel` / `resolveMediaKind` | 媒体片段生成与类型路由 |
+| `sanitizeUrl` / `listAllowedSchemes` | 地址白名单校验与协议清单 |
+| `MediaNotConfiguredError` / `InvalidMediaUrlError` | 媒体错误类（供 `onError` 分支） |
+| `AiRichMediaConfig` / `AiRichMediaItem` 等媒体类型 | 媒体能力配置与条目类型 |
 
 ## 测试
 
@@ -139,6 +222,6 @@ AI 生成的片段在「应用到编辑器」（含 `autoApply`）时已做**样
 pnpm --filter @easyx/ai-rich-editor test
 ```
 
-覆盖代码块提取 / 预览文档构建（含附加代码注入）、`MarkdownContent`（```html 代码块「应用到编辑器」、空回复占位）与 `markdown/renderer`（结构映射、裸 HTML 丢弃、危险协议降级、流式半成品）、样式作用域化（前缀生成 / CSS 选择器改写 / style 注入与整段包装）、代码面板（外部 value 落地策略 / 扩展装配 / 受控同步与回环抑制）。
+覆盖代码块提取 / 预览文档构建（含附加代码注入）、`MarkdownContent`（```html 代码块「应用到编辑器」、空回复占位）与 `markdown/renderer`（结构映射、裸 HTML 丢弃、危险协议降级、流式半成品）、样式作用域化（前缀生成 / CSS 选择器改写 / style 注入与整段包装）、代码面板（外部 value 落地策略 / 扩展装配 / 受控同步与回环抑制 / 媒体入口跟随光标行与文件拖入）、媒体能力（类型路由 / 片段生成与转义 / 未配置报错 / 附件接纳计划与清单文本往返）、地址白名单（默认协议 / 追加协议 / 危险协议拦截）、通知与错误通道的兜底、模态框（尺寸 / Esc 与遮罩关闭 / 焦点归还）、对话输入区（粘贴 / 附件条 / 发送时机）与媒体选择浮层（入口可用性 / 地址白名单 / 媒体库选择）。
 
 > `scopedRichContent` 的 `<style>` 选择器改写为零依赖轻量实现：覆盖常见选择器（元素 / 类 / 后代 / `@media` / `@supports` 内层）与 `@keyframes` / `@font-face` 原样保留；CSS 原生嵌套规则（规则体内嵌套规则）不做嵌套前缀改写，此类输入请让 AI 用内联样式规避。

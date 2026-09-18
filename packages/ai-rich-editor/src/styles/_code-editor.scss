@@ -42,11 +42,12 @@
   padding: 0 12px 0 8px;
 }
 
-/* 行号槽 */
+/* 行号槽：不可选中（拖到槽上不应选中一串行号，那是误导性的假选区） */
 .easyx-ai-rich-editor__code-panel .cm-editor .cm-gutters {
   background-color: var(--easyx-ai-rich-editor-bg-subtle);
   color: var(--easyx-ai-rich-editor-text-tertiary);
   border: 0 solid var(--easyx-ai-rich-editor-border);
+  user-select: none;
 }
 
 .easyx-ai-rich-editor__code-panel .cm-editor .cm-gutters.cm-gutters-before {
@@ -54,8 +55,8 @@
 }
 
 .easyx-ai-rich-editor__code-panel .cm-editor .cm-lineNumbers .cm-gutterElement {
-  padding: 0 8px 0 12px;
-  min-width: 28px;
+  padding: 0 8px 0 6px;
+  min-width: 24px;
   cursor: default;
 }
 

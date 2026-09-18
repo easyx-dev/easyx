@@ -42,6 +42,7 @@ import {
   lineNumbers,
   rectangularSelection,
 } from '@codemirror/view';
+import { cursorAddGutter, cursorLineFrom } from './gutter-add';
 import { codePhrases } from './phrases';
 import { codeHighlighting } from './theme';
 
@@ -55,6 +56,15 @@ export interface CodeExtensionsOptions {
   isDark: boolean;
   /** 文档内容变化（用户输入或程序改动）时回调 */
   onDocChange: (doc: string) => void;
+  /**
+   * 文件拖入内容区：接管后返回 true（阻止 CodeMirror 默认的文本落点处理）。
+   * 位置为拖放点对应的文档偏移，调用方据此插入媒体片段。
+   */
+  onFilesDropped?: (files: File[], pos: number) => boolean;
+  /** 点击行号左侧的媒体入口：position 为该行起点，anchor 为入口按钮 */
+  onRequestMediaInsert?: (position: number, anchor: HTMLElement) => void;
+  /** 光标所在行变化（供调用方收起依赖该行的界面） */
+  onCursorLineChange?: (lineFrom: number) => void;
 }
 
 /** 装配代码编辑器扩展 */
@@ -62,8 +72,16 @@ export function createCodeExtensions({
   darkTheme,
   isDark,
   onDocChange,
+  onFilesDropped,
+  onRequestMediaInsert,
+  onCursorLineChange,
 }: CodeExtensionsOptions): Extension[] {
   return [
+    // 行号左侧的媒体入口：排在 lineNumbers 之前才会显示在其左侧
+    ...(onRequestMediaInsert
+      ? [cursorAddGutter({ onRequestInsert: onRequestMediaInsert })]
+      : []),
+
     // 视觉与交互基线
     lineNumbers(),
     highlightActiveLine(),
@@ -72,6 +90,27 @@ export function createCodeExtensions({
     rectangularSelection(),
     crosshairCursor(),
     EditorView.lineWrapping,
+
+    // 文件拖入：交给调用方上传并在落点插入媒体片段；非文件拖拽保持 CodeMirror 默认行为
+    EditorView.domEventHandlers({
+      dragover: (event) => {
+        if (!onFilesDropped) return false;
+        if (!event.dataTransfer?.types.includes('Files')) return false;
+        // 必须阻止默认行为，否则浏览器不允许 drop
+        event.preventDefault();
+        return true;
+      },
+      drop: (event, view) => {
+        if (!onFilesDropped) return false;
+        const files = event.dataTransfer?.files;
+        if (!files || files.length === 0) return false;
+        event.preventDefault();
+        const pos =
+          view.posAtCoords({ x: event.clientX, y: event.clientY }) ??
+          view.state.selection.main.from;
+        return onFilesDropped(Array.from(files), pos);
+      },
+    }),
 
     // 编辑行为
     history(),
@@ -113,6 +152,9 @@ export function createCodeExtensions({
 
     EditorView.updateListener.of((update) => {
       if (update.docChanged) onDocChange(update.state.doc.toString());
+      if (onCursorLineChange && (update.selectionSet || update.docChanged)) {
+        onCursorLineChange(cursorLineFrom(update.state));
+      }
     }),
   ];
 }

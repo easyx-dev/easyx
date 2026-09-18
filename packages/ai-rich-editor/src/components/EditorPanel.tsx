@@ -5,6 +5,8 @@
  * 加载期间占位文案复用代码面板容器，避免布局跳动。
  */
 import { lazy, Suspense } from 'react';
+import type { AiRichMediaConfig } from '../media/types';
+import type { AiRichErrorHandler } from '../types';
 
 const CodeEditor = lazy(() =>
   import('../code-editor/CodeEditor').then((mod) => ({
@@ -15,9 +17,21 @@ const CodeEditor = lazy(() =>
 interface EditorPanelProps {
   value: string;
   onChange?: (value: string) => void;
+  /** 媒体能力：驱动面板内的上传 / 媒体库插入 */
+  media?: AiRichMediaConfig;
+  /** 宿主追加允许的协议（网络地址页签校验用） */
+  allowedUrlSchemes?: readonly string[];
+  /** 错误上报（未配置接口、上传失败、地址非法等） */
+  onError?: AiRichErrorHandler;
 }
 
-export function EditorPanel({ value, onChange }: EditorPanelProps) {
+export function EditorPanel({
+  value,
+  onChange,
+  media,
+  allowedUrlSchemes,
+  onError,
+}: EditorPanelProps) {
   return (
     <Suspense
       fallback={
@@ -28,7 +42,13 @@ export function EditorPanel({ value, onChange }: EditorPanelProps) {
         </div>
       }
     >
-      <CodeEditor onChange={onChange} value={value} />
+      <CodeEditor
+        allowedUrlSchemes={allowedUrlSchemes}
+        media={media}
+        onChange={onChange}
+        onError={onError}
+        value={value}
+      />
     </Suspense>
   );
 }

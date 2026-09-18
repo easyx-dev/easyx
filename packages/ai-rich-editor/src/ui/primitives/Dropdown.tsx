@@ -55,7 +55,7 @@ export function Dropdown({
     }
   }, []);
 
-  useDismissableLayer(menuRef, open, () => close(false));
+  useDismissableLayer(menuRef, open, () => close(false), anchorRef.current);
 
   // 打开时定位并把焦点移到首项
   useEffect(() => {

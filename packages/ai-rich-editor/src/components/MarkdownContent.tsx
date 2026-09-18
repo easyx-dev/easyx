@@ -7,21 +7,24 @@
  */
 import { type ReactNode, useEffect, useMemo, useRef } from 'react';
 import { renderMarkdown } from '../markdown/renderer';
-import type { AiRichNotify } from '../types';
+import type { AiRichErrorHandler, AiRichNotify } from '../types';
 import { IconCode, IconCopy } from '../ui/icons';
 import { Button } from '../ui/primitives/Button';
 import { Tooltip } from '../ui/primitives/Tooltip';
 import { copyToClipboard } from '../utils/clipboard';
+import type { SanitizeUrlOptions } from '../utils/url';
 
 /** HTML 代码块卡片：头部（标签 + 复制/应用）+ 可滚动正文 */
 function HtmlCodeCard({
   html,
   onApplyHtml,
-  notify,
+  onNotify,
+  onError,
 }: {
   html: string;
   onApplyHtml?: (html: string) => void;
-  notify?: AiRichNotify;
+  onNotify?: AiRichNotify;
+  onError?: AiRichErrorHandler;
 }) {
   const preRef = useRef<HTMLPreElement>(null);
   const isFirstRender = useRef(true);
@@ -39,7 +42,11 @@ function HtmlCodeCard({
 
   const handleCopy = async () => {
     const ok = await copyToClipboard(html);
-    notify?.(ok ? 'success' : 'error', ok ? '已复制代码' : '复制失败');
+    if (ok) {
+      onNotify?.('success', '已复制代码');
+      return;
+    }
+    onError?.(new Error('复制失败'));
   };
 
   return (
@@ -95,25 +102,39 @@ interface MarkdownContentProps {
   /** 点击「应用到编辑器」回调（传入代码块内容） */
   onApplyHtml?: (html: string) => void;
   /** 轻提示回调（复制代码等） */
-  notify?: AiRichNotify;
+  onNotify?: AiRichNotify;
+  /** 错误回调（复制失败） */
+  onError?: AiRichErrorHandler;
+  /** 链接与图片地址的白名单选项（宿主可追加协议） */
+  urlOptions?: SanitizeUrlOptions;
 }
 
 export function MarkdownContent({
   content,
   onApplyHtml,
-  notify,
+  onNotify,
+  onError,
+  urlOptions,
 }: MarkdownContentProps) {
   const nodes: ReactNode = useMemo(() => {
     if (!content.trim()) return null;
-    return renderMarkdown(content, ({ lang, code }) =>
-      // 兼容 ```html id="main" 这类带附加参数的围栏
-      lang.startsWith('html') ? (
-        <HtmlCodeCard html={code} notify={notify} onApplyHtml={onApplyHtml} />
-      ) : (
-        <DefaultCodeBlock code={code} />
-      ),
+    return renderMarkdown(
+      content,
+      ({ lang, code }) =>
+        // 兼容 ```html id="main" 这类带附加参数的围栏
+        lang.startsWith('html') ? (
+          <HtmlCodeCard
+            html={code}
+            onApplyHtml={onApplyHtml}
+            onError={onError}
+            onNotify={onNotify}
+          />
+        ) : (
+          <DefaultCodeBlock code={code} />
+        ),
+      urlOptions,
     );
-  }, [content, onApplyHtml, notify]);
+  }, [content, onApplyHtml, onNotify, onError, urlOptions]);
 
   if (!content.trim()) {
     return <span className="easyx-ai-rich-editor__empty-reply">(空回复)</span>;

@@ -3,15 +3,15 @@
  *
  * 编辑内容暂存为受控草稿，点击「保存」后回写 runtimeConfig 并触发 onConfigChange；
  * 打开时用当前配置重置草稿，取消则直接丢弃。
+ * 载体是容器内模态框（不脱离宿主层级），只读区展示不可在 UI 编辑的注入项。
  */
 import { useEffect, useId, useState } from 'react';
-import { SETTINGS_DRAWER_WIDTH } from '../constants';
 import { buildDefaultSystemPrompt } from '../prompts';
 import type { AiRichEditorConfig } from '../types';
 import { Button } from '../ui/primitives/Button';
 import { Collapse } from '../ui/primitives/Collapse';
-import { Drawer } from '../ui/primitives/Drawer';
 import { Field, Stack, Tag, Text } from '../ui/primitives/layout';
+import { Modal } from '../ui/primitives/Modal';
 import { Switch } from '../ui/primitives/Switch';
 import { TextArea } from '../ui/primitives/TextArea';
 
@@ -19,6 +19,12 @@ interface SettingsPanelProps {
   open: boolean;
   /** 当前生效的配置（用于初始化草稿与只读展示） */
   config: AiRichEditorConfig;
+  /** 通知是否由宿主接管（onNotify） */
+  notifyConfigured: boolean;
+  /** 错误是否由宿主接管（onError） */
+  errorConfigured: boolean;
+  /** 生效的 URL 协议清单（默认 + 宿主追加） */
+  urlSchemes: readonly string[];
   onClose: () => void;
   onSave: (config: AiRichEditorConfig) => void;
 }
@@ -26,6 +32,9 @@ interface SettingsPanelProps {
 export function SettingsPanel({
   open,
   config,
+  notifyConfigured,
+  errorConfigured,
+  urlSchemes,
   onClose,
   onSave,
 }: SettingsPanelProps) {
@@ -55,7 +64,7 @@ export function SettingsPanel({
   };
 
   return (
-    <Drawer
+    <Modal
       extra={
         <>
           <Button onClick={onClose} size="sm">
@@ -69,7 +78,6 @@ export function SettingsPanel({
       onClose={onClose}
       open={open}
       title="设置"
-      width={SETTINGS_DRAWER_WIDTH}
     >
       <Stack size="lg">
         <Stack direction="row" size="sm" justify="between">
@@ -113,9 +121,15 @@ export function SettingsPanel({
           />
         </Field>
 
+        {/* 只读区：函数型注入项无法在 UI 编辑，此处仅说明当前来源 */}
         <Text block size="xs" tone="secondary">
-          消息提示：
-          {config.notify ? '已配置（宿主回调）' : '使用包内置轻提示'}
+          通知：{notifyConfigured ? '宿主回调（onNotify）' : '包内置轻提示'}
+        </Text>
+        <Text block size="xs" tone="secondary">
+          错误：{errorConfigured ? '宿主回调（onError）' : 'console 兜底'}
+        </Text>
+        <Text block size="xs" tone="secondary">
+          URL 协议清单：{urlSchemes.join(' / ')}
         </Text>
 
         {/* 内置默认提示词（只读参考，默认折叠） */}
@@ -125,6 +139,6 @@ export function SettingsPanel({
           </pre>
         </Collapse>
       </Stack>
-    </Drawer>
+    </Modal>
   );
 }

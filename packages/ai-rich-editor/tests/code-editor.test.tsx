@@ -6,9 +6,9 @@
 import { history, undo } from '@codemirror/commands';
 import { openSearchPanel } from '@codemirror/search';
 import { Compartment, EditorState } from '@codemirror/state';
-import { EditorView } from '@codemirror/view';
+import { EditorView, type ViewUpdate } from '@codemirror/view';
 import { afterEach, describe, expect, it, rs } from '@rstest/core';
-import { cleanup, render } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { CodeEditor } from '../src/code-editor/CodeEditor';
 import {
   planDocSync,
@@ -16,6 +16,8 @@ import {
   writeDocSync,
 } from '../src/code-editor/doc-sync';
 import { createCodeExtensions } from '../src/code-editor/extensions';
+import { cursorLineChanged } from '../src/code-editor/gutter-add';
+import { InvalidMediaUrlError } from '../src/media/errors';
 
 // jsdom 未实现 Range 的布局测量，而 CodeMirror 计算选区矩形时会调用
 const rangeProto = Range.prototype as Range & {
@@ -32,6 +34,26 @@ function readDoc(): string {
   return Array.from(document.querySelectorAll('.cm-line'))
     .map((el) => el.textContent ?? '')
     .join('\n');
+}
+
+/** 行号槽内的媒体入口按钮（gutter 带 aria-hidden，只能用选择器取） */
+function addButton(container: HTMLElement): HTMLButtonElement {
+  const button = container.querySelector<HTMLButtonElement>(
+    '.easyx-ai-rich-editor__code-add',
+  );
+  if (!button) throw new Error('媒体入口未渲染');
+  return button;
+}
+
+/** 可见的媒体入口（排除 initialSpacer 的测量占位元素） */
+function visibleAddButtons(container: HTMLElement): HTMLElement[] {
+  return Array.from(
+    container.querySelectorAll<HTMLElement>('.easyx-ai-rich-editor__code-add'),
+  ).filter(
+    (button) =>
+      button.closest<HTMLElement>('.cm-gutterElement')?.style.visibility !==
+      'hidden',
+  );
 }
 
 describe('planDocSync', () => {
@@ -217,6 +239,96 @@ describe('createCodeExtensions', () => {
   });
 });
 
+describe('createCodeExtensions 的文件拖入', () => {
+  /** 挂载一个带落点回调的编辑器 */
+  function mountDrop(onFilesDropped?: (files: File[], pos: number) => boolean) {
+    const view = new EditorView({
+      parent: document.body,
+      state: EditorState.create({
+        doc: '<div>a</div>',
+        extensions: createCodeExtensions({
+          darkTheme: new Compartment(),
+          isDark: false,
+          onDocChange: () => {},
+          onFilesDropped,
+        }),
+      }),
+    });
+    return view;
+  }
+
+  /** jsdom 无 DragEvent 构造，手工造一个带 dataTransfer 的事件 */
+  function dispatchFiles(view: EditorView, files: File[]) {
+    const event = new Event('drop', { bubbles: true, cancelable: true });
+    Object.assign(event, {
+      clientX: 0,
+      clientY: 0,
+      dataTransfer: { files, types: ['Files'] },
+    });
+    view.contentDOM.dispatchEvent(event);
+  }
+
+  it('拖入文件时接管事件并带上落点', () => {
+    const onFilesDropped = rs.fn(() => true);
+    const view = mountDrop(onFilesDropped);
+    try {
+      const file = new File(['x'], 'a.png', { type: 'image/png' });
+      dispatchFiles(view, [file]);
+      expect(onFilesDropped).toHaveBeenCalledTimes(1);
+      expect(onFilesDropped.mock.calls[0][0]).toEqual([file]);
+      expect(typeof onFilesDropped.mock.calls[0][1]).toBe('number');
+    } finally {
+      view.destroy();
+    }
+  });
+
+  it('未配置落点回调时不接管，也不改动文档', () => {
+    const view = mountDrop();
+    try {
+      const file = new File(['x'], 'a.png', { type: 'image/png' });
+      dispatchFiles(view, [file]);
+      expect(view.state.doc.toString()).toBe('<div>a</div>');
+    } finally {
+      view.destroy();
+    }
+  });
+});
+
+describe('cursorLineChanged', () => {
+  /** 建一个带更新监听的最小编辑器，收集每次 update */
+  function mountWithUpdates(doc: string) {
+    const updates: ViewUpdate[] = [];
+    const view = new EditorView({
+      parent: document.body,
+      state: EditorState.create({
+        doc,
+        extensions: [EditorView.updateListener.of((u) => updates.push(u))],
+      }),
+    });
+    return { updates, view };
+  }
+
+  it('光标换行返回 true（gutter 据此重绘标记）', () => {
+    const { updates, view } = mountWithUpdates('<p>a</p>\n<p>b</p>');
+    try {
+      view.dispatch({ selection: { anchor: view.state.doc.line(2).from } });
+      expect(cursorLineChanged(updates.at(-1) as ViewUpdate)).toBe(true);
+    } finally {
+      view.destroy();
+    }
+  });
+
+  it('同一行内移动光标返回 false（避免无谓重绘）', () => {
+    const { updates, view } = mountWithUpdates('<p>abcdef</p>\n<p>b</p>');
+    try {
+      view.dispatch({ selection: { anchor: 5 } });
+      expect(cursorLineChanged(updates.at(-1) as ViewUpdate)).toBe(false);
+    } finally {
+      view.destroy();
+    }
+  });
+});
+
 describe('CodeEditor', () => {
   it('挂载时渲染传入的 value', () => {
     render(<CodeEditor value={'<div>a</div>\n<p>b</p>'} />);
@@ -256,5 +368,45 @@ describe('CodeEditor', () => {
     const { unmount } = render(<CodeEditor value={'<div>a</div>'} />);
     unmount();
     expect(document.querySelector('.cm-editor')).toBeNull();
+  });
+
+  it('光标行的行号左侧有媒体入口，插入网络地址即写入文档', () => {
+    const { container } = render(<CodeEditor value={'<div>a</div>'} />);
+    fireEvent.mouseDown(addButton(container));
+    fireEvent.change(screen.getByPlaceholderText('粘贴图片/文件链接…'), {
+      target: { value: 'https://cdn.test/a.png' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: '插入' }));
+    expect(readDoc()).toBe(
+      '<img src="https://cdn.test/a.png" alt="" style="max-width:100%;height:auto;"><div>a</div>',
+    );
+  });
+
+  it('媒体入口只有一处，且插入落在光标处', () => {
+    const { container } = render(
+      <CodeEditor value={'<p>a</p>\n<p>b</p>\n<p>c</p>'} />,
+    );
+    expect(visibleAddButtons(container)).toHaveLength(1);
+
+    const view = EditorView.findFromDOM(
+      container.querySelector('.cm-content') as HTMLElement,
+    );
+    view?.dispatch({ selection: { anchor: view.state.doc.line(3).from } });
+    // 换行后入口被重建但依旧唯一（跟随光标行的前提是只有一处入口）
+    expect(visibleAddButtons(container)).toHaveLength(1);
+  });
+
+  it('媒体入口地址不合法时只上报错误，不动文档', () => {
+    const onError = rs.fn();
+    const { container } = render(
+      <CodeEditor onError={onError} value={'<div>a</div>'} />,
+    );
+    fireEvent.mouseDown(addButton(container));
+    fireEvent.change(screen.getByPlaceholderText('粘贴图片/文件链接…'), {
+      target: { value: 'javascript:alert(1)' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: '插入' }));
+    expect(onError.mock.calls[0][0]).toBeInstanceOf(InvalidMediaUrlError);
+    expect(readDoc()).toBe('<div>a</div>');
   });
 });

@@ -1,0 +1,458 @@
+/**
+ * 媒体能力样式：媒体选择浮层、媒体库网格、附件条与代码面板入口
+ *
+ * 与包内其他分片一致：全部走 --easyx-ai-rich-editor-* 令牌，亮暗由令牌作用域切换；
+ * 浮层经 portal 渲染，根节点带令牌作用域类（见 MediaPicker 的 scopeClass）。
+ */
+@use 'variables' as v;
+
+/* ---------- 触发元素外层容器 ---------- */
+.easyx-ai-rich-editor__media-anchor {
+  display: inline-flex;
+  align-items: center;
+}
+
+/* ---------- 媒体选择浮层 ---------- */
+.easyx-ai-rich-editor__media-picker {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: var(--easyx-ai-rich-editor-z-menu);
+  box-sizing: border-box;
+  width: 296px;
+  max-width: calc(100vw - 16px);
+  padding: 8px;
+  border: 1px solid var(--easyx-ai-rich-editor-border);
+  border-radius: var(--easyx-ai-rich-editor-radius);
+  background: var(--easyx-ai-rich-editor-bg);
+  box-shadow: var(--easyx-ai-rich-editor-shadow-lg);
+  font-size: var(--easyx-ai-rich-editor-font-size-sm);
+  color: var(--easyx-ai-rich-editor-text);
+}
+
+.easyx-ai-rich-editor__media-tabs {
+  display: flex;
+  gap: 4px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--easyx-ai-rich-editor-border);
+}
+
+.easyx-ai-rich-editor__media-tab {
+  display: inline-flex;
+  flex: 1;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 4px 6px;
+  border: 0;
+  border-radius: var(--easyx-ai-rich-editor-radius-sm);
+  background: transparent;
+  font-size: var(--easyx-ai-rich-editor-font-size-xs);
+  color: var(--easyx-ai-rich-editor-text-secondary);
+  cursor: pointer;
+  transition:
+    background-color 0.15s,
+    color 0.15s;
+
+  @include v.focus-ring;
+}
+
+.easyx-ai-rich-editor__media-tab:hover {
+  background: var(--easyx-ai-rich-editor-bg-hover);
+}
+
+.easyx-ai-rich-editor__media-tab.is-active {
+  background: var(--easyx-ai-rich-editor-primary-soft);
+  color: var(--easyx-ai-rich-editor-primary);
+}
+
+.easyx-ai-rich-editor__media-body {
+  padding-top: 8px;
+}
+
+.easyx-ai-rich-editor__media-footnote {
+  margin: 8px 0 0;
+  font-size: var(--easyx-ai-rich-editor-font-size-xs);
+  color: var(--easyx-ai-rich-editor-text-tertiary);
+}
+
+/* ---------- 上传 ---------- */
+.easyx-ai-rich-editor__media-upload {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.easyx-ai-rich-editor__media-upload-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 14px 8px;
+  border: 1px dashed var(--easyx-ai-rich-editor-border-strong);
+  border-radius: var(--easyx-ai-rich-editor-radius);
+  background: var(--easyx-ai-rich-editor-bg-subtle);
+  font-size: var(--easyx-ai-rich-editor-font-size-sm);
+  color: var(--easyx-ai-rich-editor-text);
+  cursor: pointer;
+  transition:
+    border-color 0.15s,
+    color 0.15s;
+
+  @include v.focus-ring;
+}
+
+.easyx-ai-rich-editor__media-upload-btn:hover:not(:disabled) {
+  border-color: var(--easyx-ai-rich-editor-primary);
+  color: var(--easyx-ai-rich-editor-primary);
+}
+
+.easyx-ai-rich-editor__media-upload-btn:disabled {
+  color: var(--easyx-ai-rich-editor-text-tertiary);
+  cursor: not-allowed;
+}
+
+.easyx-ai-rich-editor__media-upload-hint {
+  margin: 0;
+  font-size: var(--easyx-ai-rich-editor-font-size-xs);
+  color: var(--easyx-ai-rich-editor-text-tertiary);
+}
+
+.easyx-ai-rich-editor__media-progress {
+  height: 3px;
+  overflow: hidden;
+  border-radius: 2px;
+  background: var(--easyx-ai-rich-editor-bg-active);
+}
+
+.easyx-ai-rich-editor__media-progress > span {
+  display: block;
+  height: 100%;
+  background: var(--easyx-ai-rich-editor-primary);
+  transition: width 0.15s;
+}
+
+.easyx-ai-rich-editor__media-file {
+  display: none;
+}
+
+/* ---------- 网络地址 ---------- */
+.easyx-ai-rich-editor__media-url {
+  display: flex;
+  gap: 6px;
+}
+
+.easyx-ai-rich-editor__media-url-input {
+  flex: 1;
+  min-width: 0;
+  padding: 5px 8px;
+  border: 1px solid var(--easyx-ai-rich-editor-border-strong);
+  border-radius: var(--easyx-ai-rich-editor-radius-sm);
+  background: var(--easyx-ai-rich-editor-bg);
+  font-size: var(--easyx-ai-rich-editor-font-size-xs);
+  color: var(--easyx-ai-rich-editor-text);
+  outline: 0;
+
+  &::placeholder {
+    color: var(--easyx-ai-rich-editor-text-tertiary);
+  }
+
+  &:focus {
+    border-color: var(--easyx-ai-rich-editor-primary);
+  }
+}
+
+.easyx-ai-rich-editor__media-url-btn {
+  flex-shrink: 0;
+  padding: 5px 12px;
+  border: 0;
+  border-radius: var(--easyx-ai-rich-editor-radius-sm);
+  background: var(--easyx-ai-rich-editor-primary);
+  font-size: var(--easyx-ai-rich-editor-font-size-xs);
+  color: var(--easyx-ai-rich-editor-on-primary);
+  cursor: pointer;
+
+  @include v.focus-ring;
+}
+
+/* ---------- 媒体库 ---------- */
+.easyx-ai-rich-editor__library {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.easyx-ai-rich-editor__library-search {
+  display: flex;
+  gap: 6px;
+}
+
+.easyx-ai-rich-editor__library-search-input {
+  flex: 1;
+  min-width: 0;
+  padding: 5px 8px;
+  border: 1px solid var(--easyx-ai-rich-editor-border-strong);
+  border-radius: var(--easyx-ai-rich-editor-radius-sm);
+  background: var(--easyx-ai-rich-editor-bg);
+  font-size: var(--easyx-ai-rich-editor-font-size-xs);
+  color: var(--easyx-ai-rich-editor-text);
+  outline: 0;
+
+  &::placeholder {
+    color: var(--easyx-ai-rich-editor-text-tertiary);
+  }
+
+  &:focus {
+    border-color: var(--easyx-ai-rich-editor-primary);
+  }
+}
+
+.easyx-ai-rich-editor__library-search-btn,
+.easyx-ai-rich-editor__library-page-btn {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border: 1px solid var(--easyx-ai-rich-editor-border-strong);
+  border-radius: var(--easyx-ai-rich-editor-radius-sm);
+  background: var(--easyx-ai-rich-editor-bg);
+  color: var(--easyx-ai-rich-editor-text-secondary);
+  cursor: pointer;
+
+  @include v.focus-ring;
+}
+
+.easyx-ai-rich-editor__library-search-btn:hover,
+.easyx-ai-rich-editor__library-page-btn:hover:not(:disabled) {
+  border-color: var(--easyx-ai-rich-editor-primary);
+  color: var(--easyx-ai-rich-editor-primary);
+}
+
+.easyx-ai-rich-editor__library-page-btn:disabled {
+  color: var(--easyx-ai-rich-editor-text-tertiary);
+  cursor: not-allowed;
+}
+
+.easyx-ai-rich-editor__library-status {
+  padding: 16px 4px;
+  font-size: var(--easyx-ai-rich-editor-font-size-xs);
+  text-align: center;
+  color: var(--easyx-ai-rich-editor-text-tertiary);
+}
+
+.easyx-ai-rich-editor__library-status--error {
+  color: var(--easyx-ai-rich-editor-danger);
+}
+
+.easyx-ai-rich-editor__library-grid {
+  display: grid;
+  /* minmax(0, 1fr)：条目内的不换行文件名不应撑宽列（否则列会溢出面板） */
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+  max-height: 208px;
+  overflow-y: auto;
+
+  @include v.scrollbar;
+}
+
+.easyx-ai-rich-editor__library-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 4px;
+  border: 1px solid var(--easyx-ai-rich-editor-border);
+  border-radius: var(--easyx-ai-rich-editor-radius-sm);
+  background: var(--easyx-ai-rich-editor-bg);
+  cursor: pointer;
+  transition:
+    border-color 0.15s,
+    background-color 0.15s;
+
+  @include v.focus-ring;
+}
+
+.easyx-ai-rich-editor__library-item:hover {
+  border-color: var(--easyx-ai-rich-editor-primary);
+  background: var(--easyx-ai-rich-editor-bg-hover);
+}
+
+.easyx-ai-rich-editor__library-thumb {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 48px;
+  overflow: hidden;
+  border-radius: var(--easyx-ai-rich-editor-radius-sm);
+  background: var(--easyx-ai-rich-editor-bg-subtle);
+  color: var(--easyx-ai-rich-editor-text-tertiary);
+
+  img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+}
+
+.easyx-ai-rich-editor__library-name {
+  width: 100%;
+  overflow: hidden;
+  font-size: var(--easyx-ai-rich-editor-font-size-xs);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--easyx-ai-rich-editor-text);
+}
+
+.easyx-ai-rich-editor__library-size {
+  font-size: 11px;
+  color: var(--easyx-ai-rich-editor-text-tertiary);
+}
+
+.easyx-ai-rich-editor__library-pager {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+}
+
+.easyx-ai-rich-editor__library-page-info {
+  font-size: 11px;
+  color: var(--easyx-ai-rich-editor-text-tertiary);
+}
+
+/* ---------- 附件条 ---------- */
+.easyx-ai-rich-editor__attachments {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.easyx-ai-rich-editor__attachments--composer {
+  margin-bottom: 8px;
+}
+
+.easyx-ai-rich-editor__attachments--message {
+  margin-bottom: 6px;
+}
+
+.easyx-ai-rich-editor__attachment {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  max-width: 220px;
+  padding: 3px 6px 5px;
+  border: 1px solid var(--easyx-ai-rich-editor-border);
+  border-radius: var(--easyx-ai-rich-editor-radius-sm);
+  background: var(--easyx-ai-rich-editor-bg-subtle);
+  font-size: var(--easyx-ai-rich-editor-font-size-xs);
+  color: var(--easyx-ai-rich-editor-text-secondary);
+}
+
+.easyx-ai-rich-editor__attachments--message .easyx-ai-rich-editor__attachment {
+  background: var(--easyx-ai-rich-editor-bg);
+}
+
+.easyx-ai-rich-editor__attachment-icon {
+  display: inline-flex;
+  flex-shrink: 0;
+  color: var(--easyx-ai-rich-editor-primary);
+}
+
+.easyx-ai-rich-editor__attachment-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--easyx-ai-rich-editor-text);
+}
+
+.easyx-ai-rich-editor__attachment-meta {
+  flex-shrink: 0;
+  color: var(--easyx-ai-rich-editor-text-tertiary);
+}
+
+.easyx-ai-rich-editor__attachment-remove {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--easyx-ai-rich-editor-text-tertiary);
+  cursor: pointer;
+
+  @include v.focus-ring;
+}
+
+.easyx-ai-rich-editor__attachment-remove:hover {
+  background: var(--easyx-ai-rich-editor-bg-active);
+  color: var(--easyx-ai-rich-editor-danger);
+}
+
+.easyx-ai-rich-editor__attachment-progress {
+  position: absolute;
+  right: 5px;
+  bottom: 2px;
+  left: 5px;
+  height: 2px;
+  overflow: hidden;
+  border-radius: 1px;
+  background: var(--easyx-ai-rich-editor-bg-active);
+}
+
+.easyx-ai-rich-editor__attachment-progress > span {
+  display: block;
+  height: 100%;
+  background: var(--easyx-ai-rich-editor-primary);
+  transition: width 0.15s;
+}
+
+/* ---------- 代码面板入口：行号左侧、跟在光标所在行的加号 ---------- */
+.easyx-ai-rich-editor__code-panel .cm-editor .cm-gutters .easyx-ai-rich-editor__gutter-add {
+  /* 只有光标行有标记，靠最小宽度保持列宽恒定（另有 initialSpacer 兜底） */
+  min-width: 18px;
+}
+
+.easyx-ai-rich-editor__code-panel
+  .cm-editor
+  .cm-gutters
+  .easyx-ai-rich-editor__gutter-add
+  .cm-gutterElement {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.easyx-ai-rich-editor__code-add {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  border: 1px solid var(--easyx-ai-rich-editor-border-strong);
+  border-radius: var(--easyx-ai-rich-editor-radius-sm);
+  background: var(--easyx-ai-rich-editor-bg);
+  color: var(--easyx-ai-rich-editor-text-secondary);
+  cursor: pointer;
+  transition:
+    border-color 0.15s,
+    color 0.15s;
+}
+
+.easyx-ai-rich-editor__code-add:hover {
+  border-color: var(--easyx-ai-rich-editor-primary);
+  color: var(--easyx-ai-rich-editor-primary);
+}
+
+/* 入口是纯鼠标操作（mousedown 被 preventDefault），不参与键盘焦点环 */
+.easyx-ai-rich-editor__code-add:focus {
+  outline: none;
+}

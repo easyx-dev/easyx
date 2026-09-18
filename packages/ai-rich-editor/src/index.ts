@@ -13,10 +13,24 @@ export {
   PREVIEW_DEVICES,
   type PreviewDevice,
 } from './constants';
+export { InvalidMediaUrlError, MediaNotConfiguredError } from './media/errors';
+export { mediaKindLabel, resolveMediaKind } from './media/routing';
+export { buildMediaSnippet } from './media/snippet';
+export type {
+  AiRichMediaConfig,
+  AiRichMediaItem,
+  AiRichMediaKind,
+  AiRichMediaListParams,
+  AiRichMediaListResult,
+  AiRichMediaUploadConfig,
+  AiRichMediaUploadProgress,
+} from './media/types';
 export { buildDefaultSystemPrompt } from './prompts';
 export type {
   AiRichEditorConfig,
   AiRichEditorProps,
+  AiRichErrorHandler,
   AiRichNotify,
 } from './types';
 export { buildPreviewDocument, extractHtmlFragments } from './utils/extract';
+export { listAllowedSchemes, sanitizeUrl } from './utils/url';

@@ -1,8 +1,8 @@
 /**
  * AI Rich Editor 主容器：顶栏 + 左(预览，可选编辑器)/右(AI 对话) 两栏工作台
  * 默认两栏：左=预览区、右=AI 对话面板（min400/max600）；「编辑器」为顶栏开关，打开后在左栏与预览并排。
- * value / onChange 兼容受控注入；对话能力由调用方通过 adapter 注入；
- * 包配置项统一收拢到 config，经设置面板编辑保存生效
+ * value / onChange 兼容受控注入；对话能力经 endpointUrl 注入；
+ * 包配置项统一收拢到 config（经设置面板编辑保存生效），函数型注入项（media/onNotify/onError）留在顶层
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
@@ -15,39 +15,30 @@ import { PreviewPanel } from './components/PreviewPanel';
 import { SettingsPanel } from './components/SettingsPanel';
 import { Toolbar } from './components/Toolbar';
 import { DEFAULT_CONFIG, DEFAULT_HTML } from './constants';
-import type {
-  AiRichEditorConfig,
-  AiRichEditorProps,
-  AiRichNotify,
-} from './types';
+import type { AiRichEditorConfig, AiRichEditorProps } from './types';
 import { cx, SCOPE_CLASS } from './ui/cx';
+import { createErrorReporter, defaultOnNotify } from './ui/feedback';
 import { Splitter, SplitterPane } from './ui/Splitter';
-import { toast } from './ui/toast';
 import {
   buildPreviewDocument,
   currentHtmlFragment,
   lastHtmlFragment,
 } from './utils/extract';
 import { generateScopePrefix, scopedRichContent } from './utils/scope';
+import { listAllowedSchemes, type SanitizeUrlOptions } from './utils/url';
 
 /** 流式实时同步阈值：HTML 代码块累计新增达到该字符数时同步到编辑器+预览 */
 const LIVE_SYNC_CHAR_THRESHOLD = 200;
-
-/**
- * 缺省消息提示：宿主未注入 notify 时用包内置轻提示兜底
- *
- * 内置提示是挂到 body 的独立浮层，不随宿主主题容器走；需要完全跟随宿主主题
- * 或替换为宿主自己的提示组件时，注入 notify 即可。
- */
-const defaultNotify: AiRichNotify = (type, content) => {
-  toast(type, content);
-};
 
 export function AiRichEditor({
   value = DEFAULT_HTML,
   onChange,
   endpointUrl,
   requestMeta,
+  media,
+  allowedUrlSchemes,
+  onNotify,
+  onError,
   height = 640,
   config,
   onConfigChange,
@@ -67,8 +58,18 @@ export function AiRichEditor({
     }),
   );
   const { autoApply, systemPrompt, previewHead } = runtimeConfig;
-  // 宿主未注入时用包内兜底提示，保证「复制 / 应用到编辑器」等操作有反馈
-  const notify = runtimeConfig.notify ?? defaultNotify;
+  // 通知与错误各走各的通道：宿主注入即完全接管，未注入用包内兜底
+  const notify = onNotify ?? defaultOnNotify;
+  // 错误一律先经通知呈现给用户，再上报错误实例（见 createErrorReporter）
+  const reportError = useMemo(
+    () => createErrorReporter({ notify: onNotify, onError }),
+    [onNotify, onError],
+  );
+  // 链接与媒体地址的白名单选项（宿主可追加协议，不能移除默认项）
+  const urlOptions = useMemo<SanitizeUrlOptions>(
+    () => ({ extraSchemes: allowedUrlSchemes }),
+    [allowedUrlSchemes],
+  );
   // 已应用过的 HTML 片段（用于流式实时同步判断「累计新增」的基准）
   const lastAppliedRef = useRef('');
   // 当前流式处理中的 assistant 消息 id（新一轮消息出现时重置同步基准）
@@ -159,12 +160,33 @@ export function AiRichEditor({
 
   const editorCfg = useMemo(
     () => ({
-      notify,
+      media,
       onApplyHtml: handleApplyHtml,
+      onError: reportError,
+      onNotify: notify,
       requestMeta,
       systemPrompt,
+      urlOptions,
     }),
-    [systemPrompt, requestMeta, handleApplyHtml, notify],
+    [
+      systemPrompt,
+      requestMeta,
+      media,
+      handleApplyHtml,
+      notify,
+      reportError,
+      urlOptions,
+    ],
+  );
+
+  // 代码面板的媒体插入：共用实例级媒体配置、协议白名单与错误上报
+  const codePanelCfg = useMemo(
+    () => ({
+      allowedUrlSchemes,
+      media,
+      onError: reportError,
+    }),
+    [media, allowedUrlSchemes, reportError],
   );
 
   // 设置面板保存：回写运行期配置并通知宿主
@@ -187,8 +209,9 @@ export function AiRichEditor({
       <Toolbar
         deviceKey={deviceKey}
         html={value}
-        notify={notify}
         onDeviceKeyChange={setDeviceKey}
+        onError={reportError}
+        onNotify={notify}
         onOpenInNewWindow={handleOpenInNewWindow}
         onOpenSettings={() => setSettingsOpen(true)}
         onRefresh={() => setReloadKey((k) => k + 1)}
@@ -204,7 +227,13 @@ export function AiRichEditor({
           {showEditor ? (
             <Splitter className="easyx-ai-rich-editor__body-inner">
               <SplitterPane min={300}>
-                <EditorPanel value={value} onChange={onChange} />
+                <EditorPanel
+                  allowedUrlSchemes={codePanelCfg.allowedUrlSchemes}
+                  media={codePanelCfg.media}
+                  onChange={onChange}
+                  onError={codePanelCfg.onError}
+                  value={value}
+                />
               </SplitterPane>
               <SplitterPane min={320}>
                 <PreviewPanel
@@ -237,9 +266,12 @@ export function AiRichEditor({
 
       <SettingsPanel
         config={runtimeConfig}
+        errorConfigured={Boolean(onError)}
+        notifyConfigured={Boolean(onNotify)}
         onClose={() => setSettingsOpen(false)}
         onSave={handleSaveSettings}
         open={settingsOpen}
+        urlSchemes={listAllowedSchemes(urlOptions)}
       />
     </div>
   );

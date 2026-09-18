@@ -237,3 +237,200 @@ export function IconErrorCircle({ size = 15, ...rest }: IconProps) {
     </svg>
   );
 }
+
+export function IconPlus({ size = 14, ...rest }: IconProps) {
+  return (
+    <svg
+      aria-hidden="true"
+      height={size}
+      viewBox="0 0 24 24"
+      width={size}
+      {...stroke}
+      {...rest}
+    >
+      <path d="M12 5v14M5 12h14" />
+    </svg>
+  );
+}
+
+export function IconPaperclip({ size = 15, ...rest }: IconProps) {
+  return (
+    <svg
+      aria-hidden="true"
+      height={size}
+      viewBox="0 0 24 24"
+      width={size}
+      {...stroke}
+      {...rest}
+    >
+      <path d="M21 11.5 12.9 19.6a5 5 0 0 1-7.1-7.1l8.1-8.1a3.4 3.4 0 0 1 4.8 4.8l-8.1 8.1a1.7 1.7 0 0 1-2.4-2.4l7.4-7.4" />
+    </svg>
+  );
+}
+
+export function IconUpload({ size = 15, ...rest }: IconProps) {
+  return (
+    <svg
+      aria-hidden="true"
+      height={size}
+      viewBox="0 0 24 24"
+      width={size}
+      {...stroke}
+      {...rest}
+    >
+      <path d="M12 16V4M6 10l6-6 6 6" />
+      <path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2" />
+    </svg>
+  );
+}
+
+export function IconLink({ size = 15, ...rest }: IconProps) {
+  return (
+    <svg
+      aria-hidden="true"
+      height={size}
+      viewBox="0 0 24 24"
+      width={size}
+      {...stroke}
+      {...rest}
+    >
+      <path d="M10 13a5 5 0 0 0 7 0l2-2a5 5 0 0 0-7-7l-1 1" />
+      <path d="M14 11a5 5 0 0 0-7 0l-2 2a5 5 0 0 0 7 7l1-1" />
+    </svg>
+  );
+}
+
+export function IconGallery({ size = 15, ...rest }: IconProps) {
+  return (
+    <svg
+      aria-hidden="true"
+      height={size}
+      viewBox="0 0 24 24"
+      width={size}
+      {...stroke}
+      {...rest}
+    >
+      <rect height="18" rx="2" width="18" x="3" y="3" />
+      <path d="m3 15 4.5-4.5a1.5 1.5 0 0 1 2.1 0L15 16M14 14l1.5-1.5a1.5 1.5 0 0 1 2.1 0L21 16M9 8.5h.01" />
+    </svg>
+  );
+}
+
+export function IconImage({ size = 15, ...rest }: IconProps) {
+  return (
+    <svg
+      aria-hidden="true"
+      height={size}
+      viewBox="0 0 24 24"
+      width={size}
+      {...stroke}
+      {...rest}
+    >
+      <rect height="16" rx="2" width="18" x="3" y="4" />
+      <path d="m3 16 5-5 5 5 3-3 5 5M9.5 9h.01" />
+    </svg>
+  );
+}
+
+export function IconVideo({ size = 15, ...rest }: IconProps) {
+  return (
+    <svg
+      aria-hidden="true"
+      height={size}
+      viewBox="0 0 24 24"
+      width={size}
+      {...stroke}
+      {...rest}
+    >
+      <rect height="14" rx="2" width="13" x="2" y="5" />
+      <path d="m15 10 6-3.5v11L15 14" />
+    </svg>
+  );
+}
+
+export function IconAudio({ size = 15, ...rest }: IconProps) {
+  return (
+    <svg
+      aria-hidden="true"
+      height={size}
+      viewBox="0 0 24 24"
+      width={size}
+      {...stroke}
+      {...rest}
+    >
+      <path d="M10 16V5l10-2v11" />
+      <circle cx="7" cy="17" r="3" />
+      <circle cx="17" cy="14" r="3" />
+    </svg>
+  );
+}
+
+export function IconFile({ size = 15, ...rest }: IconProps) {
+  return (
+    <svg
+      aria-hidden="true"
+      height={size}
+      viewBox="0 0 24 24"
+      width={size}
+      {...stroke}
+      {...rest}
+    >
+      <path d="M14 3v5h5" />
+      <path d="M19 8v11a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h7l5 5Z" />
+    </svg>
+  );
+}
+
+export function IconSearch({ size = 15, ...rest }: IconProps) {
+  return (
+    <svg
+      aria-hidden="true"
+      height={size}
+      viewBox="0 0 24 24"
+      width={size}
+      {...stroke}
+      {...rest}
+    >
+      <circle cx="11" cy="11" r="7" />
+      <path d="m20 20-3.5-3.5" />
+    </svg>
+  );
+}
+
+export function IconChevronLeft({ size = 14, ...rest }: IconProps) {
+  return (
+    <svg
+      aria-hidden="true"
+      height={size}
+      viewBox="0 0 24 24"
+      width={size}
+      {...stroke}
+      {...rest}
+    >
+      <path d="m15 6-6 6 6 6" />
+    </svg>
+  );
+}
+
+export function IconChevronRight({ size = 14, ...rest }: IconProps) {
+  return (
+    <svg
+      aria-hidden="true"
+      height={size}
+      viewBox="0 0 24 24"
+      width={size}
+      {...stroke}
+      {...rest}
+    >
+      <path d="m9 6 6 6-6 6" />
+    </svg>
+  );
+}
+
+/** 媒体类型 → 图标（附件列表与媒体库条目共用） */
+export const MEDIA_KIND_ICONS = {
+  audio: IconAudio,
+  attachment: IconFile,
+  image: IconImage,
+  video: IconVideo,
+} as const;

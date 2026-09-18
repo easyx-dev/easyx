@@ -5,6 +5,7 @@
 @use 'variables' as v;
 
 .easyx-ai-rich-editor {
+  position: relative;
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -135,6 +136,7 @@
 
 /* 代码编辑区 */
 .easyx-ai-rich-editor__code-panel {
+  position: relative;
   display: flex;
   flex-direction: column;
   height: 100%;

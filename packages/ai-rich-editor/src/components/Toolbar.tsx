@@ -4,7 +4,7 @@
  */
 
 import { PREVIEW_DEVICES } from '../constants';
-import type { AiRichNotify } from '../types';
+import type { AiRichErrorHandler, AiRichNotify } from '../types';
 import {
   IconCode,
   IconCopy,
@@ -13,7 +13,6 @@ import {
   IconSetting,
 } from '../ui/icons';
 import { Button } from '../ui/primitives/Button';
-import { Dropdown } from '../ui/primitives/Dropdown';
 import { Text } from '../ui/primitives/layout';
 import { Segmented } from '../ui/primitives/Segmented';
 import { Switch } from '../ui/primitives/Switch';
@@ -34,7 +33,8 @@ interface ToolbarProps {
   onToggleEditor: () => void;
   /** 打开设置面板 */
   onOpenSettings: () => void;
-  notify?: AiRichNotify;
+  onNotify?: AiRichNotify;
+  onError?: AiRichErrorHandler;
 }
 
 /** 顶栏内的分组分隔线（纯装饰） */
@@ -53,15 +53,20 @@ export function Toolbar({
   showEditor,
   onToggleEditor,
   onOpenSettings,
-  notify,
+  onNotify,
+  onError,
 }: ToolbarProps) {
   const handleCopy = async () => {
     if (!html) {
-      notify?.('warning', '暂无内容可复制');
+      onNotify?.('warning', '暂无内容可复制');
       return;
     }
     const ok = await copyToClipboard(html);
-    notify?.(ok ? 'success' : 'error', ok ? '已复制到剪贴板' : '复制失败');
+    if (ok) {
+      onNotify?.('success', '已复制到剪贴板');
+      return;
+    }
+    onError?.(new Error('复制失败'));
   };
 
   return (
@@ -137,17 +142,16 @@ export function Toolbar({
 
         <Sep />
 
-        <Dropdown
-          items={[{ key: 'more', label: '更多配置…' }]}
-          onSelect={(key) => {
-            if (key === 'more') onOpenSettings();
-          }}
-          trigger={
-            <Button icon={<IconSetting />} size="sm" variant="text">
-              设置
-            </Button>
-          }
-        />
+        <Tooltip title="打开设置">
+          <Button
+            icon={<IconSetting />}
+            onClick={onOpenSettings}
+            size="sm"
+            variant="text"
+          >
+            设置
+          </Button>
+        </Tooltip>
       </div>
     </div>
   );

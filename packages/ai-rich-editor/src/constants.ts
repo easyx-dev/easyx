@@ -1,6 +1,7 @@
 /**
  * AI Rich Editor 客户端常量：默认模板、预设指令、设备档位与对话上下文上限
  */
+import { ATTACHMENT_BLOCK_TITLE } from './media/prompt-text';
 
 /** 首次打开时的默认 HTML 内容片段 */
 export const DEFAULT_HTML = `<style>
@@ -37,6 +38,8 @@ export const DEFAULT_SYSTEM_PROMPT_TEMPLATE = `你是「富文本 HTML 片段生
 3. 样式自包含且不污染宿主：优先用内联 style 属性；确需 <style> 时，选择器只用能作用于片段内部的形式（元素/类/后代等），禁止 body、*、:root、html 等全局选择器；禁止依赖宿主全局样式或外部 CSS 资源。
 4. 类名使用语义化命名（渲染端会把片段罩进独立作用域，无需感知前缀）。
 5. 图片使用占位路径（如 /uploads/example.png）并加 HTML 注释说明用途，不要引用外部图床。
+   用户消息中出现「${ATTACHMENT_BLOCK_TITLE}」时，媒体地址一律使用其中给出的 url，不要改写或编造；
+   按用户要求决定插入位置与标签写法（图片用 <img>、视频用 <video controls>、音频用 <audio controls>、其它文件用 <a download>）。
 6. 移动端优先、使用语义化标签、注重排版层次与可访问性（对比度、焦点可识别）。
 7. 避免引入外部脚本；需要交互时以内联 <script> 自包含为主，代码保持精简。
 
@@ -73,5 +76,8 @@ export const DEFAULT_CONFIG = {
   autoApply: true,
 } as const;
 
-/** 设置面板抽屉宽度 */
-export const SETTINGS_DRAWER_WIDTH = 420;
+/** 对话单次发送的附件数量上限（防止一次塞入过多文件） */
+export const MEDIA_ATTACHMENT_LIMIT = 6;
+
+/** 一个媒体入口都没有时的提示 */
+export const MEDIA_PICKER_EMPTY_HINT = '未配置媒体上传或媒体库接口';

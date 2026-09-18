@@ -10,6 +10,7 @@
  */
 import { marked, type Token, type Tokens } from 'marked';
 import type { ReactNode } from 'react';
+import { type SanitizeUrlOptions, sanitizeUrl } from '../utils/url';
 
 /** 代码块渲染回调：由调用方决定样式与是否特殊处理（如 html 片段卡片） */
 export type CodeBlockRenderer = (props: {
@@ -21,26 +22,8 @@ interface RenderContext {
   renderCode: CodeBlockRenderer;
   /** 紧凑模式（紧凑列表内）：块级 text 不额外包 <p> */
   tight: boolean;
-}
-
-/** 允许出现在链接/图片地址上的协议与相对形式 */
-const SAFE_SCHEME = /^(?:https?:|mailto:|tel:)/i;
-
-/** 链接与图片地址白名单：拦截 javascript: / data: 等危险协议 */
-function sanitizeUrl(url: string | null | undefined): string | undefined {
-  if (!url) return undefined;
-  const value = url.trim();
-  // 相对路径、锚点、协议白名单放行
-  if (
-    value.startsWith('/') ||
-    value.startsWith('#') ||
-    value.startsWith('./') ||
-    value.startsWith('../') ||
-    SAFE_SCHEME.test(value)
-  ) {
-    return value;
-  }
-  return undefined;
+  /** 链接与图片地址的协议白名单选项（宿主可追加协议） */
+  urlOptions?: SanitizeUrlOptions;
 }
 
 /** 段落内容：递归渲染行内 token */
@@ -86,7 +69,7 @@ function renderInlineToken(
       return <br key={key} />;
     case 'link': {
       const link = token as Tokens.Link;
-      const href = sanitizeUrl(link.href);
+      const href = sanitizeUrl(link.href, ctx.urlOptions);
       if (!href) {
         // 协议不可信时只渲染文字，不给出可点击入口
         return <span key={key}>{renderInline(link.tokens, ctx, key)}</span>;
@@ -99,7 +82,7 @@ function renderInlineToken(
     }
     case 'image': {
       const image = token as Tokens.Image;
-      const src = sanitizeUrl(image.href);
+      const src = sanitizeUrl(image.href, ctx.urlOptions);
       if (!src) return null;
       return <img alt={image.text} key={key} src={src} />;
     }
@@ -280,11 +263,13 @@ function renderBlocks(
  * 解析 markdown 并渲染为 React 节点
  * @param content 原始 markdown（可能是流式生成中的半成品）
  * @param renderCode 代码块渲染回调
+ * @param urlOptions 链接与图片地址的白名单选项（宿主可追加协议）
  */
 export function renderMarkdown(
   content: string,
   renderCode: CodeBlockRenderer,
+  urlOptions?: SanitizeUrlOptions,
 ): ReactNode {
   const tokens = marked.lexer(content);
-  return renderBlocks(tokens, { renderCode, tight: false }, 'md');
+  return renderBlocks(tokens, { renderCode, tight: false, urlOptions }, 'md');
 }

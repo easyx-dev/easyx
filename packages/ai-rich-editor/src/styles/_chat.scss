@@ -223,8 +223,7 @@
 
 .easyx-ai-rich-editor__composer {
   display: flex;
-  align-items: flex-end;
-  gap: 8px;
+  flex-direction: column;
   padding: 8px 8px 8px 12px;
   border: 1px solid var(--easyx-ai-rich-editor-border);
   border-radius: var(--easyx-ai-rich-editor-radius-lg);
@@ -235,6 +234,12 @@
 
 .easyx-ai-rich-editor__composer:focus-within {
   border-color: var(--easyx-ai-rich-editor-primary);
+}
+
+.easyx-ai-rich-editor__composer-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
 }
 
 .easyx-ai-rich-editor__composer-input {
@@ -260,6 +265,7 @@
   display: flex;
   flex-shrink: 0;
   align-items: center;
+  gap: 2px;
   padding-bottom: 2px;
 }
 
