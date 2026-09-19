@@ -11,7 +11,6 @@
   --easyx-image-toolkit-bg-active: #e4e4e7;
   /* 分段控件选中项：比组底色更「浮起」，亮暗两套都保持同一层次关系 */
   --easyx-image-toolkit-control-selected-bg: #fff;
-  --easyx-image-toolkit-overlay: rgb(0 0 0 / 45%);
   --easyx-image-toolkit-bg-mask: rgb(255 255 255 / 60%);
   --easyx-image-toolkit-border: #e4e4e7;
   --easyx-image-toolkit-border-strong: #d4d4d8;
@@ -29,7 +28,6 @@
   --easyx-image-toolkit-danger: #dc2626;
   --easyx-image-toolkit-danger-soft: #fef2f2;
   --easyx-image-toolkit-shadow: 0 2px 8px rgb(0 0 0 / 8%);
-  --easyx-image-toolkit-shadow-lg: 0 12px 40px rgb(0 0 0 / 16%);
   --easyx-image-toolkit-scrollbar-thumb: #d4d4d8;
 }
 
@@ -41,7 +39,6 @@
   --easyx-image-toolkit-bg-active: #303034;
   /* 分段控件选中项：比组底色更「浮起」，亮暗两套都保持同一层次关系 */
   --easyx-image-toolkit-control-selected-bg: #3f3f46;
-  --easyx-image-toolkit-overlay: rgb(0 0 0 / 60%);
   --easyx-image-toolkit-bg-mask: rgb(24 24 27 / 60%);
   --easyx-image-toolkit-border: #303034;
   --easyx-image-toolkit-border-strong: #3f3f46;
@@ -59,7 +56,6 @@
   --easyx-image-toolkit-danger: #f87171;
   --easyx-image-toolkit-danger-soft: #2c1618;
   --easyx-image-toolkit-shadow: 0 2px 8px rgb(0 0 0 / 32%);
-  --easyx-image-toolkit-shadow-lg: 0 12px 40px rgb(0 0 0 / 48%);
   --easyx-image-toolkit-scrollbar-thumb: #3f3f46;
 }
 
@@ -75,9 +71,6 @@
     consolas, "liberation mono", monospace;
   --easyx-image-toolkit-control-height-sm: 24px;
   --easyx-image-toolkit-control-height: 32px;
-  --easyx-image-toolkit-z-modal: 1100;
-  /* Tooltip 必须高于弹窗：它描述的控件就在弹窗内部 */
-  --easyx-image-toolkit-z-tooltip: 1200;
 }
 
 /**

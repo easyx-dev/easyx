@@ -7,7 +7,6 @@ import {
   applySettingsPatch,
   buildLosslessOptions,
   buildOperation,
-  buildSaveAsName,
   createDefaultSettings,
   describeResultHint,
   hasResize,
@@ -219,18 +218,6 @@ describe('resolveSourceRect', () => {
       width: 800,
       height: 600,
     });
-  });
-});
-
-describe('buildSaveAsName', () => {
-  it('按输出 MIME 替换扩展名', () => {
-    expect(buildSaveAsName('15x21色纸.png', 'image/webp')).toBe(
-      '15x21色纸-edited.webp',
-    );
-  });
-
-  it('原名无扩展名时直接追加', () => {
-    expect(buildSaveAsName('photo', 'image/jpeg')).toBe('photo-edited.jpg');
   });
 });
 

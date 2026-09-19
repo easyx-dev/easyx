@@ -3,14 +3,10 @@
  */
 export { ImageCompareSlider } from './ImageCompareSlider';
 export { ImageCropStage } from './ImageCropStage';
+export { ImageEditor, type ImageEditorProps } from './ImageEditor';
 export { ImageEditorControls } from './ImageEditorControls';
-export { ImageEditorFooter } from './ImageEditorFooter';
-export {
-  ImageEditorModal,
-  type ImageEditorModalProps,
-  type PreviewBundle,
-} from './ImageEditorModal';
 export { ImageEditorStage, STAGE_HEIGHT } from './ImageEditorStage';
 export { ImageEncodePanel } from './ImageEncodePanel';
 export { ImageEngineGate } from './ImageEngineGate';
 export { ImageResizePanel } from './ImageResizePanel';
+export type { ImageEditorResult, PreviewBundle } from './types';

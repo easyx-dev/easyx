@@ -1,173 +1,205 @@
 /**
  * @easyx/image-toolkit 演示：浏览器内图片编辑全流程
  *
- * 源图由 canvas 现场生成（演示页无服务端），整个处理链路在浏览器内完成：
- * 魔数嗅探 → wasm 引擎加载（含进度）→ 裁切/缩放/编码 → 保存回调。
+ * 源图由 canvas 现场生成（演示页无服务端），也可选择本地文件；整个处理链路在浏览器内完成：
+ * 魔数嗅探 → wasm 引擎加载（含进度）→ 裁切/缩放/编码 → 结果回调 → 下载产物。
  *
- * 主题无需桥接：演示页把 data-theme 挂在 <html> 上，弹窗渲染在 portal 中也能命中。
+ * 内容区 <ImageEditor> 直接嵌入页面，容器与下载动作都由本演示页（宿主）实现：
+ * 组件经 onResultChange 交回处理结果，宿主据此渲染「下载最新结果」。
+ * 主题无需桥接：data-theme 挂在 <html> 上。
  */
+import { type ImageProcessResult, sniffImage } from '@easyx/image-toolkit';
+import { ImageEditor, type ImageEditorResult } from '@easyx/image-toolkit/ui';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { renameByMime } from './image-toolkit-demo/format';
 import {
-  IMAGE_LIMITS,
-  type ImageProcessResult,
-  PROCESSABLE_FORMATS,
-  sniffImage,
-} from '@easyx/image-toolkit';
-import { ImageEditorModal } from '@easyx/image-toolkit/ui';
-import { useCallback, useEffect, useState } from 'react';
+  ResultPanel,
+  type ResultRecord,
+} from './image-toolkit-demo/ResultPanel';
+import { type LoadedSource, SourceCard } from './image-toolkit-demo/SourceCard';
+import { DEMO_SOURCES, renderSource } from './image-toolkit-demo/sources';
 
-/** 现场生成一张 1600×1000 的渐变 + 几何图形图，模拟「用户上传的照片」 */
-function createSourceBlob(): Promise<Blob> {
-  const canvas = document.createElement('canvas');
-  canvas.width = 1600;
-  canvas.height = 1000;
-  const ctx = canvas.getContext('2d');
-  if (!ctx) return Promise.reject(new Error('当前浏览器不支持 canvas'));
-
-  const gradient = ctx.createLinearGradient(0, 0, 1600, 1000);
-  gradient.addColorStop(0, '#7c3aed');
-  gradient.addColorStop(0.5, '#2563eb');
-  gradient.addColorStop(1, '#06b6d4');
-  ctx.fillStyle = gradient;
-  ctx.fillRect(0, 0, 1600, 1000);
-
-  for (let i = 0; i < 24; i += 1) {
-    ctx.beginPath();
-    ctx.fillStyle = `rgba(255, 255, 255, ${0.05 + (i % 5) * 0.04})`;
-    ctx.arc(
-      (i * 137) % 1600,
-      (i * 233) % 1000,
-      40 + ((i * 31) % 120),
-      0,
-      Math.PI * 2,
-    );
-    ctx.fill();
-  }
-
-  ctx.fillStyle = 'rgba(255, 255, 255, 0.92)';
-  ctx.font = 'bold 96px sans-serif';
-  ctx.fillText('EasyX', 120, 520);
-  ctx.font = '36px sans-serif';
-  ctx.fillText('image-toolkit demo source', 124, 590);
-
-  return new Promise((resolve, reject) => {
-    canvas.toBlob((blob) => {
-      if (blob) resolve(blob);
-      else reject(new Error('生成源图失败'));
-    }, 'image/png');
-  });
-}
+/** 保留最近几次下载记录 */
+const MAX_RECORDS = 4;
 
 export default function ImageToolkitDemo() {
-  const [sourceUrl, setSourceUrl] = useState('');
-  const [sourceBytes, setSourceBytes] = useState<number | null>(null);
-  const [sniffed, setSniffed] = useState<string>('—');
-  const [open, setOpen] = useState(false);
-  const [lastResult, setLastResult] = useState<string>('—');
-  const [lastAction, setLastAction] = useState<string>('—');
+  const [sourceKey, setSourceKey] = useState(DEMO_SOURCES[0].key);
+  const [localFile, setLocalFile] = useState<File | null>(null);
+  const [source, setSource] = useState<LoadedSource | null>(null);
+  const [sourceError, setSourceError] = useState<string | null>(null);
+  const [loadingSource, setLoadingSource] = useState(true);
+  const [preview, setPreview] = useState<ImageEditorResult | null>(null);
+  const [records, setRecords] = useState<ResultRecord[]>([]);
 
-  // 源图在挂载时生成一次，卸载时回收 Object URL
+  // 结果图 Object URL 统一登记，卸载时回收
+  const objectUrlsRef = useRef<string[]>([]);
+  // 与 records 同步的镜像，便于在回调里做挤出回收而不把副作用写进 state updater
+  const recordsRef = useRef<ResultRecord[]>([]);
+
+  // 源图变化（切换内置源或选择本地文件）时重新生成并嗅探
   useEffect(() => {
+    let cancelled = false;
     let url = '';
-    void createSourceBlob().then((blob) => {
-      url = URL.createObjectURL(blob);
-      setSourceUrl(url);
-      setSourceBytes(blob.size);
-      void blob.arrayBuffer().then((buffer) => {
-        const info = sniffImage(new Uint8Array(buffer));
-        setSniffed(
-          info
-            ? `${info.format}（${info.mimeType}）· ${info.width ?? '?'}×${info.height ?? '?'} · ${info.extension}`
-            : '未识别为图片',
-        );
+    setLoadingSource(true);
+    setSourceError(null);
+    setPreview(null);
+
+    const load = async (): Promise<{ blob: Blob; fileName: string }> => {
+      if (localFile) return { blob: localFile, fileName: localFile.name };
+      const definition =
+        DEMO_SOURCES.find((item) => item.key === sourceKey) ?? DEMO_SOURCES[0];
+      const blob = await renderSource(definition);
+      const extension = definition.mimeType === 'image/jpeg' ? 'jpg' : 'png';
+      return { blob, fileName: `easyx-${definition.key}.${extension}` };
+    };
+
+    load()
+      .then(async ({ blob, fileName }) => {
+        const buffer = await blob.arrayBuffer();
+        if (cancelled) return;
+        url = URL.createObjectURL(blob);
+        setSource({
+          bytes: blob.size,
+          fileName,
+          sniff: sniffImage(new Uint8Array(buffer)),
+          url,
+        });
+      })
+      .catch((error) => {
+        if (!cancelled) {
+          setSourceError(
+            error instanceof Error ? error.message : '生成源图失败',
+          );
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setLoadingSource(false);
       });
-    });
+
     return () => {
+      cancelled = true;
       if (url) URL.revokeObjectURL(url);
     };
+  }, [sourceKey, localFile]);
+
+  // 卸载时回收所有结果图地址
+  useEffect(
+    () => () => {
+      for (const url of objectUrlsRef.current) URL.revokeObjectURL(url);
+    },
+    [],
+  );
+
+  /** 记录一次产物并返回可下载的地址与文件名 */
+  const pushRecord = useCallback(
+    (result: ImageProcessResult): { fileName: string; url: string } => {
+      const url = URL.createObjectURL(
+        new Blob([result.data.slice()], { type: result.mimeType }),
+      );
+      objectUrlsRef.current.push(url);
+
+      const entry: ResultRecord = {
+        fileName: renameByMime(source?.fileName ?? 'image', result.mimeType),
+        format: result.meta.format,
+        height: result.meta.height,
+        id: Date.now() + Math.random(),
+        sizeAfter: result.sizeAfter,
+        sizeBefore: result.sizeBefore,
+        time: new Date().toLocaleTimeString('zh-CN', { hour12: false }),
+        url,
+        width: result.meta.width,
+      };
+
+      const combined = [entry, ...recordsRef.current];
+      const next = combined.slice(0, MAX_RECORDS);
+      // 只保留最新的 MAX_RECORDS 条，被挤出的结果回收 Blob 地址
+      for (const evicted of combined.slice(MAX_RECORDS)) {
+        URL.revokeObjectURL(evicted.url);
+        objectUrlsRef.current = objectUrlsRef.current.filter(
+          (item) => item !== evicted.url,
+        );
+      }
+      recordsRef.current = next;
+      setRecords(next);
+
+      return { fileName: entry.fileName, url };
+    },
+    [source],
+  );
+
+  // 宿主自己的下载动作：组件不提供保存，结果由 onResultChange 交回
+  const handleDownload = useCallback(() => {
+    const result = preview?.result;
+    if (!result) return;
+    const { fileName, url } = pushRecord(result);
+    const anchor = document.createElement('a');
+    anchor.download = fileName;
+    anchor.href = url;
+    // 挂到 DOM 再点击：部分 WebKit 版本对游离节点不触发 download
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+  }, [preview, pushRecord]);
+
+  const selectBuiltIn = useCallback((key: string) => {
+    setLocalFile(null);
+    setSourceKey(key);
   }, []);
 
-  const describe = useCallback((result: ImageProcessResult) => {
-    const before = Math.round(result.sizeBefore / 1024);
-    const after = Math.round(result.sizeAfter / 1024);
-    const delta = ((1 - result.sizeAfter / result.sizeBefore) * 100).toFixed(1);
-    setLastResult(
-      `${result.meta.format.toUpperCase()} ${result.meta.width}×${result.meta.height} · ${before} KB → ${after} KB（${Number(delta) >= 0 ? '−' : '+'}${Math.abs(Number(delta))}%）`,
-    );
-  }, []);
+  const canDownload = preview?.result != null && !preview.pending;
 
   return (
     <div className="demo-editor-container">
       <div className="demo-control-bar">
         <button
+          className="demo-btn demo-btn--primary"
+          disabled={!canDownload}
+          onClick={handleDownload}
           type="button"
-          className="demo-btn"
-          disabled={!sourceUrl}
-          onClick={() => setOpen(true)}
         >
-          打开图片编辑器
+          下载最新结果
         </button>
         <span className="demo-control-bar-hint">
-          演示源图由 canvas 现场生成
+          内容区直接嵌入页面，下载动作由演示页实现（宿主职责）
         </span>
       </div>
 
-      <div className="demo-editor-body" style={{ padding: 16 }}>
-        <div style={{ display: 'flex', gap: 24, alignItems: 'flex-start' }}>
-          {sourceUrl ? (
-            <img
-              src={sourceUrl}
-              alt="演示源图"
-              style={{
-                width: 320,
-                borderRadius: 8,
-                border: '1px solid var(--demo-border)',
-              }}
-            />
-          ) : null}
-          <div
-            style={{
-              fontSize: 13,
-              lineHeight: 2,
-              color: 'var(--demo-text-muted)',
-            }}
-          >
-            <div>
-              源图字节：
-              {sourceBytes ? `${Math.round(sourceBytes / 1024)} KB` : '—'}
-            </div>
-            <div>魔数嗅探：{sniffed}</div>
-            {/* 保存回调的结果就地展示（演示页不接服务端，无成功提示可弹） */}
-            <div>上次处理结果：{lastResult}</div>
-            <div>最近一次保存：{lastAction}</div>
-            <div style={{ marginTop: 8, color: 'var(--demo-text-dim)' }}>
-              可处理格式：{PROCESSABLE_FORMATS.join(' / ')}
-            </div>
-            <div style={{ color: 'var(--demo-text-dim)' }}>
-              输入上限：{IMAGE_LIMITS.maxInputBytes / 1024 / 1024} MB ·{' '}
-              {IMAGE_LIMITS.maxInputPixels / 10000} 万像素
-            </div>
-          </div>
-        </div>
-      </div>
+      <div className="demo-editor-body">
+        <div className="demo-image-layout">
+          <SourceCard
+            loading={loadingSource}
+            localFile={localFile}
+            onSelectBuiltIn={selectBuiltIn}
+            onSelectLocal={setLocalFile}
+            source={source}
+            sourceError={sourceError}
+            sourceKey={sourceKey}
+          />
 
-      {sourceUrl ? (
-        <ImageEditorModal
-          open={open}
-          src={sourceUrl}
-          fileName="demo.png"
-          onReplace={async (result) => {
-            describe(result);
-            setLastAction('已「覆盖原图」（演示仅更新统计，未写回服务端）');
-            setOpen(false);
-          }}
-          onSaveAsNew={async (result) => {
-            describe(result);
-            setLastAction('已「另存为新文件」（演示仅更新统计）');
-            setOpen(false);
-          }}
-          onClose={() => setOpen(false)}
-        />
-      ) : null}
+          <section className="demo-image-card">
+            <div className="demo-image-card-head">
+              <span className="demo-image-card-title">下载记录</span>
+              {records.length > 0 ? (
+                <span className="demo-image-tag">最近 {records.length} 次</span>
+              ) : null}
+            </div>
+            <ResultPanel records={records} />
+          </section>
+        </div>
+
+        {source ? (
+          <section className="demo-image-card demo-image-editor">
+            <div className="demo-image-card-head">
+              <span className="demo-image-card-title">图片编辑内容区</span>
+            </div>
+            <ImageEditor
+              key={source.url}
+              onResultChange={setPreview}
+              src={source.url}
+            />
+          </section>
+        ) : null}
+      </div>
     </div>
   );
 }

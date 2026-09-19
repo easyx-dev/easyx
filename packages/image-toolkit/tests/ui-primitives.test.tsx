@@ -1,19 +1,17 @@
 // @rstest-environment jsdom
 /**
- * UI 原语测试：覆盖「原生控件包装」中容易出错的三处 ——
- * number 输入的草稿与夹取时机、分段控件的选中与禁用、modal 的 portal/关闭/主题
+ * UI 原语测试：覆盖「原生控件包装」中容易出错的两处 ——
+ * number 输入的草稿与夹取时机、分段控件的选中与禁用
  */
 
 import { afterEach, describe, expect, it, rs } from '@rstest/core';
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { Checkbox } from '../src/ui/primitives/Checkbox';
-import { Modal } from '../src/ui/primitives/Modal';
 import { NumberInput } from '../src/ui/primitives/NumberInput';
 import { Segmented } from '../src/ui/primitives/Segmented';
 
 afterEach(() => {
   cleanup();
-  document.body.style.overflow = '';
 });
 
 describe('NumberInput', () => {
@@ -134,61 +132,5 @@ describe('Checkbox', () => {
 
     fireEvent.click(screen.getByRole('checkbox', { name: '剥离元数据' }));
     expect(onChange).toHaveBeenCalledWith(true);
-  });
-});
-
-describe('Modal', () => {
-  it('打开时渲染在 body 上并锁定滚动，关闭即卸载', () => {
-    const onClose = rs.fn();
-    const { rerender } = render(
-      <Modal onClose={onClose} open title="编辑图片">
-        内容
-      </Modal>,
-    );
-
-    const dialog = screen.getByRole('dialog');
-    // portal 根自带令牌作用域，脱离宿主 DOM 后仍能取到样式变量
-    expect(dialog.closest('.easyx-image-toolkit')?.className).toContain(
-      'easyx-image-toolkit__overlay',
-    );
-    expect(document.body.style.overflow).toBe('hidden');
-
-    rerender(
-      <Modal onClose={onClose} open={false} title="编辑图片">
-        内容
-      </Modal>,
-    );
-    expect(screen.queryByRole('dialog')).toBeNull();
-    expect(document.body.style.overflow).toBe('');
-  });
-
-  it('Esc 关闭；点面板不关闭，点遮罩才关闭', () => {
-    const onClose = rs.fn();
-    render(
-      <Modal onClose={onClose} open title="编辑图片">
-        内容
-      </Modal>,
-    );
-
-    fireEvent.mouseDown(screen.getByRole('dialog'));
-    expect(onClose).not.toHaveBeenCalled();
-
-    const overlay = document.querySelector('.easyx-image-toolkit__overlay');
-    fireEvent.mouseDown(overlay as HTMLElement);
-    expect(onClose).toHaveBeenCalledTimes(1);
-
-    fireEvent.keyDown(document, { key: 'Escape' });
-    expect(onClose).toHaveBeenCalledTimes(2);
-  });
-
-  it('theme="dark" 时把暗色类带到 portal 根上', () => {
-    render(
-      <Modal onClose={() => {}} open theme="dark" title="编辑图片">
-        内容
-      </Modal>,
-    );
-
-    const overlay = document.querySelector('.easyx-image-toolkit__overlay');
-    expect(overlay?.classList.contains('easyx-image-toolkit-dark')).toBe(true);
   });
 });

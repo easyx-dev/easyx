@@ -2,7 +2,7 @@
  * 元素尺寸观测 Hook
  *
  * 用 offsetWidth/offsetHeight 而非 getBoundingClientRect：后者包含 CSS transform，
- * 宿主若在祖先上做缩放动画（如弹窗 zoom 的 `transform: scale`），首次测量会偏小，
+ * 宿主若在祖先上做缩放动画（如入场时的 `transform: scale`），首次测量会偏小，
  * 而 transform 不触发 ResizeObserver，尺寸会永久停在动画中间值。
  * offset* 是布局尺寸，不受 transform 影响。
  *

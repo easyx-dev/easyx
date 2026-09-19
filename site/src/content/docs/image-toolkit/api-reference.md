@@ -68,34 +68,32 @@ description: Image Toolkit 两个入口的导出清单、引擎 API 与类型定
 |------|------|
 | `useImageEngine()` | 订阅引擎加载状态（`useSyncExternalStore`） |
 
-> 预览编排（`useImagePreview`）与容器尺寸测量（`useElementSize`）属于编辑弹窗的内部实现，未对外导出；自定义 UI 用 `ImageEngineGate` + 引擎 API 组合即可。
+> 预览编排（`useImagePreview`）与容器尺寸测量（`useElementSize`）属于编辑内容区的内部实现，未对外导出；自定义 UI 用 `ImageEngineGate` + 引擎 API 组合即可。
 
 ### 组件
 
 | 组件 | 说明 |
 |------|------|
-| `ImageEditorModal` | 完整编辑弹窗（预览对比 + 控制栏 + 底栏） |
-| `ImageEngineGate` | 引擎门控：加载进度、错误与重试 |
+| `ImageEditor` | 图片编辑内容区（预览对比 + 控制栏 + 状态行），容器与保存动作由宿主决定 |
+| `ImageEngineGate` | 引擎门控：加载进度、错误与重试（`ImageEditor` 内部已用） |
 | `ImageCompareSlider` | 拖动对比（同区域对齐） |
-| `ImageCropStage` | 裁切台 |
+| `ImageCropStage` | 裁切台（含取消 / 应用裁切） |
 | `ImageResizePanel` / `ImageEncodePanel` / `ImageEditorControls` | 控制栏分组面板 |
-| `ImageEditorStage` / `ImageEditorFooter` | 预览舞台与底栏 |
+| `ImageEditorStage` | 预览舞台与处理状态 |
 
-### ImageEditorModalProps
+### ImageEditorProps
 
 | 属性 | 类型 | 说明 |
 |------|------|------|
-| `open` | `boolean` | 是否打开 |
 | `src` | `string` | 源图地址 |
-| `fileName` | `string` | 源文件名（用于生成「另存为」文件名） |
-| `onReplace` | `(result: ImageProcessResult) => Promise<void>` | 覆盖原图，由宿主注入（负责权限与审计） |
-| `onSaveAsNew` | `(result, fileName) => Promise<void>` | 另存为新文件；不传则不展示该选项 |
-| `theme` | `'light' \| 'dark'` | 显式主题；缺省按「宿主 `[data-theme]` 祖先 → 系统偏好」判定（弹窗在 portal 中，宿主把 `data-theme` 挂在 `<html>` 之外的祖先上时继承不到） |
-| `onClose` | `() => void` | 关闭回调 |
+| `onResultChange` | `(state: ImageEditorResult) => void` | 预览状态变化回调；保存 / 下载由宿主自行实现 |
+| `theme` | `'light' \| 'dark'` | 强制暗色；缺省按「宿主 `[data-theme]` 祖先 → 系统偏好」判定 |
+
+`ImageEditorResult` 形如 `{ result, pending, noop, unsupported, error }`：`result` 为 `ImageProcessResult | null`，为 `null` 表示设置未产生实际变更、该格式不支持或尚在处理。组件不接收 `fileName`，也不渲染任何保存 / 取消按钮。
 
 ## 包内约定
 
 - `src/limits.ts` 是格式能力的**单一事实来源**，界面的可编辑 / 可输出 / 可无损优化判定都从它派生
 - `src/ui/editor-settings.ts` 是 UI 状态 → 引擎入参的**唯一转换点**（纯逻辑，可单测）
-- `src/ui/primitives/` 是自研 UI 原语，全部基于原生元素（`select` / `range` / `radio` / `checkbox` / `number`）；portal 出的浮层必须在根节点补上 `easyx-image-toolkit` 令牌作用域类
+- `src/ui/primitives/` 是自研 UI 原语，全部基于原生元素（`select` / `range` / `radio` / `checkbox` / `number`）；导出组件的根节点带 `easyx-image-toolkit` 令牌作用域类，脱离宿主 DOM 层级也能取到 CSS 变量
 - 引擎结果必须经 `sniffImage` 校验后才允许流入存储

@@ -753,3 +753,232 @@
 .height-demo-editor .easyx-editor {
   width: 100%;
 }
+
+/* ── 图片编辑套件演示 ── */
+.demo-btn.demo-btn--primary {
+  border-color: var(--demo-accent);
+  background: var(--demo-accent);
+  color: #fff;
+}
+
+.demo-btn.demo-btn--primary:hover {
+  background: var(--demo-accent);
+  opacity: 0.9;
+}
+
+.demo-image-layout {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  align-items: flex-start;
+}
+
+.demo-image-card {
+  flex: 1 1 320px;
+  min-width: 300px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid var(--demo-border);
+  border-radius: var(--demo-radius);
+  background: var(--demo-bg);
+}
+
+.demo-image-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+/* 编辑内容区：直接铺在页面里，无任何容器外壳 */
+.demo-image-editor {
+  margin-top: 16px;
+  padding: 16px;
+}
+
+.demo-image-card-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--demo-text-muted);
+}
+
+.demo-image-tag {
+  margin-left: 6px;
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: var(--demo-hover-bg);
+  color: var(--demo-text-muted);
+  font-size: 11px;
+  font-weight: 400;
+}
+
+.demo-image-preview {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 200px;
+  padding: 8px;
+  border-radius: 6px;
+  /* 棋盘底纹：透明区域的边界可见 */
+  background:
+    repeating-conic-gradient(
+      rgba(127, 127, 127, 0.14) 0% 25%,
+      transparent 0% 50%
+    )
+    50% / 16px 16px;
+}
+
+.demo-image-preview-img {
+  max-width: 100%;
+  max-height: 260px;
+  border-radius: 4px;
+  object-fit: contain;
+}
+
+.demo-image-error {
+  margin: 0;
+  font-size: 12px;
+  color: #dc2626;
+}
+
+.demo-image-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.demo-image-chip {
+  padding: 3px 10px;
+  border: 1px solid var(--demo-border);
+  border-radius: 999px;
+  background: var(--demo-bg);
+  color: var(--demo-text-muted);
+  font-size: 12px;
+  cursor: pointer;
+  transition:
+    background 0.15s,
+    color 0.15s;
+}
+
+.demo-image-chip:hover {
+  background: var(--demo-hover-bg);
+  color: var(--demo-text);
+}
+
+.demo-image-chip[aria-pressed="true"] {
+  border-color: var(--demo-accent);
+  background: var(--demo-accent);
+  color: #fff;
+}
+
+.demo-image-note {
+  margin: 0;
+  min-height: 32px;
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--demo-text-muted);
+}
+
+.demo-image-facts {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding-top: 10px;
+  border-top: 1px solid var(--demo-border);
+  font-size: 12px;
+}
+
+.demo-image-facts > div {
+  display: flex;
+  gap: 8px;
+}
+
+.demo-image-facts dt {
+  flex-shrink: 0;
+  width: 72px;
+  color: var(--demo-text-dim);
+}
+
+.demo-image-facts dd {
+  margin: 0;
+  overflow: hidden;
+  color: var(--demo-text);
+  text-overflow: ellipsis;
+}
+
+.demo-image-empty {
+  margin: 0;
+  padding: 24px 0;
+  font-size: 12px;
+  line-height: 1.7;
+  color: var(--demo-text-dim);
+}
+
+.demo-image-results {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  max-height: 360px;
+  overflow: auto;
+}
+
+.demo-image-result {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px;
+  border: 1px solid var(--demo-border);
+  border-radius: 6px;
+  background: var(--demo-surface);
+}
+
+.demo-image-result[data-latest="true"] {
+  border-color: var(--demo-accent);
+}
+
+.demo-image-result-thumb {
+  flex-shrink: 0;
+  width: 48px;
+  height: 48px;
+  border-radius: 4px;
+  object-fit: contain;
+  background:
+    repeating-conic-gradient(
+      rgba(127, 127, 127, 0.14) 0% 25%,
+      transparent 0% 50%
+    )
+    50% / 12px 12px;
+}
+
+.demo-image-result-meta {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.demo-image-result-name {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--demo-text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.demo-image-result-line {
+  font-size: 12px;
+  color: var(--demo-text);
+}
+
+.demo-image-result-sub {
+  font-size: 11px;
+  color: var(--demo-text-muted);
+}

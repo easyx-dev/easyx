@@ -1,7 +1,7 @@
 /**
  * 编辑器设置模型：UI 状态 → 引擎入参的唯一转换点（纯逻辑，可单测）
  */
-import { formatToExtension, isOutputFormat, mimeTypeToFormat } from '../limits';
+import { isOutputFormat } from '../limits';
 import { isSameSize } from '../resize';
 import type {
   ImageCrop,
@@ -153,13 +153,6 @@ export function resolveSourceRect(
       height: sourceSize.height,
     }
   );
-}
-
-/** 生成「另存为」文件名：按输出 MIME 替换扩展名 */
-export function buildSaveAsName(fileName: string, mimeType: string): string {
-  const base = fileName.replace(/\.[^./\\]+$/, '');
-  const format = mimeTypeToFormat(mimeType);
-  return `${base}-edited${format ? formatToExtension(format) : ''}`;
 }
 
 /**

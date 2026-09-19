@@ -8,7 +8,7 @@
 | 入口 | 内容 | 依赖 |
 |------|------|------|
 | `@easyx/image-toolkit` | 同构纯逻辑：魔数嗅探、格式白名单、操作归一化、缩放换算 | 零重量依赖（服务端可安全引用） |
-| `@easyx/image-toolkit/ui` | 浏览器侧：引擎客户端、React hooks、编辑弹窗组件 | React + wasm 引擎（惰性加载） |
+| `@easyx/image-toolkit/ui` | 浏览器侧：引擎客户端、React hooks、图片编辑内容区组件 | React + wasm 引擎（惰性加载） |
 
 > 根入口**禁止**静态引用引擎，否则 wasm glue 会被打进服务端 bundle。
 
@@ -74,30 +74,42 @@ import { IMAGE_LIMITS, isProcessableFormat, sniffImage } from '@easyx/image-tool
 const meta = sniffImage(bytes); // 魔数嗅探：非图片返回 null
 ```
 
-### 编辑弹窗（浏览器）
+### 图片编辑内容区（浏览器）
+
+包内只提供编辑内容区 `<ImageEditor>`，容器与保存动作都由宿主负责：直接嵌入页面、抽屉或任意容器即可。
 
 ```tsx
-import { configureImageEngine, ImageEditorModal } from '@easyx/image-toolkit/ui';
+import {
+  configureImageEngine,
+  ImageEditor,
+  type ImageEditorResult,
+} from '@easyx/image-toolkit/ui';
+import { useState } from 'react';
 
 // 可选：指向 CDN 或自有静态资源（绝对 URL 需服务端提供 CORS 与 application/wasm）
 configureImageEngine({ wasmUrl: '/static/magick.wasm' });
 
-<ImageEditorModal
-  open={open}
-  src={sourceUrl}
-  fileName="cover.png"
-  onReplace={async (result) => {
-    // result.data / result.mimeType / result.meta / sizeBefore / sizeAfter
-    await replaceOriginal(result);
-  }}
-  onSaveAsNew={async (result, fileName) => {
-    await uploadAsNew(result, fileName);
-  }}
-  onClose={() => setOpen(false)}
-/>;
+function CoverEditor() {
+  const [preview, setPreview] = useState<ImageEditorResult | null>(null);
+
+  return (
+    <>
+      {/* 直接嵌入页面、抽屉或任意容器 */}
+      <ImageEditor src={sourceUrl} onResultChange={setPreview} />
+
+      {/* 保存 / 下载由宿主自行实现：拿预览结果做落库、上传或下载 */}
+      <button
+        disabled={!preview?.result || preview.pending}
+        onClick={() => preview?.result && download(preview.result)}
+      >
+        保存
+      </button>
+    </>
+  );
+}
 ```
 
-`<ImageEngineGate>` 包裹后即可获得引擎加载进度、错误与重试，无需各自处理加载态。
+内容区内部已含 `<ImageEngineGate>`：引擎加载进度、错误与重试都在内部处理，宿主无需关心。`onResultChange` 会带上 `{ result, pending, noop, unsupported, error }`，`result` 为 `null` 表示当前设置未产生变更或尚不可保存。
 
 ## wasm 资源与宿主打包器
 
@@ -125,12 +137,13 @@ EASYX_IMAGE_TOOLKIT_REMOTE=1 pnpm build
 
 ## 界面形态
 
-单视图左右分栏：左侧大预览（默认拖动对比原图 ↔ 处理后，进入裁切时切换为占满画布的裁切台），右侧控制栏（缩放 / 裁切 / 编码同屏可见），底部常驻体积增减与保存方式。
+单视图左右分栏：左侧大预览（默认拖动对比原图 ↔ 处理后，进入裁切时切换为占满画布的裁切台），右侧控制栏（缩放 / 裁切 / 编码同屏可见），预览下方常驻体积增减与处理状态。
 
 - **拖动对比的关键是「同区域对齐」**：两张图处于同一像素密度，分隔线两侧永远是同一块像素；对比舞台收缩到结果的适配矩形，分隔线不会走到空白区域
-- **裁切为自研交互**（不依赖第三方裁切库）：裁切框可整体拖动、可拖四边与四角改尺寸，比例可选锁定或自由；裁切框可聚焦，方向键移动、Shift + 方向键改尺寸
+- **裁切为自研交互**（不依赖第三方裁切库）：裁切框可整体拖动、可拖四边与四角改尺寸，比例可选锁定或自由；裁切框可聚焦，方向键移动、Shift + 方向键改尺寸；裁切台自带「取消裁切 / 应用裁切」
 - **自动预览**：参数变化后防抖 500ms 触发，请求带序号、过期响应丢弃、处理中保留上一次结果
-- **无变更即不处理**：设置未产生实际变更时不调用引擎，界面提示「尚未做任何修改」
+- **无变更即不处理**：设置未产生实际变更时不调用引擎，界面提示「未做任何修改」
+- **不承载保存动作**：组件只负责编辑与预览，结果经 `onResultChange` 交给宿主，下载 / 上传 / 落库由宿主实现
 
 ## 主题
 
@@ -144,7 +157,7 @@ EASYX_IMAGE_TOOLKIT_REMOTE=1 pnpm build
 2. 宿主祖先的 `data-theme` 以 `dark` 结尾（如 `dark` / `admin-dark`）
 3. 宿主未声明主题时跟随 `prefers-color-scheme`
 
-弹窗渲染在 portal 中：`data-theme` 挂在 `<html>` 上时（常见做法）第 2 条依然命中；若挂在 `<html>` 之外的祖先上，请改用 `<ImageEditorModal theme="dark" />`。
+内容区随宿主容器渲染，`data-theme` 挂在任意祖先上都会命中；若宿主用类名等 CSS 覆盖不到的方式表达主题，用 `<ImageEditor theme="dark" />` 显式指定。
 
 ## 已知取舍
 
@@ -152,7 +165,6 @@ EASYX_IMAGE_TOOLKIT_REMOTE=1 pnpm build
 - **不提供手动旋转**：EXIF 方向已由 `autoOrient()` 自动处理，手动旋转会破坏「裁切矩形基于定向后原图像素坐标」的约定
 - **TIFF 不可无损优化**：引擎具备 TIFF LZW 能力，但 TIFF 不在 `OUTPUT_FORMATS` 内，界面据此提示而非静默无反应
 - **输入上限**：超过 `IMAGE_LIMITS.maxInputBytes`（50 MB）或 `maxInputPixels`（5000 万像素）的图不在浏览器内处理
-- **覆盖原图时格式若变化，文件名后缀同步更新**，避免列表与实际内容不符
 - **编码会丢元数据**：需要保留 EXIF / ICC 时不要勾选「剥离元数据」
 - **编码结果必须校验**：`encode()` 复制字节后用 `sniffImage` 校验格式，避免损坏数据流入存储
 

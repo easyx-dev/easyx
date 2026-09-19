@@ -11,7 +11,7 @@ description: 浏览器端图片处理套件：裁切、缩放、格式转换与�
 | 入口 | 内容 | 依赖 |
 |------|------|------|
 | `@easyx/image-toolkit` | 同构纯逻辑：魔数嗅探、格式白名单、操作归一化、缩放换算 | 零重量依赖（服务端可安全引用） |
-| `@easyx/image-toolkit/ui` | 浏览器侧：引擎客户端、React hooks、编辑弹窗组件 | React + wasm 引擎（惰性加载），UI 自研 |
+| `@easyx/image-toolkit/ui` | 浏览器侧：引擎客户端、React hooks、图片编辑内容区组件 | React + wasm 引擎（惰性加载），UI 自研 |
 
 :::tip
 根入口**禁止**静态引用引擎，否则 wasm glue 会被打进服务端 bundle —— 服务端做魔数嗅探时只会引入这一层纯逻辑。
@@ -37,25 +37,40 @@ const meta = sniffImage(bytes); // 魔数嗅探：非图片返回 null
 
 `sniffImage` 以魔数判定类型与尺寸，**不信任客户端声明的 MIME** —— 这是阻止存储型 XSS 的第一道闸门。
 
-### 编辑弹窗（浏览器）
+### 图片编辑内容区（浏览器）
 
 ```tsx
-import { configureImageEngine, ImageEditorModal } from '@easyx/image-toolkit/ui';
+import {
+  configureImageEngine,
+  ImageEditor,
+  type ImageEditorResult,
+} from '@easyx/image-toolkit/ui';
+import { useState } from 'react';
 
 // 可选：指向 CDN 或自有静态资源
 configureImageEngine({ wasmUrl: '/static/magick.wasm' });
 
-<ImageEditorModal
-  open={open}
-  src={sourceUrl}
-  fileName="cover.png"
-  onReplace={async (result) => replaceOriginal(result)}
-  onSaveAsNew={async (result, fileName) => uploadAsNew(result, fileName)}
-  onClose={() => setOpen(false)}
-/>;
+function CoverEditor() {
+  const [preview, setPreview] = useState<ImageEditorResult | null>(null);
+
+  return (
+    <>
+      {/* 直接嵌入页面、抽屉或任意容器 */}
+      <ImageEditor src={sourceUrl} onResultChange={setPreview} />
+
+      {/* 保存 / 下载由宿主自行实现 */}
+      <button
+        disabled={!preview?.result || preview.pending}
+        onClick={() => preview?.result && download(preview.result)}
+      >
+        保存
+      </button>
+    </>
+  );
+}
 ```
 
-用 `<ImageEngineGate>` 包裹即可获得引擎加载进度、错误与重试，无需各自处理加载态。
+包内只提供编辑内容区，容器与保存动作都由宿主负责。内容区内部已含 `<ImageEngineGate>`，引擎加载进度、错误与重试无需宿主处理；`onResultChange` 会带上 `{ result, pending, noop, unsupported, error }`，`result` 为 `null` 表示当前设置未产生变更或尚不可保存。
 
 ### 主题
 
@@ -67,7 +82,7 @@ configureImageEngine({ wasmUrl: '/static/magick.wasm' });
 2. 最近的宿主 `[data-theme]` 祖先（值以 `dark` 结尾，如 `dark`、`admin-dark`）
 3. 两者都没有时跟随系统 `prefers-color-scheme`
 
-编辑弹窗渲染在 portal 中：`data-theme` 挂在 `<html>` 上时第 2 条依然命中；若挂在 `<html>` 之外的祖先上，用 `<ImageEditorModal theme="dark" />` 显式指定。
+编辑内容区随宿主容器渲染，`data-theme` 挂在任意祖先上都会命中；若宿主用类名等 CSS 覆盖不到的方式表达主题，用 `<ImageEditor theme="dark" />` 显式指定。
 
 ## 能力矩阵（实测）
 

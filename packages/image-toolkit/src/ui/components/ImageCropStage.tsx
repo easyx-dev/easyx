@@ -63,6 +63,10 @@ export interface ImageCropStageProps {
   aspect: number | undefined;
   onAspectChange: (aspect: number | undefined) => void;
   onCropAreaChange: (area: ImageCrop) => void;
+  /** 取消裁切：退出裁切模式且不应用当前裁切区 */
+  onCancel: () => void;
+  /** 应用当前裁切区并退出裁切模式 */
+  onApply: () => void;
   /** 画布高度 */
   height: number;
 }
@@ -74,6 +78,8 @@ export function ImageCropStage({
   aspect,
   onAspectChange,
   onCropAreaChange,
+  onCancel,
+  onApply,
   height,
 }: ImageCropStageProps) {
   const [stageRef, stage] = useElementSize<HTMLDivElement>();
@@ -251,6 +257,14 @@ export function ImageCropStage({
         >
           重置
         </Button>
+        <div className="easyx-image-toolkit__crop-actions">
+          <Button onClick={onCancel} size="sm">
+            取消裁切
+          </Button>
+          <Button onClick={onApply} size="sm" variant="primary">
+            应用裁切
+          </Button>
+        </div>
       </div>
 
       <div className="easyx-image-toolkit__crop-zoom">

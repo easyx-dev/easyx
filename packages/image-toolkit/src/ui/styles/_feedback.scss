@@ -1,5 +1,5 @@
 /**
- * 反馈类：行内提示、进度条、加载指示、Tooltip
+ * 反馈类：行内提示、进度条、加载指示
  */
 
 /* 行内提示：错误与需要用户行动的提示才用，普通说明走 Hint */
@@ -148,22 +148,6 @@
   min-height: 80px;
 }
 
-/* Tooltip：高对比小气泡，配色在亮暗下与背景反转 */
-.easyx-image-toolkit__tooltip {
-  position: fixed;
-  z-index: var(--easyx-image-toolkit-z-tooltip);
-  max-width: 260px;
-  padding: 4px 8px;
-  border-radius: var(--easyx-image-toolkit-radius-sm);
-  background: var(--easyx-image-toolkit-text);
-  box-shadow: var(--easyx-image-toolkit-shadow);
-  color: var(--easyx-image-toolkit-bg);
-  font-size: var(--easyx-image-toolkit-font-size-xs);
-  line-height: 1.5;
-  pointer-events: none;
-  animation: easyx-image-toolkit-fade-in 0.12s ease-out;
-}
-
 @keyframes easyx-image-toolkit-spin {
   to {
     transform: rotate(360deg);
@@ -177,15 +161,5 @@
 
   100% {
     transform: translateX(320%);
-  }
-}
-
-@keyframes easyx-image-toolkit-fade-in {
-  from {
-    opacity: 0;
-  }
-
-  to {
-    opacity: 1;
   }
 }

@@ -164,9 +164,9 @@ packages/
     │       ├── editor-settings.ts # UI 状态 → 引擎入参的唯一转换点（纯逻辑）
     │       ├── engine/           # 状态机、下载器、Worker、wasm 操作、资源定位
     │       ├── hooks/            # useImageEngine / useImagePreview / useElementSize / theme
-    │       ├── primitives/       # 自研 UI 原语（按钮/弹窗/分段/滑杆/下拉/提示…）
-    │       ├── components/       # 弹窗布局、拖动对比、裁切台（含 crop-geometry 纯几何）、编码面板、引擎门控
-    │       ├── styles/           # UI 样式分片（令牌 + 基础 + 控件 + 反馈 + 浮层 + 业务）
+    │       ├── primitives/       # 自研 UI 原语（按钮/分段/滑杆/下拉/提示…）
+    │       ├── components/       # 编辑内容区布局、拖动对比、裁切台（含 crop-geometry 纯几何）、编码面板、引擎门控
+    │       ├── styles/           # UI 样式分片（令牌 + 基础 + 控件 + 反馈 + 业务）
     │       └── utils/            # format-bytes / cx（类名与令牌作用域）
     └── tests/                # 纯逻辑 + 引擎编排 + 真实 wasm 实测
 site/                        # Astro + Starlight 文档站点（系列库共用）
@@ -208,7 +208,7 @@ site/                        # Astro + Starlight 文档站点（系列库共用�
 |------|------|------|
 | 编辑器引擎 | Tiptap v3 / ProseMirror | 3.x |
 | 图片引擎 | `@imagemagick/magick-wasm`（ImageMagick 编译为 WebAssembly，跑在自建 Worker 中） | 0.0.43（版本固定，glue 与 wasm 必须同版） |
-| UI 层 | 全部自研：`@easyx/editor` 为纯 DOM；两个 React 类库各自实现原语（React 之外不引入 UI 库），浮层定位统一用 `@floating-ui/dom` | — |
+| UI 层 | 全部自研：`@easyx/editor` 为纯 DOM；React 类库各自实现原语（React 之外不引入 UI 库），`@easyx/ai-rich-editor` 的浮层定位用 `@floating-ui/dom` | — |
 | 代码编辑器 | CodeMirror 6（仅 `@easyx/ai-rich-editor` 的代码面板使用，按需懒加载） | 6.x |
 | React | React 19 + react-dom（Demo 与 React 类库；库内声明为 `peerDependencies`） | 19.x |
 | 构建（包） | Rslib（Rspack）+ `@rslib/core` | — |
@@ -409,7 +409,9 @@ const editor = createEditor(containerElement, {
 - 引擎为单例状态机 `idle → downloading → instantiating → ready`，主线程负责带进度的下载、Worker 负责 wasm 实例化与处理；并发调用共享同一次加载，失败后 `inflight` 复位可重试
 - `src/limits.ts` 是格式能力的单一事实来源，界面的可编辑 / 可输出 / 可无损优化判定都从它派生；`ui/editor-settings.ts` 是 UI 状态 → 引擎入参的唯一转换点
 - 引擎产物必须经 `sniffImage` 校验后才允许流入存储
-- **UI 层自研**：除 React 外不依赖任何 UI 库。原语集中在 `ui/primitives/`，全部基于原生元素（`select` / `range` / `radio` / `checkbox` / `number`）只由 CSS 承担外观，键盘操作与无障碍语义由此白送；弹窗、Tooltip 等浮层以 portal 渲染，**根节点必须补上 `easyx-image-toolkit` 令牌作用域类**，否则脱离宿主 DOM 层级后拿不到 CSS 变量
+- **UI 层自研**：除 React 外不依赖任何 UI 库。原语集中在 `ui/primitives/`，全部基于原生元素（`select` / `range` / `radio` / `checkbox` / `number`）只由 CSS 承担外观，键盘操作与无障碍语义由此白送；导出组件的根节点带 `easyx-image-toolkit` 令牌作用域类，脱离宿主 DOM 层级也能取到 CSS 变量
+- **只做编辑与预览，不承载保存动作**：包内只导出编辑内容区 `ImageEditor`（自带令牌作用域根类），容器与保存 / 下载动作都由宿主负责。处理结果经 `onResultChange` 回调交给宿主（形如 `{ result, pending, noop, unsupported, error }`），组件不接收 `fileName`，也不渲染保存 / 取消按钮；裁切态的取消 / 应用落在裁切台工具栏，处理状态（体积增减、处理中、结果建议）汇总在预览区下方
+- **布局按容器宽度自适应**：`ui/styles/_editor.scss` 在内容区根上设 `container-type: inline-size`，以容器查询（阈值 760px）把「预览 + 控制栏」两栏改为纵向堆叠 —— 宿主的可用宽度未必等于视口宽度，故不用视口媒体查询；纵向排列时须把 `align-items` 置为 `stretch`，否则预览区宽度会塌成内容宽
 - **裁切几何独立成纯函数**（`ui/components/crop-geometry.ts`）：边界、下限、锚点与比例锁定的规则用交互验证成本高，故全部走单测；裁切框一律以「EXIF 定向后的原图像素坐标」表示，与引擎 `autoOrient → crop` 的顺序一致
 - **运行时资源引用必须保持静态**：产物中是 `new Worker(new URL('./engine/worker.js', import.meta.url), { type: 'module' })` 与 `new URL('./engine/magick.wasm', import.meta.url)`，宿主打包器据此把资源复制进自己的产物。因此 `rslib.config.ts` 对 `client.ts` / `bundled-wasm.ts` 关闭了 `parser.url`，wasm 经 `output.copy` 落到 `dist/ui/engine/`；改这两处路径时必须同步核对产物目录结构
 - `@imagemagick/magick-wasm` 固定在 `devDependencies` 参与打包（Worker 由浏览器直接加载，产物中不能残留裸模块说明符），版本必须与 glue 严格同版
@@ -441,7 +443,7 @@ const editor = createEditor(containerElement, {
 
 - `--easyx-ai-rich-editor-*`：`bg` / `bg-subtle` / `bg-hover` / `bg-active` / `bg-mask` / `overlay` / `border` / `border-strong` / `text` / `text-secondary` / `text-tertiary` / `primary` / `primary-hover` / `primary-soft` / `on-primary` / `control-selected-bg` / `success` / `warning` / `danger`（各带 `-soft`）/ `shadow` / `shadow-lg` / `radius(-sm/-lg)` / `font-size(-xs/-sm/-md)` / `z-menu` / `z-modal` / `z-tooltip` / `z-toast` / `preview-bg`，亮暗两套取值由包内定义，宿主可覆盖
 - `--easyx-ai-rich-editor-code-*`：代码面板专用 —— `selection` / `match` / `match-current`（选区与查找命中）、`active-line`（当前行底色，**必须半透明**，否则会盖住当前行内的选区）与 `tag` / `attr` / `string` / `property` / `keyword` / `number` / `comment` / `punct`（语法高亮），亮暗两套取值由包内定义，宿主可覆盖
-- `--easyx-image-toolkit-*`：`bg` / `bg-subtle` / `bg-hover` / `bg-active` / `bg-mask` / `overlay` / `border` / `border-strong` / `text` / `text-secondary` / `text-tertiary` / `primary` / `primary-hover` / `primary-soft` / `on-primary` / `control-selected-bg` / `success` / `warning` / `danger`（各带 `-soft`）/ `shadow` / `shadow-lg` / `radius(-sm/-lg)` / `font-size(-xs/-sm/-md)` / `z-modal` / `z-tooltip`，亮暗两套取值由包内定义，宿主可覆盖
+- `--easyx-image-toolkit-*`：`bg` / `bg-subtle` / `bg-hover` / `bg-active` / `bg-mask` / `border` / `border-strong` / `text` / `text-secondary` / `text-tertiary` / `primary` / `primary-hover` / `primary-soft` / `on-primary` / `control-selected-bg` / `success` / `warning` / `danger`（各带 `-soft`）/ `shadow` / `radius(-sm/-lg)` / `font-size(-xs/-sm/-md)`，亮暗两套取值由包内定义，宿主可覆盖
 
 ## 测试约定
 

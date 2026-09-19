@@ -11,32 +11,8 @@ export interface IconProps extends SVGProps<SVGSVGElement> {
   size?: number;
 }
 
-/** 线性图标共用描边属性 */
-const stroke = {
-  fill: 'none',
-  stroke: 'currentColor',
-  strokeLinecap: 'round',
-  strokeLinejoin: 'round',
-  strokeWidth: 1.8,
-} as const;
-
 /** 填充图标共用属性 */
 const filled = { fill: 'currentColor' } as const;
-
-export function IconClose({ size = 16, ...rest }: IconProps) {
-  return (
-    <svg
-      aria-hidden="true"
-      height={size}
-      viewBox="0 0 24 24"
-      width={size}
-      {...stroke}
-      {...rest}
-    >
-      <path d="M18 6 6 18M6 6l12 12" />
-    </svg>
-  );
-}
 
 export function IconInfoCircle({ size = 16, ...rest }: IconProps) {
   return (

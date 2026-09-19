@@ -15,7 +15,6 @@ export type {
   TextProps,
 } from './layout';
 export { Field, Hint, Stack, Tag, Text } from './layout';
-export { Modal, type ModalProps } from './Modal';
 export { NumberInput, type NumberInputProps } from './NumberInput';
 export { Progress, type ProgressProps } from './Progress';
 export {
@@ -25,4 +24,3 @@ export {
 } from './Segmented';
 export { Slider, type SliderProps } from './Slider';
 export { Spin, type SpinProps } from './Spin';
-export { Tooltip, type TooltipProps } from './Tooltip';
