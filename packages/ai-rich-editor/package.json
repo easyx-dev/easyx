@@ -1,6 +1,6 @@
 {
   "name": "@easyx/ai-rich-editor",
-  "version": "0.3.0",
+  "version": "1.0.0",
   "description": "AI 驱动的 HTML 片段生产工作台：对话生成自由 HTML 片段、所见即所得预览、片段样式自动作用域化，产物可直接嵌入宿主内容字段",
   "type": "module",
   "exports": {
