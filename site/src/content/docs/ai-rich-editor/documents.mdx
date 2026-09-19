@@ -1,0 +1,120 @@
+---
+title: 文档解析（Word / PDF）
+description: 在浏览器端解析 Word / PDF，交给 AI 生成或修改现有内容；解析能力经 tools.parseDocument 异步注入
+---
+
+# 文档解析（Word / PDF）
+
+把 Word（`.docx`）或 PDF 交给 AI，据此**生成**新片段，或**修改**编辑器里的现有内容。
+
+解析全部在宿主侧完成，包内只消费解析结果：
+
+- 能力经顶层 `tools.parseDocument` 注入，是一个**异步方法** —— 可以在浏览器本地解析，也可以调用你自己的服务端解析接口；
+- 包内自带浏览器端默认解析器（`./parsers` 入口，按需加载 `mammoth` / `unpdf`），可直接使用；
+- 解析结果以 `[文档内容]` 上下文块随用户消息发出，模型据此产出片段。
+
+## 快速上手
+
+```bash
+# 使用包内默认解析器时，需额外安装两个可选依赖
+pnpm add mammoth unpdf
+```
+
+```tsx
+import { AiRichEditor } from '@easyx/ai-rich-editor';
+import { createDefaultDocumentParser } from '@easyx/ai-rich-editor/parsers';
+
+<AiRichEditor
+  endpointUrl="/v1/chat/completions"
+  model="gpt-4o-mini"
+  tools={{ parseDocument: createDefaultDocumentParser() }}
+/>;
+```
+
+传入 `tools.parseDocument` 后，对话输入框出现「添加文档」入口；也可直接把 `.docx` / `.pdf` 粘贴或拖入输入框。文档在**添加时**即开始解析，解析中就绪前不能发送。
+
+## 接入服务端解析
+
+`parseDocument` 只要求返回一个 Promise，远程解析直接实现即可：
+
+```tsx
+<AiRichEditor
+  endpointUrl="/v1/chat/completions"
+  model="gpt-4o-mini"
+  tools={{
+    parseDocument: async (file) => {
+      const form = new FormData();
+      form.append('file', file);
+      const res = await fetch('/api/parse-document', { method: 'POST', body: form });
+      if (!res.ok) throw new Error('服务端解析失败');
+      const data = await res.json();
+      // 只需提供对应类型的主产物；name / kind 缺省由包内按文件补全
+      return { html: data.html, text: data.text, pageCount: data.pageCount, warnings: data.warnings };
+    },
+  }}
+/>;
+```
+
+此时完全不引入 `./parsers` 入口，`mammoth` / `unpdf` 也不会进入宿主产物。
+
+## 解析产物
+
+```ts
+interface AiRichParsedDocument {
+  name?: string;          // 缺省取 File.name
+  kind?: 'docx' | 'pdf';  // 缺省按扩展名推断
+  html?: string;          // docx 主产物：结构化 HTML
+  text?: string;          // pdf 主产物：按页拼接的纯文本
+  pageCount?: number;     // pdf 页数
+  warnings?: string[];    // 非致命提示（扫描件无文本、页数超限、内容截断…）
+}
+```
+
+## 默认解析器（`./parsers` 入口）
+
+| 导出 | 说明 |
+|------|------|
+| `createDefaultDocumentParser()` | 按扩展名分派：`.docx` → HTML，`.pdf` → 文本 |
+| `createDocxParser()` | 仅解析 `.docx` |
+| `createPdfParser()` | 仅解析 `.pdf` |
+| `UnsupportedDocumentError` / `DocumentParseError` | 错误类，供 `onError` 分支判断 |
+| `resolveDocumentKind(fileName)` | 扩展名 → `'docx' \| 'pdf' \| undefined` |
+| `isDocumentFile(fileName, extensions?)` | 是否命中文档扩展名 |
+| `isLegacyDoc(fileName)` | 是否旧版 `.doc`（明确不支持） |
+| `documentAccept(extensions?)` | 文件选择框 accept，默认 `.docx,.pdf` |
+| `DEFAULT_DOCUMENT_EXTENSIONS` | 默认扩展名清单 |
+
+- **Word**：用 mammoth 的浏览器预构建包转成语义化 HTML（标题 / 段落 / 列表 / 表格 / 加粗斜体）；图片统一替换为 `[图片]` 占位，不内联 base64。
+- **PDF**：用 unpdf 提取**纯文本**（按页拼接，不还原表格与分栏），worker 已内联，浏览器端无需配置 `workerSrc`。
+- 只支持 `.docx`；旧版 `.doc` 二进制格式无法解析，宿主配了附件上传时落回媒体附件，否则给出明确错误。扫描件（无文本层）会提示「未提取到文本」。
+
+## 限制与提示
+
+| 项 | 值 |
+|----|----|
+| 单次发送文档数 | 3（超出提示并截断） |
+| 单文档注入字符预算 | 30000（超出截断，块内标注） |
+| PDF 解析页数上限 | 300 页（仅读取前 300 页，超出提示并标注） |
+| 支持扩展名 | `.docx` / `.pdf` |
+
+解析中的提示（截断、扫描件等）经 `onNotify('warning', …)` 呈现；解析失败经 `onError` 上报，条目保留可重试或移除。
+
+## 交给 AI 的方式
+
+文档正文以 `[文档内容]` 块随消息发出（位于 `[已上传附件]` 与 `[当前片段]` 之间），块首给出文件名、类型与页数：
+
+````text
+[文档内容]
+来源：方案.docx（Word 文档）
+```html
+<h1>标题</h1>…
+```
+````
+
+内置 system 提示词已约定：
+
+- 只出现 `[文档内容]` → **据此生成**规范片段，保留原文信息与层级，不编造文档中没有的内容；
+- 同时出现 `[当前片段]` → 以文档为依据对当前片段做**最小化改写**；
+- 文档被截断时（块内标注）不臆测未给出的内容。
+
+`[文档内容]` 是持久源材料，不像 `[当前片段]` 那样在历史轮次被剥离；体积由字符预算控制。

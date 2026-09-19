@@ -414,6 +414,16 @@
   transition: width 0.15s;
 }
 
+/* 解析失败的文档条目：描边与状态文案转为危险色 */
+.easyx-ai-rich-editor__attachment--error {
+  border-color: var(--easyx-ai-rich-editor-danger);
+}
+
+.easyx-ai-rich-editor__attachment--error
+  .easyx-ai-rich-editor__attachment-meta {
+  color: var(--easyx-ai-rich-editor-danger);
+}
+
 /* ---------- 代码面板入口：行号左侧、跟在光标所在行的加号 ---------- */
 .easyx-ai-rich-editor__code-panel .cm-editor .cm-gutters .easyx-ai-rich-editor__gutter-add {
   /* 只有光标行有标记，靠最小宽度保持列宽恒定（另有 initialSpacer 兜底） */

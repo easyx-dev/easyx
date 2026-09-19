@@ -1,9 +1,10 @@
 /**
- * 对话输入区：附件条 + 自增高 textarea + 附件/发送按钮
+ * 对话输入区：附件条 + 自增高 textarea + 附件/文档/发送按钮
  *
  * Enter 发送、Shift+Enter 换行；**输入法合成期间不发送** —— 中文候选词的上屏
  * 也会产生 Enter，若不做守卫会把半截拼音当成消息发出去。
- * 图片等文件可粘贴或拖入，由调用方决定上传时机（本包在点发送时统一上传）。
+ * 图片等文件可粘贴或拖入，由调用方决定上传时机（本包在点发送时统一上传）；
+ * Word/PDF 文档经独立的文档入口添加，由调用方在添加时解析。
  */
 import {
   type ClipboardEvent,
@@ -16,10 +17,12 @@ import type { MediaPick } from '../components/MediaPicker';
 import { MediaPicker } from '../components/MediaPicker';
 import type { PendingAttachment } from '../media/attachment';
 import type { AiRichMediaConfig } from '../media/types';
+import type { PendingDocument } from '../parsers/document-state';
 import type { AiRichErrorHandler } from '../types';
-import { IconArrowUp, IconPaperclip, IconStop } from '../ui/icons';
+import { IconArrowUp, IconFile, IconPaperclip, IconStop } from '../ui/icons';
 import { Button } from '../ui/primitives/Button';
 import { AttachmentBar } from './AttachmentBar';
+import { DocumentBar } from './DocumentBar';
 
 /** textarea 自增高上限（px），超出后内部滚动 */
 const MAX_HEIGHT = 160;
@@ -32,12 +35,24 @@ export interface ChatComposerProps {
   loading: boolean;
   /** 上传中：屏蔽发送与附件改动 */
   uploading?: boolean;
+  /** 文档解析中：屏蔽发送与文档改动 */
+  parsing?: boolean;
   onCancel: () => void;
   placeholder?: string;
   /** 待发附件 */
   attachments?: readonly PendingAttachment[];
   /** 附件移除 */
   onRemoveAttachment?: (id: string) => void;
+  /** 待解析/已解析文档（Word / PDF） */
+  documents?: readonly PendingDocument[];
+  /** 文档移除 */
+  onRemoveDocument?: (id: string) => void;
+  /** 解析失败后重试 */
+  onRetryDocument?: (id: string) => void;
+  /** 文档选择结果（由独立入口触发；粘贴/拖入经 onAddFiles 分流） */
+  onAddDocuments?: (files: File[]) => void;
+  /** 文档入口的文件选择框 accept；缺省表示未启用文档能力，入口不出现 */
+  documentAccept?: string;
   /** 粘贴 / 拖入 / 选择文件 */
   onAddFiles?: (files: File[]) => void;
   /** 媒体入口的选择结果（上传 / 媒体库） */
@@ -54,17 +69,24 @@ export function ChatComposer({
   onSubmit,
   loading,
   uploading,
+  parsing,
   onCancel,
   placeholder,
   attachments = [],
   onRemoveAttachment,
+  documents = [],
+  onRemoveDocument,
+  onRetryDocument,
+  onAddDocuments,
+  documentAccept,
   onAddFiles,
   onPickMedia,
   media,
   onError,
 }: ChatComposerProps) {
   const ref = useRef<HTMLTextAreaElement>(null);
-  const busy = loading || Boolean(uploading);
+  const documentInputRef = useRef<HTMLInputElement>(null);
+  const busy = loading || Boolean(uploading) || Boolean(parsing);
 
   // 随内容自增高：先归零再按 scrollHeight 撑开，最后夹到上限
   useEffect(() => {
@@ -74,9 +96,12 @@ export function ChatComposer({
     el.style.height = `${Math.min(el.scrollHeight, MAX_HEIGHT)}px`;
   }, [value]);
 
+  const hasSendableDocument = documents.some((doc) => doc.status === 'ready');
+  const canSubmit =
+    Boolean(value.trim()) || attachments.length > 0 || hasSendableDocument;
+
   const submit = () => {
-    if (busy) return;
-    if (!value.trim() && attachments.length === 0) return;
+    if (busy || !canSubmit) return;
     onSubmit(value);
   };
 
@@ -120,6 +145,12 @@ export function ChatComposer({
         disabled={busy}
         onRemove={(id) => onRemoveAttachment?.(id)}
       />
+      <DocumentBar
+        disabled={busy}
+        documents={documents}
+        onRemove={(id) => onRemoveDocument?.(id)}
+        onRetry={(id) => onRetryDocument?.(id)}
+      />
 
       <div className="easyx-ai-rich-editor__composer-row">
         <textarea
@@ -150,6 +181,30 @@ export function ChatComposer({
               />
             }
           />
+          {documentAccept && (
+            <>
+              <Button
+                aria-label="添加文档"
+                disabled={busy}
+                icon={<IconFile size={15} />}
+                iconOnly
+                onClick={() => documentInputRef.current?.click()}
+                variant="text"
+              />
+              <input
+                accept={documentAccept}
+                className="easyx-ai-rich-editor__media-file"
+                multiple
+                onChange={(event) => {
+                  const files = collectFiles(event.target.files);
+                  if (files.length > 0) onAddDocuments?.(files);
+                  event.target.value = '';
+                }}
+                ref={documentInputRef}
+                type="file"
+              />
+            </>
+          )}
           {loading ? (
             <Button
               aria-label="停止生成"
@@ -160,10 +215,12 @@ export function ChatComposer({
             />
           ) : uploading ? (
             <Button aria-label="上传中" iconOnly loading variant="primary" />
+          ) : parsing ? (
+            <Button aria-label="解析中" iconOnly loading variant="primary" />
           ) : (
             <Button
               aria-label="发送"
-              disabled={!value.trim() && attachments.length === 0}
+              disabled={!canSubmit}
               icon={<IconArrowUp size={15} />}
               iconOnly
               onClick={submit}

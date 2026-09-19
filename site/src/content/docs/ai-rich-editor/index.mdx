@@ -105,7 +105,7 @@ AI 生成的片段在「应用到编辑器」（含 `autoApply`）时即完成**
 | `previewHead` | 预览 `<head>` 附加代码（原始 HTML） | 空 |
 | `sendImagesAsMultimodal` | 图片附件以多模态发送 | `true` |
 
-`config` 只放可序列化的配置；函数型注入项（`media` / `onNotify` / `onError`）与 `allowedUrlSchemes` 一律是顶层属性。
+`config` 只放可序列化的配置；函数型注入项（`media` / `tools` / `onNotify` / `onError`）与 `allowedUrlSchemes` 一律是顶层属性。
 
 顶栏「设置」直接打开模态框：**就地渲染在编辑器容器内**（不 portal），高度随内容自适应、上限为容器的 90%，宽度上限 800px。
 
@@ -197,6 +197,27 @@ AI 生成的片段在「应用到编辑器」（含 `autoApply`）时即完成**
 :::note
 发给模型的消息里，附件以 `[已上传附件]` 清单形式附在用户原话之后（模型需要真实地址）；对话气泡只显示用户原话 + 附件缩略条。内置 system 提示词已约束「媒体地址只准使用清单给出的 url」。
 :::
+
+## 文档解析（Word / PDF）
+
+把 Word（`.docx`）或 PDF 交给 AI，据此生成新片段，或修改编辑器里的现有内容。能力经**顶层 `tools.parseDocument`** 注入，是一个**异步方法**：可以本地解析，也可以调用宿主自己的服务端解析接口。
+
+```tsx
+import { createDefaultDocumentParser } from '@easyx/ai-rich-editor/parsers';
+
+<AiRichEditor
+  endpointUrl="/v1/chat/completions"
+  model="gpt-4o-mini"
+  // 浏览器端默认解析器；也可替换为 `async (file) => …` 调自己的服务端接口
+  tools={{ parseDocument: createDefaultDocumentParser() }}
+/>;
+```
+
+- 传入后对话输入框出现「添加文档」入口，也可把 `.docx` / `.pdf` 粘贴或拖入；添加即解析。
+- 使用默认解析器需额外安装可选依赖 `mammoth` 与 `unpdf`；走服务端解析则无需引入 `./parsers`，二者都不进宿主产物。
+- 解析结果以 `[文档内容]` 块随消息发出：只出现该块时据文档**生成**；同时出现 `[当前片段]` 时据文档**修改**当前内容。
+
+详见[文档解析（Word / PDF）](./documents/)。
 
 ## 主题
 

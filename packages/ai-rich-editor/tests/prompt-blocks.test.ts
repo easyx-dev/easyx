@@ -13,6 +13,7 @@ import {
   TARGET_BLOCK_TITLE,
 } from '../src/chat/prompt-blocks';
 import { buildAttachmentBlock } from '../src/media/prompt-text';
+import { buildDocumentBlock } from '../src/parsers/prompt-text';
 
 describe('buildCurrentFragmentBlock', () => {
   it('空片段不生成块', () => {
@@ -74,8 +75,72 @@ describe('splitPromptBlocks', () => {
   it('纯原话：无任何块', () => {
     expect(splitPromptBlocks('把标题改大')).toEqual({
       text: '把标题改大',
+      documents: [],
       targets: [],
     });
+  });
+
+  it('拆分附件、文档内容、当前片段、目标区域与选中文本', () => {
+    const content = [
+      '按文档改',
+      buildAttachmentBlock([{ kind: 'image', name: 'a.png', url: '/a.png' }]),
+      buildDocumentBlock({
+        name: '方案.docx',
+        kind: 'docx',
+        html: '<h1>标题</h1>',
+      }),
+      buildCurrentFragmentBlock('<div>片段</div>'),
+      buildTargetBlock({
+        elementId: 1,
+        targetHtml: '<h2>标题</h2>',
+        selectedText: '标题',
+        selectUnique: true,
+      }),
+    ].join('\n\n');
+
+    const split = splitPromptBlocks(content);
+    expect(split.text).toBe('按文档改');
+    expect(split.documents).toEqual([
+      { header: '来源：方案.docx（Word 文档）', body: '<h1>标题</h1>' },
+    ]);
+    expect(split.fragment).toBe('<div>片段</div>');
+    expect(split.targets).toEqual(['<h2>标题</h2>']);
+  });
+
+  it('多份文档按顺序收集', () => {
+    const content = [
+      '综合两份文档',
+      buildDocumentBlock({ name: 'a.pdf', kind: 'pdf', text: '甲' }),
+      buildDocumentBlock({ name: 'b.pdf', kind: 'pdf', text: '乙' }),
+    ].join('\n\n');
+
+    const documents = splitPromptBlocks(content).documents;
+    expect(documents.map((doc) => doc.body)).toEqual(['甲', '乙']);
+    expect(documents[0].header).toContain('a.pdf');
+    expect(documents[1].header).toContain('b.pdf');
+  });
+
+  it('文档正文里的同名字面量不会被当作块边界', () => {
+    const documentBlock = buildDocumentBlock({
+      name: '说明.docx',
+      kind: 'docx',
+      html: '<p>正文里提到 [当前片段] 这个标记</p>',
+    });
+    const content = [
+      '按文档来',
+      documentBlock,
+      buildCurrentFragmentBlock('<div>片段</div>'),
+    ].join('\n\n');
+
+    const split = splitPromptBlocks(content);
+    expect(split.text).toBe('按文档来');
+    expect(split.documents[0].body).toContain('[当前片段] 这个标记');
+    expect(split.fragment).toBe('<div>片段</div>');
+
+    // 历史剥离时不应删掉文档正文里的字面量
+    const stripped = removeFragmentBlock(content);
+    expect(stripped).toContain('[当前片段] 这个标记');
+    expect(stripped).not.toContain('<div>片段</div>');
   });
 
   it('拆分附件、当前片段、目标区域与选中文本', () => {

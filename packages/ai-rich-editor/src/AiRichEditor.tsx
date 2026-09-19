@@ -62,6 +62,7 @@ export function AiRichEditor({
   requestHeaders,
   requestBody,
   media,
+  tools,
   allowedUrlSchemes,
   onNotify,
   onError,
@@ -282,6 +283,7 @@ export function AiRichEditor({
   const editorCfg = useMemo(
     () => ({
       media,
+      tools,
       onApplyHtml: handleApplyHtml,
       onApplyPatch: handleApplyPatch,
       onError: reportError,
@@ -297,6 +299,7 @@ export function AiRichEditor({
       sendImagesAsMultimodal,
       requestBody,
       media,
+      tools,
       handleApplyHtml,
       handleApplyPatch,
       notify,

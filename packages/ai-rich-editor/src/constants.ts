@@ -7,6 +7,7 @@ import {
   TARGET_BLOCK_TITLE,
 } from './chat/prompt-blocks';
 import { ATTACHMENT_BLOCK_TITLE } from './media/prompt-text';
+import { DOCUMENT_BLOCK_TITLE } from './parsers/prompt-text';
 
 /** 首次打开时的默认 HTML 内容片段 */
 export const DEFAULT_HTML = `<style>
@@ -53,7 +54,13 @@ export const DEFAULT_SYSTEM_PROMPT_TEMPLATE = `你是「富文本 HTML 片段生
 修改类请求（用户要求修改/修复/精简/换风格/调整细节）：
 - 用户消息中出现「${CURRENT_FRAGMENT_BLOCK_TITLE}」时，它是编辑器的当前内容，是你改动的唯一依据；在此基础上做最小化改动，但最终仍输出改动后的完整片段。
 - 出现「${TARGET_BLOCK_TITLE}」时，重点改该区域；出现「${SELECTION_BLOCK_TITLE}」时以该文本为改动焦点。
-- 未涉及的区块保持原样（含既有类名、结构、样式与注释），不要顺手重写。`;
+- 未涉及的区块保持原样（含既有类名、结构、样式与注释），不要顺手重写。
+
+文档输入（用户消息中出现「${DOCUMENT_BLOCK_TITLE}」）：
+- 该块是用户提供的源文档：Word 转换出的 HTML，或 PDF 提取的纯文本；块首给出了来源与解析提示，正文在围栏内。
+- 需求是「生成」时，以文档内容为准产出规范的 HTML 片段：保留原文信息与层级，不要编造文档中没有的事实。
+- 若同时存在「${CURRENT_FRAGMENT_BLOCK_TITLE}」，则以文档内容为依据，对当前片段做最小化改写（只改与文档相关、或用户明确要求的部分）。
+- 文档正文可能被截断（块内已标注）；标注截断时不要臆测未给出的内容。`;
 
 /** 预设指令：一键生成/改写常见页面形态 */
 export const PRESET_PROMPTS = [
@@ -92,6 +99,9 @@ export const DEFAULT_CONFIG = {
 
 /** 对话单次发送的附件数量上限（防止一次塞入过多文件） */
 export const MEDIA_ATTACHMENT_LIMIT = 6;
+
+/** 对话单次发送的文档数量上限（文档体积大，比附件更严） */
+export const DOCUMENT_ATTACHMENT_LIMIT = 3;
 
 /** 一个媒体入口都没有时的提示 */
 export const MEDIA_PICKER_EMPTY_HINT = '未配置媒体上传或媒体库接口';

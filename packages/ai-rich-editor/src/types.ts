@@ -5,6 +5,7 @@
  * OpenAI 兼容端点（endpointUrl + model + requestHeaders），无需配套服务端 SDK。
  */
 import type { AiRichMediaConfig } from './media/types';
+import type { AiRichDocumentParser } from './parsers/types';
 
 /**
  * 通知回调：承载所有用户可见提示（成功 / 提醒 / 错误）
@@ -20,6 +21,21 @@ export type AiRichNotify = (
 
 /** 错误上报回调（返回值即抛出的错误实例，可按类分支） */
 export type AiRichErrorHandler = (error: Error) => void;
+
+/**
+ * 宿主注入的能力集合（函数型，与可序列化的 config 分开）
+ *
+ * 这里的「tools」指宿主提供的能力函数，与模型 function/tool calling 无关 ——
+ * 本包不声明也不触发任何模型工具调用。
+ */
+export interface AiRichEditorTools {
+  /**
+   * 文档解析能力（Word / PDF）：异步方法，可本地解析或接宿主服务端解析接口。
+   * 传入后对话输入区出现文档入口；不传则文档能力整体不出现。
+   * 浏览器端开箱可用可传 `createDefaultDocumentParser()`（见 `./parsers` 入口）。
+   */
+  parseDocument?: AiRichDocumentParser;
+}
 
 /**
  * 对话请求头：静态对象，或每次请求求值的函数（便于轮换 token）。
@@ -74,6 +90,11 @@ export interface AiRichEditorProps {
    * 函数型配置不进设置面板，故与 config 分开。
    */
   media?: AiRichMediaConfig;
+  /**
+   * 宿主注入的能力集合（函数型，与 config 分开）：目前含文档解析（Word / PDF）。
+   * 不传 `tools.parseDocument` 时文档入口不出现。
+   */
+  tools?: AiRichEditorTools;
   /**
    * 追加允许的 URL 协议（如 ['ipfs:', 'app:']），只增不减：
    * javascript: / data: 等危险协议无论何时都被拦下。

@@ -105,3 +105,38 @@ describe('发送', () => {
     expect(screen.getByRole('button', { name: '上传中' })).toBeTruthy();
   });
 });
+
+describe('文档入口', () => {
+  it('配置 documentAccept 时出现添加文档按钮', () => {
+    renderComposer({ documentAccept: '.docx,.pdf' });
+    expect(screen.getByRole('button', { name: '添加文档' })).toBeTruthy();
+  });
+
+  it('未配置时不出现文档入口', () => {
+    renderComposer();
+    expect(screen.queryByRole('button', { name: '添加文档' })).toBeNull();
+  });
+
+  it('解析中发送按钮变为解析态', () => {
+    renderComposer({ parsing: true, value: '你好' });
+    expect(screen.queryByRole('button', { name: '发送' })).toBeNull();
+    expect(screen.getByRole('button', { name: '解析中' })).toBeTruthy();
+  });
+
+  it('只带已就绪文档（无文字）也可发送', () => {
+    const { onSubmit } = renderComposer({
+      documents: [
+        {
+          file: new File(['x'], 'a.pdf'),
+          id: 'd1',
+          name: 'a.pdf',
+          result: { kind: 'pdf', text: '正文' },
+          size: 1024,
+          status: 'ready',
+        },
+      ],
+    });
+    fireEvent.click(screen.getByRole('button', { name: '发送' }));
+    expect(onSubmit).toHaveBeenCalled();
+  });
+});

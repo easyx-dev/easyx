@@ -8,8 +8,14 @@
  * 主题无需桥接：演示页把 data-theme 挂在 <html> 上，包内样式直接据此判定。
  */
 
-import type { AiRichMediaConfig, AiRichMediaItem } from '@easyx/ai-rich-editor';
-import { AiRichEditor, DEFAULT_HTML } from '@easyx/ai-rich-editor';
+import {
+  AiRichEditor,
+  type AiRichEditorTools,
+  type AiRichMediaConfig,
+  type AiRichMediaItem,
+  DEFAULT_HTML,
+} from '@easyx/ai-rich-editor';
+import { createDefaultDocumentParser } from '@easyx/ai-rich-editor/parsers';
 import { useEffect, useMemo, useState } from 'react';
 import { ConnectPanel } from './ai-rich-editor-demo/ConnectPanel';
 import {
@@ -100,6 +106,10 @@ export default function AiRichEditorDemo() {
   const [html, setHtml] = useState(DEFAULT_HTML);
   // 媒体配置只建一次，避免每次渲染重建 Blob 地址
   const [media] = useState(createDemoMedia);
+  // 文档解析能力：浏览器端默认解析器（mammoth / unpdf 按需加载）
+  const [tools] = useState<AiRichEditorTools>(() => ({
+    parseDocument: createDefaultDocumentParser(),
+  }));
   const [connection, setConnection] = useState<DemoConnection>(readConnection);
   const [panelOpen, setPanelOpen] = useState(false);
 
@@ -135,7 +145,7 @@ export default function AiRichEditorDemo() {
         <span className="demo-control-bar-hint">
           {resolved
             ? '媒体上传为本地 Blob，真实模型无法访问'
-            : '内置回放零配置，可切换为真实 OpenAI 兼容端点'}
+            : '内置回放零配置；支持添加 Word / PDF 交给 AI'}
         </span>
       </div>
 
@@ -158,6 +168,7 @@ export default function AiRichEditorDemo() {
           // 演示里只接错误上报（打到控制台）；错误对用户的提示走包内轻提示
           onError={(error) => console.error(error)}
           requestHeaders={resolved?.requestHeaders}
+          tools={tools}
           value={html}
         />
       </div>

@@ -32,6 +32,7 @@ import { MarkdownContent } from '../components/MarkdownContent';
 import type { MediaPick } from '../components/MediaPicker';
 import {
   CHAT_INPUT_PLACEHOLDER,
+  DOCUMENT_ATTACHMENT_LIMIT,
   MEDIA_ATTACHMENT_LIMIT,
   PRESET_PROMPTS,
 } from '../constants';
@@ -45,9 +46,24 @@ import {
 import { toError } from '../media/errors';
 import { buildAttachmentBlock } from '../media/prompt-text';
 import type { AiRichMediaConfig, SentAttachment } from '../media/types';
-import { uploadMediaFile } from '../media/upload';
+import { canUpload, uploadMediaFile } from '../media/upload';
+import {
+  createPendingDocument,
+  normalizeParsedDocument,
+  type PendingDocument,
+  splitDocumentFiles,
+} from '../parsers/document-state';
+import { UnsupportedDocumentError } from '../parsers/errors';
+import { buildDocumentBlock } from '../parsers/prompt-text';
+import {
+  DEFAULT_DOCUMENT_EXTENSIONS,
+  documentAccept,
+  isDocumentFile,
+} from '../parsers/routing';
+import type { AiRichParsedDocument } from '../parsers/types';
 import { buildDefaultSystemPrompt } from '../prompts';
 import type {
+  AiRichEditorTools,
   AiRichErrorHandler,
   AiRichNotify,
   AiRichRequestHeaders,
@@ -81,6 +97,8 @@ export interface EditorChatConfig {
   onError?: AiRichErrorHandler;
   /** 媒体能力（上传 / 媒体库）：对话附件与代码面板插入共用 */
   media?: AiRichMediaConfig;
+  /** 宿主注入的能力集合（目前含文档解析） */
+  tools?: AiRichEditorTools;
   /** 链接与图片地址的白名单选项（宿主可追加协议） */
   urlOptions?: SanitizeUrlOptions;
   /** 最新的源片段：每条发出的用户消息都会附带一份 */
@@ -225,6 +243,13 @@ function ChatMessage({ message, Parts }: MessageProps<typeof chatOptions>) {
             {blocks.text}
           </span>
         )}
+        {blocks.documents.map((doc, index) => (
+          <ContextCodeCard
+            code={doc.body}
+            key={`${index}-${doc.header.slice(0, 24)}`}
+            label={doc.header || '文档内容（随消息发送）'}
+          />
+        ))}
         {blocks.fragment && (
           <ContextCodeCard
             code={blocks.fragment}
@@ -319,11 +344,19 @@ function ChatInput(_props: InputProps<typeof chatOptions>) {
   const cfg = useEditorCfg();
   const [input, setInput] = useState('');
   const [attachments, setAttachments] = useState<PendingAttachment[]>([]);
+  const [documents, setDocuments] = useState<PendingDocument[]>([]);
   const [uploading, setUploading] = useState(false);
 
-  // 新会话（消息清空）时一并清掉未发出的附件
+  const parser = cfg.tools?.parseDocument;
+  const documentsEnabled = Boolean(parser);
+  const parsing = documents.some((doc) => doc.status === 'parsing');
+
+  // 新会话（消息清空）时一并清掉未发出的附件与文档
   useEffect(() => {
-    if (chat.messages.length === 0) setAttachments([]);
+    if (chat.messages.length === 0) {
+      setAttachments([]);
+      setDocuments([]);
+    }
   }, [chat.messages.length]);
 
   /** 附件容量已满时提示（媒体库条目没有「类型未配置」问题） */
@@ -338,10 +371,106 @@ function ChatInput(_props: InputProps<typeof chatOptions>) {
     setAttachments([...attachments, attachment]);
   };
 
-  /** 粘贴 / 拖入 / 选择文件：先按类型校验上传能力，避免发送时才发现未配置 */
+  /**
+   * 解析单个文档：结果按 id 写回，解析提示（截断/扫描件）逐条提醒。
+   * 失败经 onError 上报并保留条目，用户可重试或移除。
+   */
+  const runParse = useCallback(
+    async (doc: PendingDocument) => {
+      if (!parser) return;
+      try {
+        const result = normalizeParsedDocument(
+          await parser(doc.file),
+          doc.file,
+        );
+        setDocuments((prev) =>
+          prev.map((current) =>
+            current.id === doc.id
+              ? { ...current, status: 'ready', result, error: undefined }
+              : current,
+          ),
+        );
+        for (const warning of result.warnings ?? []) {
+          cfg.onNotify?.('warning', warning);
+        }
+      } catch (error) {
+        const normalized = toError(error);
+        setDocuments((prev) =>
+          prev.map((current) =>
+            current.id === doc.id
+              ? { ...current, status: 'error', error: normalized.message }
+              : current,
+          ),
+        );
+        cfg.onError?.(normalized);
+      }
+    },
+    [parser, cfg],
+  );
+
+  /**
+   * 添加文档并立即开始解析（本地或服务端），超出数量上限时截断并提示。
+   * 不支持的格式在此拦下并报错 —— 对话入口的 accept 约束不到拖入/程序化设置的文件。
+   */
+  const addDocuments = useCallback(
+    (files: File[]) => {
+      if (!parser || files.length === 0) return;
+      const supported: File[] = [];
+      for (const file of files) {
+        if (isDocumentFile(file.name, DEFAULT_DOCUMENT_EXTENSIONS)) {
+          supported.push(file);
+          continue;
+        }
+        cfg.onError?.(new UnsupportedDocumentError(file.name));
+      }
+      if (supported.length === 0) return;
+
+      const room = Math.max(0, DOCUMENT_ATTACHMENT_LIMIT - documents.length);
+      if (supported.length > room) {
+        cfg.onNotify?.(
+          'warning',
+          `一次最多添加 ${DOCUMENT_ATTACHMENT_LIMIT} 个文档`,
+        );
+      }
+      const pending = supported.slice(0, room).map(createPendingDocument);
+      if (pending.length === 0) return;
+      setDocuments((prev) => [...prev, ...pending]);
+      for (const doc of pending) void runParse(doc);
+    },
+    [parser, documents.length, runParse, cfg],
+  );
+
+  const retryDocument = (id: string) => {
+    const doc = documents.find((item) => item.id === id);
+    if (!doc) return;
+    const retrying: PendingDocument = {
+      ...doc,
+      status: 'parsing',
+      error: undefined,
+    };
+    setDocuments((prev) =>
+      prev.map((current) => (current.id === id ? retrying : current)),
+    );
+    void runParse(retrying);
+  };
+
+  /**
+   * 粘贴 / 拖入 / 选择文件：文档按扩展名分流去解析，其余先按类型校验上传能力，
+   * 避免发送时才发现未配置。
+   */
   const handleAddFiles = (files: File[]) => {
+    const split = splitDocumentFiles(files, {
+      enabled: documentsEnabled,
+      extensions: DEFAULT_DOCUMENT_EXTENSIONS,
+      // `.doc` 无法解析，但宿主配了附件上传时仍应能作为附件使用
+      legacyAsMedia: canUpload(cfg.media, 'attachment'),
+    });
+    for (const error of split.errors) cfg.onError?.(error);
+    if (split.documents.length > 0) addDocuments(split.documents);
+    if (split.media.length === 0) return;
+
     const plan = planFileAttachments(
-      files,
+      split.media,
       cfg.media,
       attachments,
       MEDIA_ATTACHMENT_LIMIT,
@@ -364,14 +493,22 @@ function ChatInput(_props: InputProps<typeof chatOptions>) {
   };
 
   /**
-   * 组装并发送：用户文本 + 附件清单 + 当前片段
+   * 组装并发送：用户文本 + 附件清单 + 文档内容 + 当前片段
    * 上下文块按固定顺序拼接，模型据此产出补丁；失败由 chat.error 驱动界面提示
    */
   const sendText = useCallback(
-    async (text: string, items: SentAttachment[]) => {
+    async (
+      text: string,
+      items: SentAttachment[],
+      documentResults: AiRichParsedDocument[],
+    ) => {
+      const documentBlocks = documentResults
+        .map((doc) => buildDocumentBlock(doc))
+        .filter(Boolean);
       const content = [
         text,
         buildAttachmentBlock(items),
+        ...documentBlocks,
         buildCurrentFragmentBlock(cfg.currentSource ?? ''),
       ]
         .filter(Boolean)
@@ -387,11 +524,19 @@ function ChatInput(_props: InputProps<typeof chatOptions>) {
   );
 
   /**
-   * 发送：先把本地文件并发上传，再把附件清单与上下文块拼进消息文本
-   * （模型需要真实地址与当前片段），附件明细同时写入 metadata 供气泡渲染。
-   * 上传失败则不发送，保留输入与附件供重试。
+   * 发送：先把本地媒体文件并发上传，再把附件清单、文档内容与上下文块拼进消息文本
+   * （模型需要真实地址、文档正文与当前片段），附件明细写入 metadata 供气泡渲染。
+   * 上传或解析未就绪则不发送，保留输入、附件与文档供重试。
    */
   const sendWithAttachments = async (value: string) => {
+    if (parsing) {
+      cfg.onNotify?.('warning', '文档解析中，请稍候再发送');
+      return;
+    }
+    const documentResults = documents
+      .filter((doc) => doc.status === 'ready' && doc.result)
+      .map((doc) => doc.result as AiRichParsedDocument);
+
     setUploading(true);
     try {
       const sent = await Promise.all(
@@ -430,7 +575,8 @@ function ChatInput(_props: InputProps<typeof chatOptions>) {
 
       setInput('');
       setAttachments([]);
-      sendText(value, items).catch(() => {});
+      setDocuments([]);
+      sendText(value, items, documentResults).catch(() => {});
     } catch (error) {
       cfg.onError?.(toError(error));
     } finally {
@@ -439,17 +585,21 @@ function ChatInput(_props: InputProps<typeof chatOptions>) {
   };
 
   const handleSubmit = (text: string) => {
-    if (chat.isLoading || uploading) return;
+    if (chat.isLoading || uploading || parsing) return;
     const value = text.trim();
-    if (!value && attachments.length === 0) return;
+    const hasDocument = documents.some((doc) => doc.status === 'ready');
+    if (!value && attachments.length === 0 && !hasDocument) return;
     void sendWithAttachments(value);
   };
 
   return (
     <ChatComposer
       attachments={attachments}
+      documentAccept={documentsEnabled ? documentAccept() : undefined}
+      documents={documents}
       loading={chat.isLoading}
       media={cfg.media}
+      onAddDocuments={addDocuments}
       onAddFiles={handleAddFiles}
       onCancel={() => chat.stop()}
       onChange={setInput}
@@ -458,7 +608,12 @@ function ChatInput(_props: InputProps<typeof chatOptions>) {
       onRemoveAttachment={(id) =>
         setAttachments((prev) => prev.filter((item) => item.id !== id))
       }
+      onRemoveDocument={(id) =>
+        setDocuments((prev) => prev.filter((item) => item.id !== id))
+      }
+      onRetryDocument={retryDocument}
       onSubmit={handleSubmit}
+      parsing={parsing}
       placeholder={CHAT_INPUT_PLACEHOLDER}
       uploading={uploading}
       value={input}

@@ -25,10 +25,16 @@ export type {
   AiRichMediaUploadConfig,
   AiRichMediaUploadProgress,
 } from './media/types';
+export type {
+  AiRichDocumentKind,
+  AiRichDocumentParser,
+  AiRichParsedDocument,
+} from './parsers/types';
 export { buildDefaultSystemPrompt } from './prompts';
 export type {
   AiRichEditorConfig,
   AiRichEditorProps,
+  AiRichEditorTools,
   AiRichErrorHandler,
   AiRichNotify,
   AiRichRequestHeaders,

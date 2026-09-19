@@ -16,6 +16,7 @@ description: AI Rich Editor 组件 Props、配置项与导出清单
 | `requestHeaders` | `AiRichRequestHeaders` | — | 请求头（鉴权等），静态对象或每次请求求值的函数 |
 | `requestBody` | `Record<string, unknown>` | — | 追加进请求体的字段（如 `temperature`）；`model` / `stream` / `messages` 不可覆盖 |
 | `media` | `AiRichMediaConfig` | — | 媒体能力（上传 / 媒体库），**顶层属性，非 config** |
+| `tools` | `AiRichEditorTools` | — | 宿主注入的能力集合；目前含文档解析 `parseDocument`（Word / PDF），**顶层属性，非 config** |
 | `allowedUrlSchemes` | `readonly string[]` | `[]` | 追加允许的 URL 协议（只增不减） |
 | `onNotify` | `AiRichNotify` | 包内置轻提示 | 通知上报（成功 / 提醒 / 错误的可见文案） |
 | `onError` | `(error: Error) => void` | `console.error` | 错误上报（错误实例，不负责可见提示） |
@@ -67,6 +68,31 @@ description: AI Rich Editor 组件 Props、配置项与导出清单
 `AiRichMediaListParams`：`{ page, pageSize, keyword? }`；`AiRichMediaListResult`：`{ items, total }`
 `AiRichMediaKind`：`'image' | 'video' | 'audio' | 'attachment'`
 
+## AiRichEditorTools
+
+函数型能力集合（顶层 `tools` 属性）；`tools` 指宿主注入的能力函数，与模型 function/tool calling 无关。
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `parseDocument` | `AiRichDocumentParser` | 文档解析（Word / PDF）：异步方法，本地或服务端皆可；不传则文档入口不出现 |
+
+`AiRichDocumentParser`：`(file: File) => Promise<AiRichParsedDocument>`
+`AiRichParsedDocument`：`{ name?, kind?, html?, text?, pageCount?, warnings? }`
+
+`./parsers` 入口（可选 peer 依赖 `mammoth` / `unpdf` 按需加载）：
+
+| 导出 | 类型 | 说明 |
+|------|------|------|
+| `createDefaultDocumentParser()` | `() => AiRichDocumentParser` | 按扩展名分派（`.docx` → HTML，`.pdf` → 文本） |
+| `createDocxParser()` / `createPdfParser()` | `() => AiRichDocumentParser` | 只解析单一类型 |
+| `UnsupportedDocumentError` / `DocumentParseError` | 错误类 | 供 `onError` 分支判断 |
+| `resolveDocumentKind(fileName)` | `(fileName: string) => AiRichDocumentKind \| undefined` | 扩展名 → 类型 |
+| `isDocumentFile(fileName, extensions?)` / `isLegacyDoc(fileName)` | `(…) => boolean` | 扩展名判定 / 旧版 `.doc` 判定 |
+| `documentAccept(extensions?)` | `(extensions?) => string` | 文件选择框 accept |
+| `DEFAULT_DOCUMENT_EXTENSIONS` | `readonly string[]` | 默认 `.docx` / `.pdf` |
+
+详见[文档解析](./documents/)。
+
 ## 导出
 
 | 导出 | 类型 | 说明 |
@@ -103,6 +129,10 @@ description: AI Rich Editor 组件 Props、配置项与导出清单
 | `AiRichMediaListParams` / `AiRichMediaListResult` | 媒体库分页参数与结果 |
 | `AiRichMediaKind` | 媒体类型 |
 | `AiRichMediaUploadProgress` | 上传进度回调 |
+| `AiRichEditorTools` | 宿主注入的能力集合（`parseDocument`） |
+| `AiRichDocumentParser` | 文档解析异步方法 |
+| `AiRichParsedDocument` | 解析产物（`html` / `text` / `pageCount` / `warnings`） |
+| `AiRichDocumentKind` | 文档类型 `'docx' \| 'pdf'` |
 
 ## CSS 变量
 

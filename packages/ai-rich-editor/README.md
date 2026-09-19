@@ -13,7 +13,7 @@ AI 驱动的「代码编辑 + 实时预览」工作台（重客户端组件）�
 | 防污染 | 作用域化在**应用时刻**完成，产物自带 scope 前缀，宿主可直接当 HTML 引入，端侧零处理 |
 | 传输 | **不持有**任何 HTTP 端点/鉴权知识 —— 对话能力经宿主提供的 OpenAI 兼容端点（`endpointUrl` + `model` + `requestHeaders`）消费 |
 | 样式 | 包内 SCSS + CSS 变量，编译后内联进 JS，宿主零配置 |
-| 依赖 | peer：`react` / `react-dom`；dep：`@floating-ui/dom`（浮层定位）、`marked`（对话 markdown）、`@codemirror/*` + `@lezer/highlight`（代码面板）。**除 React 外不依赖任何 UI 库**，界面全部自研 |
+| 依赖 | peer：`react` / `react-dom`；dep：`@floating-ui/dom`（浮层定位）、`marked`（对话 markdown）、`@codemirror/*` + `@lezer/highlight`（代码面板）；可选 peer：`mammoth` / `unpdf`（仅 `./parsers` 入口的默认文档解析器用，按需安装）。**除 React 外不依赖任何 UI 库**，界面全部自研 |
 
 ## 布局结构
 
@@ -65,7 +65,7 @@ export function MyPage() {
 | 响应 | `text/event-stream`，逐条 `data: {"choices":[{"delta":{"content":"…"}}]}`，以 `data: [DONE]` 或 `finish_reason` 收尾 |
 | 思考 | 按厂商方言尽力识别 `reasoning_content` / `reasoning` / `thinking`，渲染为折叠思考块 |
 | 图片 | 绝对 `http(s)` 地址且开启多模态时作为 `image_url` 发送；其余附件靠消息正文里的 `[已上传附件]` 清单传递地址 |
-| 上下文 | 每条用户消息都附带 `[当前片段]`（源片段）；历史轮次的该块在构造请求时剥离，只保留最新一份 |
+| 上下文 | 每条用户消息都附带 `[当前片段]`（源片段）；历史轮次的该块在构造请求时剥离，只保留最新一份。`[文档内容]`（Word / PDF 解析结果）为持久源材料，不参与剥离 |
 | 修改 | 修改类回复同样给出**改动后的完整片段**，客户端整段替换；对话历史因此留有一份可回退的版本序列 |
 | 错误 | HTTP 非 2xx 与流内 `{"error":…}` 都抛出 `Error`，走 `onNotify` + `onError` 两条通道 |
 | 中断 | `[DONE]` 与 `finish_reason` 都缺失即视为流被切断并报错，不会把半截回复当成功应用 |
@@ -183,6 +183,33 @@ AI 生成的片段在「应用到编辑器」（含 `autoApply`）时已做**样
 
 > 不走 TanStack AI 的工具调用：本包不声明任何工具，模型也无需回调宿主接口 —— 附件在发送前由客户端上传、地址写进消息，效果一致且宿主服务端零改动。
 
+## 文档解析（Word / PDF）
+
+把 Word（`.docx`）或 PDF 交给 AI，据此**生成**新片段或**修改**编辑器里的现有内容。能力经**顶层 `tools.parseDocument`** 注入，是一个**异步方法**：
+
+```tsx
+import { createDefaultDocumentParser } from '@easyx/ai-rich-editor/parsers';
+
+<AiRichEditor
+  endpointUrl="/v1/chat/completions"
+  model="gpt-4o-mini"
+  // 浏览器端默认解析器；也可替换为 `async (file) => …` 调自己的服务端接口
+  tools={{ parseDocument: createDefaultDocumentParser() }}
+/>;
+```
+
+| 项 | 约定 |
+|----|------|
+| 接口 | `(file: File) => Promise<AiRichParsedDocument>`，宿主可本地解析或接服务端解析接口 |
+| 默认解析器 | 独立入口 `./parsers`：`mammoth` 浏览器预构建包转 docx 为 HTML，`unpdf` serverless pdf.js 提取按页文本；两者按需安装、动态 `import`，不用则不进宿主产物 |
+| 入口 | 传入 `tools.parseDocument` 后对话输入框出现「添加文档」；也支持把 `.docx` / `.pdf` 粘贴或拖入 |
+| 时机 | **添加即解析**，解析态在 `DocumentBar`；失败保留条目可重试或移除 |
+| 产物 | `{ name?, kind?, html?, text?, pageCount?, warnings? }`（来源信息缺省由包内按文件补全） |
+| 交给 AI | 以 `[文档内容]` 上下文块随消息发出；只出现该块则据文档生成，同时有 `[当前片段]` 则据文档最小化改写 |
+| 限制 | 单文档 30000 字符预算（超出截断并标注，`DOCUMENT_MAX_CHARS`）、单次 3 份（`DOCUMENT_ATTACHMENT_LIMIT`）、PDF 只读取前 300 页解析；只支持 `.docx` / `.pdf`，扫描件提示无文本层；旧版 `.doc` 无法解析，宿主配了附件上传时落回媒体附件，否则报明确错误 |
+
+`[文档内容]` 是持久源材料，**不像 `[当前片段]` 那样在历史轮次被剥离**；docx 图片统一替换为 `[图片]` 占位，不内联 base64。
+
 ## 通知与错误
 
 两条通道分开，均为顶层属性；**错误会同时走两条** —— 一条给人看，一条给程序看：
@@ -207,7 +234,7 @@ AI 生成的片段在「应用到编辑器」（含 `autoApply`）时已做**样
 
 ## 设置面板
 
-顶栏「设置」直接打开模态框（不再有下拉菜单）。模态框**就地渲染在编辑器容器内**（不 portal），高度随内容自适应、上限为容器的 90%，宽度上限 800px，只承载可序列化的配置（`autoApply` / `systemPrompt` / `previewHead`）；`media` / `onNotify` / `onError` / `allowedUrlSchemes` 这些函数型或代码级注入项只做只读展示。
+顶栏「设置」直接打开模态框（不再有下拉菜单）。模态框**就地渲染在编辑器容器内**（不 portal），高度随内容自适应、上限为容器的 90%，宽度上限 800px，只承载可序列化的配置（`autoApply` / `systemPrompt` / `previewHead`）；`media` / `tools` / `onNotify` / `onError` / `allowedUrlSchemes` 这些函数型或代码级注入项只做只读展示。
 
 ## 配置与设置面板
 
@@ -221,7 +248,7 @@ AI 生成的片段在「应用到编辑器」（含 `autoApply`）时已做**样
 | `previewHead` | 预览 `<head>` 附加代码（原始 HTML） | 空 |
 | `sendImagesAsMultimodal` | 图片附件以多模态 content parts 发送 | `true` |
 
-`config` 只放可序列化的配置；函数型注入项（`media` / `onNotify` / `onError`）与 `allowedUrlSchemes` 一律顶层。
+`config` 只放可序列化的配置；函数型注入项（`media` / `tools` / `onNotify` / `onError`）与 `allowedUrlSchemes` 一律顶层。
 
 > **注意**：`config` 为**仅初始值（非受控）**——挂载后改动 `config` 不会生效；运行期请经设置面板修改，如需持久化再用 `onConfigChange` 回写宿主。
 
@@ -260,6 +287,8 @@ AI 生成的片段在「应用到编辑器」（含 `autoApply`）时已做**样
 | `MediaNotConfiguredError` / `InvalidMediaUrlError` | 媒体错误类（供 `onError` 分支） |
 | `AiRichMediaConfig` / `AiRichMediaItem` 等媒体类型 | 媒体能力配置与条目类型 |
 | `AiRichRequestHeaders` | 对话请求头类型（静态对象或求值函数） |
+| `AiRichEditorTools` / `AiRichDocumentParser` / `AiRichParsedDocument` | 宿主能力集合与文档解析类型（主入口导出；默认解析器在 `./parsers`） |
+| `./parsers` 入口 | `createDefaultDocumentParser` / `createDocxParser` / `createPdfParser`、`UnsupportedDocumentError` / `DocumentParseError`、`resolveDocumentKind` / `isDocumentFile` / `isLegacyDoc` / `documentAccept` |
 
 ## 测试
 
@@ -267,6 +296,6 @@ AI 生成的片段在「应用到编辑器」（含 `autoApply`）时已做**样
 pnpm --filter @easyx/ai-rich-editor test
 ```
 
-覆盖代码块提取 / 预览文档构建（含附加代码注入、补丁块排除）、整段替换的意图判定（完整片段优先）与补丁兜底解析（多块与半成品解析、精确/空白柔性匹配、歧义与未命中、顺序应用与原子失败、模型格式偏差容错）、预览块切分（style/script/void/注释/嵌套、编号注入与目标回解）、用户消息上下文块（当前片段/目标区域/选中文本的拼装、分段解析与历史剥离）、`MarkdownContent`（```html 卡片、补丁 diff 卡片「应用修改」、空回复占位）与 `markdown/renderer`（结构映射、裸 HTML 丢弃、危险协议降级、流式半成品）、样式作用域化（前缀生成 / CSS 选择器改写与幂等 / style 注入与整段包装 / 去作用域往返）、代码面板（最小 diff 落地与光标保留 / 扩展装配 / 受控同步与回环抑制 / 媒体入口跟随光标行与文件拖入）、媒体能力（类型路由 / 片段生成与转义 / 未配置报错 / 附件接纳计划与清单文本往返）、地址白名单（默认协议 / 追加协议 / 危险协议拦截）、通知与错误通道的兜底、模态框（尺寸 / Esc 与遮罩关闭 / 焦点归还）、对话输入区（粘贴 / 附件条 / 发送时机）、预览右键编辑浮层（目标展示 / 回车发送 / Shift+Enter 换行 / Esc 关闭）、媒体选择浮层（入口可用性 / 地址白名单 / 媒体库选择）与 OpenAI 协议层（SSE 分帧与心跳跳过、增量归一化、system 前置与图片多模态判定、历史片段块剥离、请求体形状、HTTP / 流内错误与截断、abort 静默）。
+覆盖代码块提取 / 预览文档构建（含附加代码注入、补丁块排除）、整段替换的意图判定（完整片段优先）与补丁兜底解析（多块与半成品解析、精确/空白柔性匹配、歧义与未命中、顺序应用与原子失败、模型格式偏差容错）、预览块切分（style/script/void/注释/嵌套、编号注入与目标回解）、用户消息上下文块（当前片段/目标区域/选中文本的拼装、分段解析与历史剥离）、`MarkdownContent`（```html 卡片、补丁 diff 卡片「应用修改」、空回复占位）与 `markdown/renderer`（结构映射、裸 HTML 丢弃、危险协议降级、流式半成品）、样式作用域化（前缀生成 / CSS 选择器改写与幂等 / style 注入与整段包装 / 去作用域往返）、代码面板（最小 diff 落地与光标保留 / 扩展装配 / 受控同步与回环抑制 / 媒体入口跟随光标行与文件拖入）、媒体能力（类型路由 / 片段生成与转义 / 未配置报错 / 附件接纳计划与清单文本往返）、文档解析（扩展名路由与 accept / docx 产物收敛与图片占位 / pdf 页拼接与扫描件判定 / 上下文块截断与分段解析 / 本地文件分流与解析态）、地址白名单（默认协议 / 追加协议 / 危险协议拦截）、通知与错误通道的兜底、模态框（尺寸 / Esc 与遮罩关闭 / 焦点归还）、对话输入区（粘贴 / 附件条 / 发送时机）、预览右键编辑浮层（目标展示 / 回车发送 / Shift+Enter 换行 / Esc 关闭）、媒体选择浮层（入口可用性 / 地址白名单 / 媒体库选择）与 OpenAI 协议层（SSE 分帧与心跳跳过、增量归一化、system 前置与图片多模态判定、历史片段块剥离、请求体形状、HTTP / 流内错误与截断、abort 静默）。
 
 > `scopedRichContent` 的 `<style>` 选择器改写为零依赖轻量实现：覆盖常见选择器（元素 / 类 / 后代 / `@media` / `@supports` 内层）与 `@keyframes` / `@font-face` 原样保留；CSS 原生嵌套规则（规则体内嵌套规则）不做嵌套前缀改写，此类输入请让 AI 用内联样式规避。

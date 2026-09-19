@@ -125,11 +125,12 @@ packages/
 │   ├── src/
 │   │   ├── index.ts              # 公开入口（导入样式 + 导出组件/常量/类型/媒体工具）
 │   │   ├── AiRichEditor.tsx      # 主容器：顶栏 + 左预览/右对话 + 补丁应用与重试 + 预览定向修改
-│   │   ├── types.ts              # AiRichEditorProps / AiRichEditorConfig 等（media/onNotify/onError 为顶层属性）
-│   │   ├── constants.ts          # 默认内容、预设指令、设备档位、system 提示词模板（含补丁协议）、附件上限
+│   │   ├── types.ts              # AiRichEditorProps / AiRichEditorConfig / AiRichEditorTools 等（media/tools/onNotify/onError 为顶层属性）
+│   │   ├── constants.ts          # 默认内容、预设指令、设备档位、system 提示词模板（含补丁协议）、附件/文档上限
 │   │   ├── prompts.ts            # 内置 system 提示词构建
 │   │   ├── media/                # 媒体能力：类型/路由/错误/上传/片段生成/对话附件/清单文本
-│   │   ├── chat/                 # ChatProvider（headless 数据流 + 自研渲染）/ ChatComposer / AttachmentBar / ThinkBlock
+│   │   ├── parsers/              # 文档解析（独立入口 ./parsers）：类型/路由/错误/默认解析器（docx→HTML、pdf→文本）/上下文块/解析态
+│   │   ├── chat/                 # ChatProvider（headless 数据流 + 自研渲染）/ ChatComposer / AttachmentBar / DocumentBar / ThinkBlock
 │   │   │                         # + prompt-blocks（上下文块拼接与分段解析）
 │   │   │                         # + OpenAI 协议层：openai-connection（适配器）/ openai-sse（SSE 解析）/ openai-messages（消息转换）
 │   │   ├── markdown/renderer.tsx # marked 词法 → React 元素（裸 HTML 丢弃 + 协议白名单）
@@ -141,7 +142,7 @@ packages/
 │   │   │                         # / patch（Search/Replace 协议）/ patch-markers（无环的补丁标记判定）/ url / clipboard
 │   │   ├── styles/               # SCSS 分片（变量/基础/原语/浮层/分栏/骨架/内容/对话/代码面板/媒体/预览编辑）
 │   │   └── env.d.ts
-│   └── tests/                # 提取/补丁协议/预览块切分/上下文块/提示词/作用域化/markdown 渲染（含安全边界）/UI 原语与分栏/模态框/代码面板/媒体/白名单/兜底回调
+│   └── tests/                # 提取/补丁协议/预览块切分/上下文块/提示词/作用域化/文档解析（路由/编排/产物）/markdown 渲染（含安全边界）/UI 原语与分栏/模态框/代码面板/媒体/白名单/兜底回调
 └── image-toolkit/            # @easyx/image-toolkit — 浏览器端图片处理套件
     ├── package.json
     ├── README.md
@@ -223,7 +224,7 @@ site/                        # Astro + Starlight 文档站点（系列库共用�
 
 | 配置项 | @easyx/editor | @easyx/tiptap-table-plus | @easyx/ai-rich-editor | @easyx/image-toolkit |
 |--------|--------------|------------------------|----------------------|---------------------|
-| 构建模式 | 主入口打包 | Bundleless（`bundle: false`） | 主入口打包 | 打包，三入口（`.` / `./ui` / Worker） |
+| 构建模式 | 主入口打包 | Bundleless（`bundle: false`） | 打包，两入口（`.` / `./parsers`） | 打包，三入口（`.` / `./ui` / Worker） |
 | 输出格式 | ESM + CJS | 仅 ESM | 仅 ESM | 仅 ESM |
 | 声明文件 | `dts: true` | `dts: true` | `dts: true` | `dts: true` |
 | 样式处理 | `pluginSass()` + `injectStyles: true` | `sideEffects: [".css"]` | `pluginSass()` + `injectStyles: true` | `pluginSass()` + `injectStyles: true` |
@@ -235,7 +236,7 @@ site/                        # Astro + Starlight 文档站点（系列库共用�
 
 - `@easyx/editor`：`exports` 同时声明 `types`（`.d.ts`）、`import`（ESM）、`require`（CJS）
 - `@easyx/tiptap-table-plus`：仅 ESM，`sideEffects: ["**/*.css"]` 标记 CSS 为副作用
-- `@easyx/ai-rich-editor`：仅 ESM，样式随 `injectStyles` 内联进 JS，宿主无需单独引入
+- `@easyx/ai-rich-editor`：仅 ESM，样式随 `injectStyles` 内联进 JS，宿主无需单独引入；`exports` 两个入口 —— `.`（组件与协议类型）与 `./parsers`（文档解析，可选 peer 依赖 `mammoth` / `unpdf` 在入口内动态 import，宿主不用则不进产物）
 - `@easyx/image-toolkit`：仅 ESM，`exports` 两个入口 —— `.`（同构纯逻辑，零重量依赖）与 `./ui`（浏览器侧引擎与 UI）
 - 四个包 `files` 均仅包含 `dist`
 
@@ -385,10 +386,11 @@ const editor = createEditor(containerElement, {
 - **gutter 入口的三个关键点**：`lineMarkerChange` 必须显式声明光标行变化（CodeMirror 默认只在文档/视口变化时重绘 gutter），`initialSpacer` 用于入口滚出视口时保持列宽（否则内容横向跳动），`GutterMarker` 单例复用 DOM。**不要用绝对定位的 React 按钮替代**：它需要行号槽预留空白，而预留的空白区不可拖选文字（拖动会选中行号），实测会把「拖动选字」变成假选区。该入口在 `aria-hidden` 的 gutter 内，**只有鼠标可达**，键盘用户需依赖「网络地址」等替代路径
 - **行号槽整行选择**（`gutter-line-select.ts`，当前未装配）：行号槽若设 `user-select: none`，会连带把「从行号按下再拖入正文」变成拖拽死区（按下后什么都选不中），因此实现挂在 `lineNumbers` 的 `domEventHandlers.mousedown` 上补 VS Code 风格的整行选择 —— 按下选中整行、拖动按行扩展。`lineBlockAtHeight` 给的是视觉行块，软换行后的第二行必须经 `doc.lineAt(...)` 归一到逻辑行。默认装配下未启用，行号槽行为即 CodeMirror 原生
 - **地址白名单与信任边界**（`utils/url.ts`）：用户手输与 AI 回复里的链接要过白名单，宿主 `upload`/`getList` 返回的地址视为可信（`buildMediaSnippet(..., { trusted: true })`）；宿主可用顶层 `allowedUrlSchemes` **追加**协议，危险协议（`javascript:` / `data:` / `vbscript:` / `file:` / `about:` 等）另有一份黑名单，追加与校验两处都拒绝，任何配置都放行不了
+- **文档解析（Word / PDF）**（`parsers/`）：能力经顶层 `tools.parseDocument` 注入，**接口是异步方法** `(file: File) => Promise<AiRichParsedDocument>`，宿主可在浏览器本地解析，也可接自己的服务端解析接口。默认解析器拆到独立入口 `./parsers`（`createDefaultDocumentParser` / `createDocxParser` / `createPdfParser`）：`mammoth` 的浏览器预构建包（自包含 Buffer，宿主无需 polyfill）转 docx 为 HTML，`unpdf` 的 serverless pdf.js（worker 内联）提取按页文本；两者为**可选 peerDependencies**，在入口内动态 `import`，宿主不用则完全不进产物。添加即解析（解析态在 `DocumentBar`，失败保留条目可重试），发送时以 `[文档内容]` 上下文块注入（`parsers/prompt-text.ts`），docx 图片替换为 `[图片]` 占位、超 `DOCUMENT_MAX_CHARS`（30000）截断；该块是持久源材料，**不参与历史剥离**（区别于 `[当前片段]`/`[目标区域]`）。只支持 `.docx`/`.pdf`（旧版 `.doc` 在宿主没有附件上传能力时报明确错误，否则落回媒体附件链路），扫描件提示无文本层，单次上限 `DOCUMENT_ATTACHMENT_LIMIT`（3）
 - **通知与错误两条通道**（`ui/feedback.ts`）：`createErrorReporter` 把「可见提示」与「程序上报」串成一条路径 —— 错误先经 `onNotify('error', error.message)` 呈现（兜底内置轻提示），再经 `onError` 上报（兜底 `console.error`，**不上浮任何 UI**）。包内不构造错误文案 UI，错误一律抛出 Error 实例（`MediaNotConfiguredError` / `InvalidMediaUrlError` 供宿主分支）；会话流错误保留对话区 `Alert` 并同样走两条通道（即 Alert + 一条轻提示）
-- **配置分层**：可序列化配置在 `config`（设置面板可编辑、经 `onConfigChange` 回写），函数型注入项（`media` / `onNotify` / `onError`）与 `allowedUrlSchemes` 一律顶层。设置用**就地渲染的模态框**（`ui/primitives/Modal.tsx`，不 portal、不锁 body 滚动、高度随内容自适应且上限 90% / 宽上限 800px），不再有抽屉与设置下拉
-- **媒体能力判定是纯函数**：`media/upload.ts` 的 `MediaNotConfiguredError` 是「未配置该类型上传接口」文案的唯一来源；`media/attachment.ts` 的 `planFileAttachments` 决定哪些文件被接纳、哪些报错或提醒（数量上限 `MEDIA_ATTACHMENT_LIMIT`）
-- **不做工具调用**：本包不声明任何工具，模型也无需回调宿主接口 —— 附件在发送前由客户端上传、地址写进消息（见 `media/`），宿主服务端零改动
+- **配置分层**：可序列化配置在 `config`（设置面板可编辑、经 `onConfigChange` 回写），函数型注入项（`media` / `tools` / `onNotify` / `onError`）与 `allowedUrlSchemes` 一律顶层。设置用**就地渲染的模态框**（`ui/primitives/Modal.tsx`，不 portal、不锁 body 滚动、高度随内容自适应且上限 90% / 宽上限 800px），不再有抽屉与设置下拉
+- **媒体与文档的接纳判定是纯函数**：`media/upload.ts` 的 `MediaNotConfiguredError` 是「未配置该类型上传接口」文案的唯一来源；`media/attachment.ts` 的 `planFileAttachments` 决定哪些文件被接纳、哪些报错或提醒（数量上限 `MEDIA_ATTACHMENT_LIMIT`）；`parsers/document-state.ts` 的 `splitDocumentFiles` 决定本地文件走解析还是媒体链路（旧版 `.doc` 有附件上传能力时落回媒体，否则报错），`normalizeParsedDocument` 补全远程解析缺失的来源信息
+- **不做工具调用**：本包不声明任何工具，模型也无需回调宿主接口 —— 附件在发送前由客户端上传、文档在宿主侧解析（本地或宿主自己的接口）、地址与正文写进消息（见 `media/` 与 `parsers/`），宿主对话服务端零改动
 - **代码面板**（`code-editor/`）：CodeMirror 6，经 `components/EditorPanel.tsx` 懒加载边界按需进入宿主产物。扩展装配基线是**官方默认组合**（等价 basicSetup：行号、撤销、括号匹配/闭合、补全、矩形选择、当前行、选区匹配、折叠、多光标），另加 `html()`、软换行、`indentWithTab`、媒体插入（行号左侧 gutter 入口 + 文件拖入）与 `theme.ts` 的**令牌语法高亮**；**不引入 `codemirror` 元包**，而是用包内已有 `@codemirror/*` 依赖拼出同一组合（元包会带进第二份 `@codemirror/state`，`instanceof` 校验失败导致编辑器装配不起来）。相比官方 basicSetup 少 `lintKeymap`，且不用面向浅色背景的 `defaultHighlightStyle`。外部 value 的落地策略在 `doc-sync.ts`；自研的行号槽整行选择、中文文案保留在 `gutter-line-select.ts` / `phrases.ts`，当前不装配
 - **外部写入策略**（`doc-sync.ts`）：取公共前缀与公共后缀求出最小改动区间，只替换变化段；外部写入一律不进撤销栈、不回吐 `onChange`。光标归属：落入被删区间时落到插入内容末尾，尾部追加且光标原本在末尾时跟随，其余位置交给 CodeMirror 映射（保持相对位置）。最小 diff 是关键 —— 作用域化产物几乎永不与旧值成前缀关系，旧实现会退化为整篇替换并重置光标
 - **代码面板样式**：CodeMirror 的样式在运行时注入且晚于本包样式，故 `styles/_code-editor*.scss` 一律以 `.easyx-ai-rich-editor__code-panel .cm-editor` 起头并完整镜像其选择器链，靠具体度（而非注入顺序）取胜。语法高亮的类名为运行时哈希，只能在 `theme.ts` 里声明，但色值引用 `--easyx-ai-rich-editor-code-*`，亮暗切换与宿主覆盖仍是纯 CSS；刻意不用 CodeMirror 自带的 `defaultHighlightStyle`（面向浅色背景的固定色，暗色下对比度不足）

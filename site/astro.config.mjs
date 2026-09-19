@@ -56,6 +56,7 @@ export default defineConfig({
           items: [
             { slug: 'ai-rich-editor' },
             { slug: 'ai-rich-editor/demo' },
+            { slug: 'ai-rich-editor/documents' },
             { slug: 'ai-rich-editor/api-reference' },
           ],
         },

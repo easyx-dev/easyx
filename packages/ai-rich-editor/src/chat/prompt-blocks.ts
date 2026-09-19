@@ -2,14 +2,16 @@
  * 用户消息的上下文块拼装与分段解析
  *
  * 一条发给模型的消息由「用户原话 + 若干上下文块」组成，块的顺序是：
- * [已上传附件] → [当前片段] → [目标区域]（+ [选中文本]）。
+ * [已上传附件] → [文档内容] → [当前片段] → [目标区域]（+ [选中文本]）。
  * 这些块是给模型的技术输入，界面展示时由 splitPromptBlocks 拆开：
- * 原话仍显示原文，附件清单以缩略条呈现，当前片段/目标区域渲染为可见的代码卡片。
+ * 原话仍显示原文，附件清单以缩略条呈现，文档/当前片段/目标区域渲染为可见的代码卡片。
  *
  * 每条新消息都会附带一份最新的当前片段与目标区域；历史轮次的这些块由
  * chat/openai-messages 在构造请求时剥离，避免上下文线性膨胀。
+ * [文档内容] 是持久源材料，不参与剥离，体积由解析侧的字符预算控制。
  */
 import { ATTACHMENT_BLOCK_TITLE } from '../media/prompt-text';
+import { DOCUMENT_BLOCK_TITLE } from '../parsers/prompt-text';
 import type { PreviewTarget } from '../utils/blocks';
 
 /** 当前片段起始标记 */
@@ -24,6 +26,7 @@ export const SELECTION_BLOCK_TITLE = '[选中文本]';
 /** 全部块标记（分段解析用，顺序即拼接顺序） */
 const BLOCK_TITLES = [
   ATTACHMENT_BLOCK_TITLE,
+  DOCUMENT_BLOCK_TITLE,
   CURRENT_FRAGMENT_BLOCK_TITLE,
   TARGET_BLOCK_TITLE,
   SELECTION_BLOCK_TITLE,
@@ -50,12 +53,20 @@ export function buildTargetBlock(target: PreviewTarget): string {
   return parts.join('\n');
 }
 
+/** 文档块的分段形态：header 为围栏前的来源/提示行，body 为围栏内正文 */
+export interface ParsedDocumentSection {
+  header: string;
+  body: string;
+}
+
 /** 分段解析结果：各字段为空时表示该块不存在 */
 export interface PromptBlockSplit {
   /** 用户原话（去掉所有上下文块） */
   text: string;
   /** 附件清单块原文 */
   attachmentBlock?: string;
+  /** 文档内容块（可多个，按顺序） */
+  documents: ParsedDocumentSection[];
   /** 当前片段块内的片段内容 */
   fragment?: string;
   /** 目标区域块内的片段内容（多选时按顺序给出多个） */
@@ -64,14 +75,28 @@ export interface PromptBlockSplit {
   selectedText?: string;
 }
 
+/**
+ * 查找块标记，只认「行首」出现（行首 = 串首或被换行紧邻）
+ *
+ * 包内拼装块时标记总在行首，因此不会漏；而文档正文是任意外部内容，可能包含
+ * `[当前片段]` 这类同名文本，按行首匹配可避免把正文误当块边界（历史剥离时误删正文）。
+ */
+function indexOfTitle(content: string, title: string, from = 0): number {
+  let at = content.indexOf(title, from);
+  while (at > 0 && content[at - 1] !== '\n') {
+    at = content.indexOf(title, at + 1);
+  }
+  return at;
+}
+
 /** 取从 title 起、到下一个块标记为止的片段 */
 function sectionOf(content: string, title: string): string | undefined {
-  const start = content.indexOf(title);
+  const start = indexOfTitle(content, title);
   if (start < 0) return undefined;
   let end = content.length;
   for (const other of BLOCK_TITLES) {
     if (other === title) continue;
-    const at = content.indexOf(other, start + title.length);
+    const at = indexOfTitle(content, other, start + title.length);
     if (at >= 0 && at < end) end = at;
   }
   return content.slice(start, end).trim();
@@ -85,11 +110,11 @@ function collectSections(content: string, title: string): string[] {
   const sections: string[] = [];
   let from = 0;
   for (;;) {
-    const start = content.indexOf(title, from);
+    const start = indexOfTitle(content, title, from);
     if (start < 0) break;
     let end = content.length;
     for (const other of BLOCK_TITLES) {
-      const at = content.indexOf(other, start + title.length);
+      const at = indexOfTitle(content, other, start + title.length);
       if (at >= 0 && at < end) end = at;
     }
     sections.push(content.slice(start, end).trim());
@@ -105,6 +130,20 @@ function fencedContent(section: string | undefined): string | undefined {
   return match ? match[1] : undefined;
 }
 
+/** 文档块分段：header 取围栏前的来源/提示行，body 取围栏内正文 */
+function collectDocumentSections(content: string): ParsedDocumentSection[] {
+  return collectSections(content, DOCUMENT_BLOCK_TITLE)
+    .map((section) => {
+      const fenceAt = section.indexOf('```');
+      const headRaw = fenceAt >= 0 ? section.slice(0, fenceAt) : section;
+      return {
+        header: headRaw.slice(DOCUMENT_BLOCK_TITLE.length).trim(),
+        body: fencedContent(section) ?? '',
+      };
+    })
+    .filter((section) => section.header || section.body);
+}
+
 /**
  * 移除指定标题的整段块（同名块会被逐段移除），保留其余内容
  *
@@ -115,11 +154,11 @@ function removeSections(content: string, titles: readonly string[]): string {
   let result = content;
   for (const title of titles) {
     for (;;) {
-      const at = result.indexOf(title);
+      const at = indexOfTitle(result, title);
       if (at < 0) break;
       let end = result.length;
       for (const other of BLOCK_TITLES) {
-        const next = result.indexOf(other, at + title.length);
+        const next = indexOfTitle(result, other, at + title.length);
         if (next >= 0 && next < end) end = next;
       }
       result = (result.slice(0, at) + result.slice(end)).trimEnd();
@@ -151,13 +190,13 @@ function rawContent(
 /**
  * 把一条用户消息拆成「原话 + 各上下文块」
  *
- * 以最早出现的块标记切分原话；各块内部再按标题截取。
- * 用户原话里若恰好包含这些标记会被一并剥离，属已知取舍（标记形态足够特殊）。
+ * 以最早出现的块标记切分原话；各块内部再按标题截取。标记只认行首出现
+ * （见 indexOfTitle），因此文档正文里的同名字面量不会被误判为块边界。
  */
 export function splitPromptBlocks(content: string): PromptBlockSplit {
   let cut = content.length;
   for (const title of BLOCK_TITLES) {
-    const at = content.indexOf(title);
+    const at = indexOfTitle(content, title);
     if (at >= 0 && at < cut) cut = at;
   }
 
@@ -170,6 +209,7 @@ export function splitPromptBlocks(content: string): PromptBlockSplit {
   return {
     text,
     attachmentBlock: attachmentSection,
+    documents: collectDocumentSections(rest),
     fragment: fencedContent(fragmentSection),
     targets: collectSections(rest, TARGET_BLOCK_TITLE)
       .map((section) => fencedContent(section))
