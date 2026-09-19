@@ -31,9 +31,10 @@ packages/
 │   ├── rslib.config.ts      # 输出 ESM + CJS，含声明文件
 │   ├── rstest.config.ts     # 使用 @rstest/adapter-rslib + happy-dom
 │   ├── tsconfig.json
+│   ├── README.md
 │   ├── src/
 │   │   ├── index.ts         # createEditor() 工厂函数 + 类型导出
-│   │   ├── types.ts         # EasyxEditorOptions / MediaItem 等公共类型
+│   │   ├── types.ts         # EditorOptions / EditorTheme / MediaItem 等公共类型
 │   │   ├── styles/          # 全部编辑器样式（SCSS 分片，index.scss 为入口）
 │   │   │   ├── index.scss           # 样式入口（@use 各分片）
 │   │   │   ├── _variables.scss      # 亮/暗主题 CSS 变量
@@ -180,22 +181,20 @@ site/                        # Astro + Starlight 文档站点（系列库共用�
     │   ├── IframeDemo.tsx        # iframe 嵌入 Demo 组件
     │   └── demos/                # 交互式 Demo
     │       ├── registry.ts       # Demo 注册表：slug / 标题 / 懒加载入口的唯一登记点
-    │       ├── use-demo-dark.ts  # 演示页主题判定（读文档根 data-theme）
     │       ├── editor-demo.tsx
-    │       ├── vanilla-demo.tsx
+    │       ├── editor-height.tsx
     │       ├── table-plus-demo.tsx
-    │       ├── height-demo.tsx
     │       ├── ai-rich-editor-demo.tsx  # 回放/真实模型双模式 + 本地 Blob 媒体能力
     │       │   └── ai-rich-editor-demo/ # 连接面板 / 预设 / 持久化 / 回放 SSE
     │       └── image-toolkit-demo.tsx   # canvas 现场生成源图
     ├── content/
     │   ├── config.ts
-    │   └── docs/                # MDX 文档，一个库一个目录
+    │   └── docs/                # MDX 文档，一个库一个目录，每库固定页面模型
     │       ├── index.mdx        # 系列概览（splash 落地页）
-    │       ├── editor/          # 编辑器文档
-    │       ├── table-plus/      # 表格套件文档
-    │       ├── ai-rich-editor/  # AI 工作台文档
-    │       └── image-toolkit/   # 图片套件文档
+    │       ├── editor/          # 概览 / 高度模式 / 演示 / API 参考
+    │       ├── table-plus/      # 概览 / 演示 / API 参考
+    │       ├── ai-rich-editor/  # 概览 / 使用指南 / 文档解析 / 演示 / API 参考
+    │       └── image-toolkit/   # 概览 / 引擎与打包 / 演示 / API 参考
     ├── pages/
     │   └── demos/[slug].astro   # Demo 独立页面路由（静态路径由 registry 派生）
     └── styles/
@@ -261,7 +260,8 @@ site/                        # Astro + Starlight 文档站点（系列库共用�
 | 类型入口 | `exports` 声明 `types`，包根提供 `types` 字段 |
 | 测试 | `rstest.config.ts` 使用 `@rstest/adapter-rslib`；DOM 场景按需选 happy-dom 或 jsdom |
 | 命名空间 | 类名与 CSS 变量统一 `easyx-<lib>` 前缀，避免多库样式互相污染 |
-| 文档 | `site/src/content/docs/<lib>/` 新增文档，`astro.config.mjs` 侧边栏追加分组 |
+| README | 按「文档与演示规范」的 README 模板编写；`package.json` 补齐 `description` 与 `license` |
+| 文档 | `site/src/content/docs/<lib>/` 新增文档，按固定页面模型（概览 / 指南 / 演示 / API 参考）组织，`astro.config.mjs` 侧边栏追加分组并用 `{ label, slug }` 指定短标签 |
 | Demo | Demo 组件放 `site/src/components/demos/`，在 `demos/registry.ts` 登记（slug 需全站唯一，约定 `<lib>-<demo>`） |
 | 发布 | 在 `.github/workflows/release.yml` 的 `PUBLISH_ORDER` 中按依赖顺序登记包名 |
 
@@ -445,6 +445,79 @@ const editor = createEditor(containerElement, {
 - `--easyx-ai-rich-editor-code-*`：代码面板专用 —— `selection` / `match` / `match-current`（选区与查找命中）、`active-line`（当前行底色，**必须半透明**，否则会盖住当前行内的选区）与 `tag` / `attr` / `string` / `property` / `keyword` / `number` / `comment` / `punct`（语法高亮），亮暗两套取值由包内定义，宿主可覆盖
 - `--easyx-image-toolkit-*`：`bg` / `bg-subtle` / `bg-hover` / `bg-active` / `bg-mask` / `border` / `border-strong` / `text` / `text-secondary` / `text-tertiary` / `primary` / `primary-hover` / `primary-soft` / `on-primary` / `control-selected-bg` / `success` / `warning` / `danger`（各带 `-soft`）/ `shadow` / `radius(-sm/-lg)` / `font-size(-xs/-sm/-md)`，亮暗两套取值由包内定义，宿主可覆盖
 
+## 文档与演示规范
+
+### 总原则
+
+- **README 是 npm 门面，站点文档是唯一事实来源**：详细说明、设计约束、实现契约、测试清单不进 README
+- **代码是唯一判断依据**：文档与代码不一致时以代码为准；接口一经改动必须同步文档
+- **面向使用者**：站点文档只讲界面上看得到的功能与操作步骤，不涉及宿主集成变量与实现原理（实现契约归本文件）
+
+### README 模板
+
+固定顺序，约 60–100 行：
+
+1. 标题 `# @easyx/<lib>`
+2. 一句话定位（**与 `package.json` 的 `description` 完全一致**）
+3. 徽章：npm version、license
+4. 文档 · 演示 · API 参考链接（`https://easyx-dev.github.io/easyx/<lib>/…`）
+5. `## 特性`：不超过 6 条，只讲「能做什么」
+6. `## 安装`：安装命令 + peer 依赖说明 + 样式是否内联
+7. `## 快速上手`：最小可运行示例
+8. `## 许可`：MIT
+
+- 禁止把站点正文复制进 README；禁止在 README 维护 API 表格
+- 每个包 `package.json` 必须有 `description` 与 `license`
+- 发布 MAJOR 时可在末尾临时追加「迁移」小节列出改名对照表，下个 MAJOR 前移除
+
+### 站点页面模型
+
+- 每库固定为 **概览 +（可选）指南 + 演示 + API 参考**；侧边栏分组用库展示名，条目用固定中文页名（概览 / 演示 / API 参考 / 指南页名），在 `astro.config.mjs` 用 `{ label, slug }` 指定
+- frontmatter 必填 `title` + `description`；概览页 `title` 为库展示名，其余为 `<库展示名> <页名>`
+- **正文不重复 H1**（Starlight 已用 frontmatter 渲染标题）
+- 需要导入组件用 `.mdx`，纯文本用 `.md`
+- 优先使用 Starlight 内置组件：`Steps`（步骤）/ `Tabs`（多方案）/ `Aside`（提示）/ `CardGrid` + `LinkCard` + `Card`（导航与特性）
+
+### API 参考模板
+
+- 固定顺序：签名 → 配置项 → 方法 / 命令 → 事件 → 类型 → 导出 →（CSS 变量）
+- 固定表头：
+  - 配置项 `| 配置项 | 类型 | 默认值 | 说明 |`（无默认值填 `—`）
+  - 方法 / 命令 `| 方法 | 返回值 | 说明 |`
+  - 事件 `| 事件 | 参数 | 说明 |`
+  - 导出 `| 导出 | 类型 | 说明 |`
+  - CSS 变量 `| 变量 | 默认值 | 说明 |`
+- 每个公开导出必须成文；签名用代码块；示例最小可运行
+- 合并前按**校准清单**核对：默认值、回调参数名、枚举取值、数值上限、导出名、样式入口路径
+
+### API 设计规范
+
+- **库前缀**统一：editor → `Editor`、tiptap-table-plus → `TablePlus`、ai-rich-editor → `AiRich`、image-toolkit → `Image`
+- **跨包共享契约无前缀**，名字与形状完全一致：`MediaItem` / `MediaListParams` / `MediaListResult` / `MediaUploadConfig` / `MediaKind` / `MediaUploadProgress`（以 editor 为基准；ai-rich 同名同形、各自声明，不引入跨包依赖）
+- 包内专属类型、组件与扩展带库前缀（`createEditor` 因包内唯一例外）
+- 回调一律 `onXxx`，值 / 状态变化用 `...Change`；初始化值用 `defaultXxx`
+- 模块级函数用动词前缀：`get` / `set` / `subscribe` / `ensure` / `reset` / `configure` / `build`
+- 错误类用 `<Domain><Reason>Error`
+- **导出面最小化**：内部实现不导出（如 image-toolkit 只导出 `ImageEditor` / `ImageEngineGate` / 引擎 API / 类型）
+- 破坏性改名直接发 MAJOR，**不留 deprecated 别名**
+
+### 示例代码
+
+- 与源码 / Biome 风格一致：语句带分号、字符串单引号
+- 只给最小可运行片段；导入路径、函数名与真实导出一致
+
+### 演示站点
+
+- Demo 组件放 `site/src/components/demos/`，slug 与文件名一致，命名 `<lib>-<demo>`（如 `editor-demo` / `editor-height` / `table-plus-demo`）
+- 在 `registry.ts` 登记 slug 与标题；标题用功能名（全功能编辑器 / 高度模式 / 表格增强 / 图片编辑）
+- 演示页统一用 `IframeDemo` + `getDemoSource(slug)` 渲染，正文只补「功能说明」
+- 每个库至少一个演示页
+
+### 术语与措辞
+
+- 固定译法：配置项、回调、命令、导出、媒体库、上传、气泡菜单、浮层、选区、作用域化、片段（fragment）、设备档位
+- 同一概念前后用词一致；不写「支持多种…」这类空泛描述，不复述显而易见的代码
+
 ## 测试约定
 
 ### 目录结构
@@ -529,6 +602,7 @@ pnpm 版本以根 `package.json` 的 `packageManager` 字段为唯一来源：wo
 - 组件文件需要添加文件级注释，概述组件职责
 - 注释必须贴近业务语义，避免使用模板化表述
 - 所有输出文本必须简洁、准确、不赘述；同一概念前后用语保持一致；不写客套、空泛建议或无执行价值的内容
+- 文档（README、站点、代码示例）与演示的写法遵循「文档与演示规范」；术语以该节的固定译法为准
 
 ## 编码原则
 
