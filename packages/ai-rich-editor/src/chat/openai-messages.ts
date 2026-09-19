@@ -9,6 +9,7 @@
  */
 import type { UIMessage } from '@tanstack/ai-react';
 import { parseSentAttachments } from '../media/attachment';
+import { removeFragmentBlock, removeTargetBlocks } from './prompt-blocks';
 
 /** OpenAI 内容块：Chat Completions 只标准化了文本与图片 */
 export type OpenAiContentPart =
@@ -85,6 +86,7 @@ function textOfContentParts(parts: readonly unknown[]): string {
 function normalizeMessage(
   message: ConversableMessage,
   sendImagesAsMultimodal: boolean,
+  stripContextBlocks: boolean,
 ): NormalizedMessage | undefined {
   // UIMessage：parts 里取文本，metadata 里取图片附件
   if ('parts' in message) {
@@ -94,6 +96,10 @@ function normalizeMessage(
       if (part.type === 'text' && typeof part.content === 'string') {
         text += part.content;
       }
+    }
+    // 历史轮次去掉上下文块：模型只需最新一份当前内容与目标区域
+    if (stripContextBlocks && message.role === 'user') {
+      text = removeTargetBlocks(removeFragmentBlock(text));
     }
     return {
       role: message.role,
@@ -109,13 +115,24 @@ function normalizeMessage(
   // ModelMessage 兜底：只取文本，不做多模态
   if (message.role === 'tool') return undefined;
   const { content } = message;
-  const text =
+  let text =
     typeof content === 'string'
       ? content
       : Array.isArray(content)
         ? textOfContentParts(content)
         : '';
+  if (stripContextBlocks && message.role === 'user') {
+    text = removeTargetBlocks(removeFragmentBlock(text));
+  }
   return { role: message.role, text, images: [] };
+}
+
+/** 最后一条 user 消息的下标（该条保留当前片段块，其余历史轮次剥离） */
+function lastUserIndex(messages: readonly ConversableMessage[]): number {
+  for (let i = messages.length - 1; i >= 0; i--) {
+    if (messages[i].role === 'user') return i;
+  }
+  return -1;
 }
 
 /** 组装请求用的 OpenAI 消息序列 */
@@ -126,11 +143,13 @@ export function buildOpenAiMessages(
   const result: OpenAiChatMessage[] = [
     { role: 'system', content: options.systemPrompt },
   ];
+  const lastUser = lastUserIndex(messages);
 
-  for (const message of messages) {
+  for (let i = 0; i < messages.length; i++) {
     const normalized = normalizeMessage(
-      message,
+      messages[i],
       options.sendImagesAsMultimodal,
+      i !== lastUser,
     );
     if (!normalized) continue;
     const { role, text, images } = normalized;

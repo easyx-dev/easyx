@@ -2,6 +2,11 @@
  * AI Rich Editor 提示词能力测试：fragment-only 定位的默认 system 提示词
  */
 import { describe, expect, it } from '@rstest/core';
+import {
+  CURRENT_FRAGMENT_BLOCK_TITLE,
+  SELECTION_BLOCK_TITLE,
+  TARGET_BLOCK_TITLE,
+} from '../src/chat/prompt-blocks';
 import { buildDefaultSystemPrompt } from '../src/prompts';
 
 describe('buildDefaultSystemPrompt', () => {
@@ -24,5 +29,19 @@ describe('buildDefaultSystemPrompt', () => {
     const prompt = buildDefaultSystemPrompt();
     expect(prompt).toContain('<style>');
     expect(prompt).toContain('```html');
+  });
+
+  it('修改类请求要求输出改动后的完整片段（对话历史即版本序列）', () => {
+    const prompt = buildDefaultSystemPrompt();
+    expect(prompt).toContain(CURRENT_FRAGMENT_BLOCK_TITLE);
+    expect(prompt).toContain('改动后的完整片段');
+    expect(prompt).toContain('最小化改动');
+    expect(prompt).not.toContain('<<<<<<< SEARCH');
+  });
+
+  it('定向修改时以目标区域与选中文本为焦点', () => {
+    const prompt = buildDefaultSystemPrompt();
+    expect(prompt).toContain(TARGET_BLOCK_TITLE);
+    expect(prompt).toContain(SELECTION_BLOCK_TITLE);
   });
 });

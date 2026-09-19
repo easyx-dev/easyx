@@ -7,6 +7,9 @@ import {
   prefixCss,
   scopeCssOfHtml,
   scopedRichContent,
+  unprefixCss,
+  unscopeCssOfHtml,
+  unscopeRichContent,
 } from '../src/utils/scope';
 
 const P = 'easyx-rich-content-x';
@@ -119,5 +122,100 @@ describe('scopedRichContent', () => {
     expect(result).toMatch(
       /^<div class="easyx-rich-content-[a-z0-9]{4,}"><p>hi<\/p><\/div>$/i,
     );
+  });
+});
+
+describe('prefixCss 幂等', () => {
+  it('已带前缀的选择器不重复加前缀', () => {
+    expect(prefixCss(`.${P} .hero{color:red}`, P)).toBe(
+      `.${P} .hero{color:red}`,
+    );
+  });
+
+  it('重复作用域化不产生叠加前缀', () => {
+    const once = prefixCss('.hero{color:red}', P);
+    expect(prefixCss(once, P)).toBe(once);
+  });
+});
+
+describe('unprefixCss', () => {
+  it('去掉选择器前缀（简单与后代选择器）', () => {
+    expect(unprefixCss(`.${P} .hero{color:red}`, P)).toBe('.hero{color:red}');
+    expect(unprefixCss(`.${P} .hero h2{margin:0}`, P)).toBe(
+      '.hero h2{margin:0}',
+    );
+  });
+
+  it('多选择器逐个去前缀', () => {
+    expect(unprefixCss(`.${P} h1, .${P} .a > h2{color:red}`, P)).toBe(
+      'h1, .a > h2{color:red}',
+    );
+  });
+
+  it('@media 内递归去前缀，@keyframes 原样保留', () => {
+    expect(unprefixCss(`@media(max-width:600px){.${P} .a{color:red}}`, P)).toBe(
+      '@media(max-width:600px){.a{color:red}}',
+    );
+    const frames = '@keyframes spin{from{opacity:0}to{opacity:1}}';
+    expect(unprefixCss(frames, P)).toBe(frames);
+  });
+
+  it('未带前缀的选择器原样保留', () => {
+    expect(unprefixCss('.hero{color:red}', P)).toBe('.hero{color:red}');
+  });
+});
+
+describe('unscopeCssOfHtml', () => {
+  it('改写 <style> 内选择器（scopeCssOfHtml 的逆向）', () => {
+    const scoped = `<style>.${P} .hero{color:red}</style><div class="hero">x</div>`;
+    expect(unscopeCssOfHtml(scoped, P)).toBe(
+      '<style>.hero{color:red}</style><div class="hero">x</div>',
+    );
+  });
+
+  it('保留 style 标签属性', () => {
+    const scoped = `<style media="screen">.${P} .a{}</style>`;
+    expect(unscopeCssOfHtml(scoped, P)).toBe(
+      '<style media="screen">.a{}</style>',
+    );
+  });
+});
+
+describe('unscopeRichContent', () => {
+  it('作用域化与去作用域化可往返（源片段 ↔ 产物）', () => {
+    const source =
+      '<style>.hero{color:red}.hero h2{margin:0}</style><div class="hero"><h2>标题</h2></div>';
+    expect(unscopeRichContent(scopedRichContent(source, P), P)).toBe(source);
+  });
+
+  it('保留未带前缀的用户选择器', () => {
+    const wrapped = `<div class="${P}"><style>.hero{color:red}</style><p>x</p></div>`;
+    expect(unscopeRichContent(wrapped, P)).toBe(
+      '<style>.hero{color:red}</style><p>x</p>',
+    );
+  });
+
+  it('未被包装的内容原样返回（仅做选择器去前缀）', () => {
+    expect(unscopeRichContent('<p>hi</p>', P)).toBe('<p>hi</p>');
+  });
+
+  it('用户改写过结构（外层不匹配）时不去掉外层', () => {
+    const html = `<section><div class="${P}"><p>x</p></div></section>`;
+    expect(unscopeRichContent(html, P)).toBe(html);
+  });
+
+  it('前缀变化（页面重载）后仍能剥掉旧包装与旧选择器前缀', () => {
+    const source = '<style>.hero{color:red}</style><div class="hero">x</div>';
+    const previous = 'easyx-rich-content-oldprefix';
+    const persisted = scopedRichContent(source, previous);
+    // 新实例前缀不同，仍应还原出干净源片段，避免逐轮叠加包装
+    expect(unscopeRichContent(persisted, 'easyx-rich-content-newprefix')).toBe(
+      source,
+    );
+  });
+
+  it('非本包生成的外层 div 不会被误剥', () => {
+    const html = '<div class="my-wrapper"><p>x</p></div>';
+    expect(unscopeRichContent(html, P)).toBe(html);
   });
 });

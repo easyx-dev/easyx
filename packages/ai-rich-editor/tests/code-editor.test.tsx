@@ -66,57 +66,107 @@ describe('planDocSync', () => {
 
   it('目标内容是当前内容的前缀延伸时只追加尾部', () => {
     expect(planDocSync('<div>', '<div>a</div>')).toEqual({
-      type: 'append',
+      type: 'edit',
+      from: 5,
+      to: 5,
       insert: 'a</div>',
     });
   });
 
   it('用户删掉尾部后仍按追加处理', () => {
-    expect(planDocSync('ab', 'abc')).toEqual({ type: 'append', insert: 'c' });
-  });
-
-  it('目标内容与当前内容不是前缀关系时整篇替换', () => {
-    expect(planDocSync('<div>a</div>', '<p>b</p>')).toEqual({
-      type: 'replace',
-      doc: '<p>b</p>',
+    expect(planDocSync('ab', 'abc')).toEqual({
+      type: 'edit',
+      from: 2,
+      to: 2,
+      insert: 'c',
     });
   });
 
-  it('空文档收到任意内容都视为追加', () => {
+  it('中段改动只替换差异段（保留公共首尾）', () => {
+    expect(planDocSync('<div>a</div>', '<div>b</div>')).toEqual({
+      type: 'edit',
+      from: 5,
+      to: 6,
+      insert: 'b',
+    });
+  });
+
+  it('无公共首尾时退化为整篇替换', () => {
+    // 仅有开头 '<' 与结尾 '>' 相同，中间整段替换
+    expect(planDocSync('<div>a</div>', '<section>o</section>')).toEqual({
+      type: 'edit',
+      from: 1,
+      to: 11,
+      insert: 'section>o</section',
+    });
+  });
+
+  it('空文档收到任意内容都视为整段插入', () => {
     expect(planDocSync('', '<p>b</p>')).toEqual({
-      type: 'append',
+      type: 'edit',
+      from: 0,
+      to: 0,
       insert: '<p>b</p>',
     });
   });
 });
 
 describe('resolveCaretTarget', () => {
-  it('整篇替换后光标落到新内容末尾', () => {
-    const doc = '<p>new</p>';
+  it('整段替换后光标落到插入内容末尾', () => {
     expect(
       resolveCaretTarget(
-        { type: 'replace', doc },
+        { type: 'edit', from: 1, to: 11, insert: '<p>new</p>' },
         { head: 3, empty: true },
         11,
       ),
-    ).toBe(doc.length);
+    ).toBe(1 + '<p>new</p>'.length);
   });
 
-  it('光标原本停在末尾时跟随追加', () => {
+  it('光标原本停在末尾时跟随尾部追加', () => {
     expect(
       resolveCaretTarget(
-        { type: 'append', insert: 'abc' },
+        { type: 'edit', from: 10, to: 10, insert: 'abc' },
         { head: 10, empty: true },
         10,
       ),
     ).toBe(13);
   });
 
-  it('光标在中间时追加不动光标', () => {
+  it('光标在改动区间之前时交给 CodeMirror 映射', () => {
     expect(
       resolveCaretTarget(
-        { type: 'append', insert: 'abc' },
+        { type: 'edit', from: 10, to: 10, insert: 'abc' },
         { head: 4, empty: true },
+        10,
+      ),
+    ).toBeNull();
+  });
+
+  it('光标在改动区间之后时交给 CodeMirror 映射', () => {
+    expect(
+      resolveCaretTarget(
+        { type: 'edit', from: 2, to: 5, insert: 'x' },
+        { head: 8, empty: true },
+        10,
+      ),
+    ).toBeNull();
+  });
+
+  it('光标落在被删除区间内时落到插入内容末尾', () => {
+    expect(
+      resolveCaretTarget(
+        { type: 'edit', from: 4, to: 8, insert: 'XY' },
+        { head: 6, empty: true },
+        10,
+      ),
+    ).toBe(6);
+  });
+
+  it('纯插入且光标正位于插入点时原地不动', () => {
+    expect(
+      resolveCaretTarget(
+        { type: 'edit', from: 5, to: 5, insert: 'XY' },
+        { head: 5, empty: true },
         10,
       ),
     ).toBeNull();
@@ -125,7 +175,7 @@ describe('resolveCaretTarget', () => {
   it('末尾存在选区时不跟随追加', () => {
     expect(
       resolveCaretTarget(
-        { type: 'append', insert: 'abc' },
+        { type: 'edit', from: 10, to: 10, insert: 'abc' },
         { head: 10, empty: false },
         10,
       ),
@@ -159,11 +209,12 @@ describe('writeDocSync', () => {
     view.destroy();
   });
 
-  it('整篇替换后光标落到新内容末尾', () => {
+  it('整段替换后光标落在插入内容末尾（公共首尾保持原位）', () => {
     const view = mount('<div>a</div>', 5);
     writeDocSync(view, '<p>other</p>');
     expect(view.state.doc.toString()).toBe('<p>other</p>');
-    expect(view.state.selection.main.head).toBe('<p>other</p>'.length);
+    // 公共的 '<' 与 '>' 被保留，插入段为 'p>other</p'，光标落到其末尾
+    expect(view.state.selection.main.head).toBe(1 + 'p>other</p'.length);
     view.destroy();
   });
 

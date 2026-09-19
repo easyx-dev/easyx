@@ -1,0 +1,100 @@
+/**
+ * 预览区右键「用 AI 修改」就地浮层
+ * portal 到 body，故需自带令牌作用域类（见 ui/cx 的 scopeClass）
+ */
+@use 'variables' as v;
+
+.easyx-ai-rich-editor__preview-edit {
+  position: fixed;
+  z-index: var(--easyx-ai-rich-editor-z-menu);
+  width: 300px;
+  padding: 10px;
+  border: 1px solid var(--easyx-ai-rich-editor-border);
+  border-radius: var(--easyx-ai-rich-editor-radius-lg);
+  background: var(--easyx-ai-rich-editor-bg);
+  box-shadow: var(--easyx-ai-rich-editor-shadow-lg);
+}
+
+.easyx-ai-rich-editor__preview-edit-head {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-bottom: 8px;
+}
+
+.easyx-ai-rich-editor__preview-edit-title {
+  font-size: var(--easyx-ai-rich-editor-font-size-sm);
+  font-weight: 500;
+  color: var(--easyx-ai-rich-editor-text);
+}
+
+.easyx-ai-rich-editor__preview-edit-target {
+  overflow: hidden;
+  font-family: var(--easyx-ai-rich-editor-font-mono);
+  font-size: var(--easyx-ai-rich-editor-font-size-xs);
+  color: var(--easyx-ai-rich-editor-text-tertiary);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.easyx-ai-rich-editor__preview-edit-hint {
+  font-size: var(--easyx-ai-rich-editor-font-size-xs);
+  color: var(--easyx-ai-rich-editor-text-tertiary);
+  opacity: 0.8;
+}
+
+.easyx-ai-rich-editor__preview-edit-input {
+  display: block;
+  width: 100%;
+  padding: 6px 8px;
+  border: 1px solid var(--easyx-ai-rich-editor-border);
+  border-radius: var(--easyx-ai-rich-editor-radius);
+  background: var(--easyx-ai-rich-editor-bg-subtle);
+  font-family: inherit;
+  font-size: var(--easyx-ai-rich-editor-font-size-sm);
+  line-height: 1.5;
+  color: var(--easyx-ai-rich-editor-text);
+  resize: none;
+  outline: 0;
+
+  @include v.scrollbar;
+}
+
+.easyx-ai-rich-editor__preview-edit-input:focus {
+  border-color: var(--easyx-ai-rich-editor-primary);
+}
+
+.easyx-ai-rich-editor__preview-edit-input::placeholder {
+  color: var(--easyx-ai-rich-editor-text-tertiary);
+}
+
+.easyx-ai-rich-editor__preview-edit-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 8px;
+}
+
+.easyx-ai-rich-editor__preview-edit-spacer {
+  flex: 1;
+}
+
+/**
+ * 预览目标的持久高亮层
+ * 原生选区在父页抢焦点后会被浏览器隐藏，这里以覆盖层保持可见；
+ * 坐标为视口坐标，故用 fixed 定位且不接收指针事件
+ */
+.easyx-ai-rich-editor__preview-highlight-layer {
+  position: fixed;
+  inset: 0;
+  z-index: calc(var(--easyx-ai-rich-editor-z-menu) - 1);
+  pointer-events: none;
+}
+
+.easyx-ai-rich-editor__preview-highlight {
+  position: absolute;
+  border-radius: 2px;
+  background: var(--easyx-ai-rich-editor-primary);
+  box-shadow: 0 0 0 1px var(--easyx-ai-rich-editor-primary);
+  opacity: 0.25;
+}

@@ -12,7 +12,9 @@ import { IconCode, IconCopy } from '../ui/icons';
 import { Button } from '../ui/primitives/Button';
 import { Tooltip } from '../ui/primitives/Tooltip';
 import { copyToClipboard } from '../utils/clipboard';
+import { hasPatchMarker, wrapBarePatchBlocks } from '../utils/patch';
 import type { SanitizeUrlOptions } from '../utils/url';
+import { PatchCard } from './PatchCard';
 
 /** HTML 代码块卡片：头部（标签 + 复制/应用）+ 可滚动正文 */
 function HtmlCodeCard({
@@ -99,8 +101,10 @@ function DefaultCodeBlock({ code }: { code: string }) {
 
 interface MarkdownContentProps {
   content: string;
-  /** 点击「应用到编辑器」回调（传入代码块内容） */
+  /** 点击「应用到编辑器」回调（传入完整 HTML 代码块内容） */
   onApplyHtml?: (html: string) => void;
+  /** 点击「应用修改」回调（传入补丁块原文） */
+  onApplyPatch?: (content: string) => void;
   /** 轻提示回调（复制代码等） */
   onNotify?: AiRichNotify;
   /** 错误回调（复制失败） */
@@ -112,29 +116,44 @@ interface MarkdownContentProps {
 export function MarkdownContent({
   content,
   onApplyHtml,
+  onApplyPatch,
   onNotify,
   onError,
   urlOptions,
 }: MarkdownContentProps) {
   const nodes: ReactNode = useMemo(() => {
     if (!content.trim()) return null;
+    // 模型偶尔不套围栏直接输出补丁标记，先补围栏再交给词法，保证渲染成 diff 卡片
     return renderMarkdown(
-      content,
-      ({ lang, code }) =>
+      wrapBarePatchBlocks(content),
+      ({ lang, code }) => {
+        // 含补丁标记的块渲染为 diff 卡片，与全量片段区分
+        if (hasPatchMarker(code)) {
+          return (
+            <PatchCard
+              content={code}
+              onApply={onApplyPatch}
+              onError={onError}
+              onNotify={onNotify}
+            />
+          );
+        }
         // 兼容 ```html id="main" 这类带附加参数的围栏
-        lang.startsWith('html') ? (
-          <HtmlCodeCard
-            html={code}
-            onApplyHtml={onApplyHtml}
-            onError={onError}
-            onNotify={onNotify}
-          />
-        ) : (
-          <DefaultCodeBlock code={code} />
-        ),
+        if (lang.startsWith('html')) {
+          return (
+            <HtmlCodeCard
+              html={code}
+              onApplyHtml={onApplyHtml}
+              onError={onError}
+              onNotify={onNotify}
+            />
+          );
+        }
+        return <DefaultCodeBlock code={code} />;
+      },
       urlOptions,
     );
-  }, [content, onApplyHtml, onNotify, onError, urlOptions]);
+  }, [content, onApplyHtml, onApplyPatch, onNotify, onError, urlOptions]);
 
   if (!content.trim()) {
     return <span className="easyx-ai-rich-editor__empty-reply">(空回复)</span>;

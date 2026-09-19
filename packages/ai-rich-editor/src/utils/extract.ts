@@ -2,6 +2,7 @@
  * 纯函数：从 AI 回复中提取 HTML 代码块 + 构建预览文档外壳
  * 与协议层同属开放工具，任意宿主可复用
  */
+import { hasPatchMarker } from './patch-markers';
 
 /** 去除相邻重复的片段（同一回复中多次出现同一代码块时去重） */
 function dedupe(items: string[]): string[] {
@@ -10,25 +11,26 @@ function dedupe(items: string[]): string[] {
 
 /**
  * 从 AI 回复文本中提取 HTML 代码块
- * 优先匹配 ```html … ```（兼容无语言标识的 ``` ），
- * 无任何代码块标记但整体以 < 开头时，将整体作为片段兜底
+ * 逐段扫描围栏代码块：识别 ```html 围栏，以及无语言标识但整体像 HTML 的围栏；
+ * 含补丁起始标记的代码块一律排除（`<<<<<<< SEARCH` 不是 HTML 片段）。
+ * 无任何围栏但整体以 < 开头时，将整体作为片段兜底。
  */
 export function extractHtmlFragments(content: string): string[] {
-  const codeBlockRegex = /```(?:html)?\s*\n([\s\S]*?)```/gi;
+  const fenceRegex = /```([^\n`]*)\n([\s\S]*?)```/g;
   const fragments: string[] = [];
-  for (
-    let match = codeBlockRegex.exec(content);
-    match;
-    match = codeBlockRegex.exec(content)
-  ) {
-    const fragment = match[1].trim();
-    if (fragment) fragments.push(fragment);
+  for (const match of content.matchAll(fenceRegex)) {
+    const lang = match[1].trim().toLowerCase();
+    const body = match[2].trim();
+    if (!body || hasPatchMarker(body)) continue;
+    if (lang.startsWith('html') || (lang === '' && body.startsWith('<'))) {
+      fragments.push(body);
+    }
   }
   if (fragments.length > 0) return dedupe(fragments);
 
-  // 兜底：无代码块标记但整体像是 HTML
+  // 兜底：无代码块标记但整体像是 HTML（补丁块以 < 开头，需排除）
   const trimmed = content.trim();
-  if (trimmed.startsWith('<')) return [trimmed];
+  if (trimmed.startsWith('<') && !hasPatchMarker(trimmed)) return [trimmed];
   return [];
 }
 
@@ -40,24 +42,6 @@ export function extractHtmlFragments(content: string): string[] {
 export function lastHtmlFragment(content: string): string | undefined {
   const fragments = extractHtmlFragments(content);
   return fragments[fragments.length - 1];
-}
-
-/**
- * 流式实时提取「当前」HTML 代码块内容（含尚未闭合的代码块）。
- * AI 生成过程中末尾 ``` 闭合标记尚未到达，extractHtmlFragments 会提取不到；
- * 此函数取最后一个 ```html 围栏之后到文本末尾的可视内容（已闭合时截到 ``` ），
- * 供生成中实时同步到编辑器/预览使用。
- */
-export function currentHtmlFragment(content: string): string {
-  const re = /```(?:html)?\s*\n([\s\S]*?)(?:\n?```|$)/gi;
-  let last = '';
-  let match: RegExpExecArray | null = re.exec(content);
-  while (match !== null) {
-    const frag = match[1].trim();
-    if (frag) last = frag;
-    match = re.exec(content);
-  }
-  return last;
 }
 
 /**

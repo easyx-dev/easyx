@@ -21,11 +21,13 @@ import { createChatHook } from '@tanstack/ai-react/ui';
 import {
   type ComponentType,
   createContext,
+  useCallback,
   useContext,
   useEffect,
   useRef,
   useState,
 } from 'react';
+import { ContextCodeCard } from '../components/ContextCodeCard';
 import { MarkdownContent } from '../components/MarkdownContent';
 import type { MediaPick } from '../components/MediaPicker';
 import {
@@ -41,10 +43,7 @@ import {
   toSentAttachment,
 } from '../media/attachment';
 import { toError } from '../media/errors';
-import {
-  buildAttachmentBlock,
-  stripAttachmentBlock,
-} from '../media/prompt-text';
+import { buildAttachmentBlock } from '../media/prompt-text';
 import type { AiRichMediaConfig, SentAttachment } from '../media/types';
 import { uploadMediaFile } from '../media/upload';
 import { buildDefaultSystemPrompt } from '../prompts';
@@ -61,6 +60,7 @@ import type { SanitizeUrlOptions } from '../utils/url';
 import { AttachmentBar } from './AttachmentBar';
 import { ChatComposer } from './ChatComposer';
 import { createOpenAiConnection } from './openai-connection';
+import { buildCurrentFragmentBlock, splitPromptBlocks } from './prompt-blocks';
 import { ThinkBlock } from './ThinkBlock';
 
 /** 运行期注入给 chat 组件的配置（不含连接信息，后者走模块 ref） */
@@ -71,8 +71,10 @@ export interface EditorChatConfig {
   sendImagesAsMultimodal?: boolean;
   /** 追加进对话请求体的字段（如 { temperature: 0.7 }） */
   requestBody?: Record<string, unknown>;
-  /** 「应用到编辑器」回调（代码块替换当前内容） */
+  /** 「应用到编辑器」回调（完整 HTML 代码块替换当前内容） */
   onApplyHtml?: (html: string) => void;
+  /** 「应用修改」回调（补丁块应用到当前内容） */
+  onApplyPatch?: (content: string) => void;
   /** 通知回调（复制代码等轻提示） */
   onNotify?: AiRichNotify;
   /** 错误上报（上传失败、会话流错误等） */
@@ -81,6 +83,8 @@ export interface EditorChatConfig {
   media?: AiRichMediaConfig;
   /** 链接与图片地址的白名单选项（宿主可追加协议） */
   urlOptions?: SanitizeUrlOptions;
+  /** 最新的源片段：每条发出的用户消息都会附带一份 */
+  currentSource?: string;
 }
 
 /** 供宿主在 <chat.AppChat/> 外层提供运行期配置 */
@@ -149,7 +153,12 @@ function toReadonlyAttachments(items: SentAttachment[]): PendingAttachment[] {
  * systemPrompt / sendImagesAsMultimodal 是适配器的保留键（会被摘出并单独处理），
  * 其余字段（requestBody）原样合并进 OpenAI 请求体。保留键放在最后，避免被透传字段覆盖。
  */
-function sendBody(cfg: EditorChatConfig): Record<string, unknown> {
+export function buildSendBody(
+  cfg: Pick<
+    EditorChatConfig,
+    'requestBody' | 'systemPrompt' | 'sendImagesAsMultimodal'
+  >,
+): Record<string, unknown> {
   return {
     ...cfg.requestBody,
     systemPrompt: cfg.systemPrompt ?? buildDefaultSystemPrompt(),
@@ -187,13 +196,22 @@ export function createInstanceChatOverrides(
 /** 标记某条消息当前是否正在流式生成（区分「思考中」与「已思考」） */
 const MessageStreamContext = createContext(false);
 
+/**
+ * 标记某条消息是不是最后一条
+ *
+ * 补丁卡片的「应用修改」只对最后一条开放：补丁不自动落地，最后一轮时当前源片段
+ * 仍等于该补丁对应的内容；旧卡片的 SEARCH 可能已被后续回复改掉，应用会误伤。
+ * 完整片段卡片不受此限（「应用到编辑器」正是回退历史版本的入口）。
+ */
+const MessageLatestContext = createContext(false);
+
 /** 消息壳：user 右对齐填充气泡；assistant 无边框气泡（Parts 自动分发 text/thinking/fallback） */
 function ChatMessage({ message, Parts }: MessageProps<typeof chatOptions>) {
   const chat = useChatContext();
   if (message.role === 'user') {
-    // 发送时附在末尾的附件清单只用于喂模型，气泡里还原成原话 + 只读附件条
+    // 发送时附在末尾的上下文块用于喂模型，气泡里还原：原话 + 附件条 + 片段/目标代码卡片
     const attachments = readMessageAttachments(message);
-    const text = stripAttachmentBlock(textOf(message));
+    const blocks = splitPromptBlocks(textOf(message));
     return (
       <div className="easyx-ai-rich-editor__bubble easyx-ai-rich-editor__bubble--user">
         {attachments.length > 0 && (
@@ -202,8 +220,30 @@ function ChatMessage({ message, Parts }: MessageProps<typeof chatOptions>) {
             variant="message"
           />
         )}
-        {text && (
-          <span className="easyx-ai-rich-editor__chat-user-text">{text}</span>
+        {blocks.text && (
+          <span className="easyx-ai-rich-editor__chat-user-text">
+            {blocks.text}
+          </span>
+        )}
+        {blocks.fragment && (
+          <ContextCodeCard
+            code={blocks.fragment}
+            label="当前片段（随消息发送）"
+          />
+        )}
+        {blocks.targets.map((html, index) => (
+          <ContextCodeCard
+            code={html}
+            key={`${index}-${html.slice(0, 24)}`}
+            label={
+              blocks.targets.length > 1 ? `目标区域 ${index + 1}` : '目标区域'
+            }
+          />
+        ))}
+        {blocks.selectedText && (
+          <span className="easyx-ai-rich-editor__chat-user-selection">
+            选中：{blocks.selectedText}
+          </span>
         )}
       </div>
     );
@@ -212,10 +252,13 @@ function ChatMessage({ message, Parts }: MessageProps<typeof chatOptions>) {
   // 避免「已完成消息」也显示「思考中」，与进行中的串了
   const last = chat.messages.at(-1);
   const isStreaming = Boolean(chat.isLoading && last?.id === message.id);
+  const isLatest = last?.id === message.id;
   return (
     <div className="easyx-ai-rich-editor__bubble easyx-ai-rich-editor__bubble--assistant">
       <MessageStreamContext.Provider value={isStreaming}>
-        <Parts />
+        <MessageLatestContext.Provider value={isLatest}>
+          <Parts />
+        </MessageLatestContext.Provider>
       </MessageStreamContext.Provider>
     </div>
   );
@@ -224,10 +267,13 @@ function ChatMessage({ message, Parts }: MessageProps<typeof chatOptions>) {
 /** 文本 part：markdown 渲染（```html 代码块「应用到编辑器」） */
 function TextPart({ part }: PartProps<typeof chatOptions, 'text'>) {
   const cfg = useEditorCfg();
+  const isLatest = useContext(MessageLatestContext);
   return (
     <MarkdownContent
       content={part.content}
       onApplyHtml={cfg.onApplyHtml}
+      // 补丁只对最新一轮开放手动应用（旧补丁的 SEARCH 可能已失效）
+      onApplyPatch={isLatest ? cfg.onApplyPatch : undefined}
       onError={cfg.onError}
       onNotify={cfg.onNotify}
       urlOptions={cfg.urlOptions}
@@ -318,8 +364,31 @@ function ChatInput(_props: InputProps<typeof chatOptions>) {
   };
 
   /**
-   * 发送：先把本地文件并发上传，再把附件清单拼进消息文本
-   * （模型需要真实地址），附件明细同时写入 metadata 供气泡渲染。
+   * 组装并发送：用户文本 + 附件清单 + 当前片段
+   * 上下文块按固定顺序拼接，模型据此产出补丁；失败由 chat.error 驱动界面提示
+   */
+  const sendText = useCallback(
+    async (text: string, items: SentAttachment[]) => {
+      const content = [
+        text,
+        buildAttachmentBlock(items),
+        buildCurrentFragmentBlock(cfg.currentSource ?? ''),
+      ]
+        .filter(Boolean)
+        .join('\n\n');
+      await chat.sendMessage(
+        items.length > 0
+          ? { content, metadata: { easyxAttachments: items } }
+          : { content },
+        { body: buildSendBody(cfg) },
+      );
+    },
+    [chat, cfg],
+  );
+
+  /**
+   * 发送：先把本地文件并发上传，再把附件清单与上下文块拼进消息文本
+   * （模型需要真实地址与当前片段），附件明细同时写入 metadata 供气泡渲染。
    * 上传失败则不发送，保留输入与附件供重试。
    */
   const sendWithAttachments = async (value: string) => {
@@ -358,21 +427,10 @@ function ChatInput(_props: InputProps<typeof chatOptions>) {
       const items = sent.filter(
         (item): item is SentAttachment => item !== undefined,
       );
-      const content = [value, buildAttachmentBlock(items)]
-        .filter(Boolean)
-        .join('\n\n');
 
       setInput('');
       setAttachments([]);
-      chat
-        .sendMessage(
-          // 附件明细只在本条消息真的带附件时写入 metadata
-          items.length > 0
-            ? { content, metadata: { easyxAttachments: items } }
-            : { content },
-          { body: sendBody(cfg) },
-        )
-        .catch(() => {});
+      sendText(value, items).catch(() => {});
     } catch (error) {
       cfg.onError?.(toError(error));
     } finally {
@@ -442,7 +500,7 @@ function ChatLayout({
   const handlePreset = (preset: string) => {
     if (chat.isLoading) return;
     // 失败由 chat.error 驱动界面提示并上报 onError；此处吞掉 rejection 避免未处理 promise
-    chat.sendMessage(preset, { body: sendBody(cfg) }).catch(() => {});
+    chat.sendMessage(preset, { body: buildSendBody(cfg) }).catch(() => {});
   };
 
   return (

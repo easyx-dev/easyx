@@ -272,3 +272,107 @@
 .easyx-ai-rich-editor__chat-error {
   margin: 0 12px 12px;
 }
+
+/* 用户消息里的选中文本提示 */
+.easyx-ai-rich-editor__chat-user-selection {
+  margin-top: 4px;
+  font-size: var(--easyx-ai-rich-editor-font-size-xs);
+  color: var(--easyx-ai-rich-editor-text-secondary);
+  overflow-wrap: anywhere;
+}
+
+/* 上下文代码卡片（只读）：当前片段 / 目标区域 */
+.easyx-ai-rich-editor__context-card {
+  margin-top: 8px;
+  overflow: hidden;
+  border: 1px solid var(--easyx-ai-rich-editor-border);
+  border-radius: var(--easyx-ai-rich-editor-radius);
+  background: var(--easyx-ai-rich-editor-bg);
+}
+
+.easyx-ai-rich-editor__context-card-head {
+  padding: 4px 10px;
+  border-bottom: 1px solid var(--easyx-ai-rich-editor-border);
+}
+
+.easyx-ai-rich-editor__context-card-label {
+  font-size: var(--easyx-ai-rich-editor-font-size-xs);
+  color: var(--easyx-ai-rich-editor-text-tertiary);
+}
+
+.easyx-ai-rich-editor__context-card-body {
+  max-height: 180px;
+  padding: 8px 10px;
+  overflow: auto;
+  font-family: var(--easyx-ai-rich-editor-font-mono);
+  font-size: var(--easyx-ai-rich-editor-font-size-xs);
+  line-height: var(--easyx-ai-rich-editor-line-height-code);
+  color: var(--easyx-ai-rich-editor-text-secondary);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+
+  @include v.scrollbar;
+}
+
+/* 补丁卡片：SEARCH/REPLACE 渲染为 diff */
+.easyx-ai-rich-editor__patch-body {
+  max-height: 320px;
+  padding: 8px;
+  overflow: auto;
+  background: var(--easyx-ai-rich-editor-bg-subtle);
+
+  @include v.scrollbar;
+}
+
+.easyx-ai-rich-editor__patch-block {
+  overflow: hidden;
+  border: 1px solid var(--easyx-ai-rich-editor-border);
+  border-radius: var(--easyx-ai-rich-editor-radius-sm);
+}
+
+.easyx-ai-rich-editor__patch-block + .easyx-ai-rich-editor__patch-block {
+  margin-top: 8px;
+}
+
+.easyx-ai-rich-editor__patch-side {
+  overflow-x: auto;
+  font-family: var(--easyx-ai-rich-editor-font-mono);
+  font-size: var(--easyx-ai-rich-editor-font-size-xs);
+  line-height: var(--easyx-ai-rich-editor-line-height-code);
+}
+
+.easyx-ai-rich-editor__patch-side--del {
+  background: var(--easyx-ai-rich-editor-danger-soft);
+}
+
+.easyx-ai-rich-editor__patch-side--add {
+  background: var(--easyx-ai-rich-editor-success-soft);
+}
+
+.easyx-ai-rich-editor__patch-line {
+  display: flex;
+  gap: 6px;
+  padding: 0 8px;
+  white-space: pre;
+}
+
+.easyx-ai-rich-editor__patch-sign {
+  flex-shrink: 0;
+  color: var(--easyx-ai-rich-editor-text-tertiary);
+}
+
+.easyx-ai-rich-editor__patch-text {
+  color: var(--easyx-ai-rich-editor-text-secondary);
+}
+
+.easyx-ai-rich-editor__patch-raw {
+  max-height: 240px;
+  padding: 12px;
+  overflow: auto;
+  font-family: var(--easyx-ai-rich-editor-font-mono);
+  font-size: var(--easyx-ai-rich-editor-font-size-xs);
+  line-height: var(--easyx-ai-rich-editor-line-height-code);
+  color: var(--easyx-ai-rich-editor-text-secondary);
+
+  @include v.scrollbar;
+}

@@ -4,7 +4,6 @@
 import { describe, expect, it } from '@rstest/core';
 import {
   buildPreviewDocument,
-  currentHtmlFragment,
   extractHtmlFragments,
   lastHtmlFragment,
 } from '../src/utils/extract';
@@ -64,26 +63,29 @@ describe('lastHtmlFragment', () => {
   });
 });
 
-describe('currentHtmlFragment', () => {
-  it('已闭合代码块提取完整内容', () => {
-    expect(currentHtmlFragment('```html\n<div>a</div>\n```')).toBe(
-      '<div>a</div>',
+describe('extractHtmlFragments 排除补丁块', () => {
+  const patch = [
+    '<<<<<<< SEARCH',
+    '<h2>旧</h2>',
+    '=======',
+    '<h2>新</h2>',
+    '>>>>>>> REPLACE',
+  ].join('\n');
+
+  it('含补丁标记的代码块不被当作 HTML 片段', () => {
+    expect(extractHtmlFragments(`说明\n\`\`\`html\n${patch}\n\`\`\``)).toEqual(
+      [],
     );
+    expect(lastHtmlFragment(`\`\`\`html\n${patch}\n\`\`\``)).toBeUndefined();
   });
 
-  it('未闭合代码块返回当前已生成内容（流式中）', () => {
-    expect(currentHtmlFragment('```html\n<div>a</div><div style=')).toBe(
-      '<div>a</div><div style=',
-    );
+  it('补丁块与全量片段同现时只取全量片段', () => {
+    const content = `\`\`\`patch\n${patch}\n\`\`\`\n\`\`\`html\n<div>完整</div>\n\`\`\``;
+    expect(extractHtmlFragments(content)).toEqual(['<div>完整</div>']);
   });
 
-  it('多个代码块时取最后一个', () => {
-    const content = '```html\n<div>a</div>\n```\n```html\n<div>b</div>\n```';
-    expect(currentHtmlFragment(content)).toBe('<div>b</div>');
-  });
-
-  it('无 html 代码块返回空串', () => {
-    expect(currentHtmlFragment('只是说明文字')).toBe('');
+  it('整体以 <<<<<<< 开头时不作为兜底片段', () => {
+    expect(extractHtmlFragments(patch)).toEqual([]);
   });
 });
 

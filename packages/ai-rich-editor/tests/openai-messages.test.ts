@@ -10,6 +10,11 @@ import {
   buildOpenAiMessages,
   isRemoteHttpUrl,
 } from '../src/chat/openai-messages';
+import {
+  CURRENT_FRAGMENT_BLOCK_TITLE,
+  SELECTION_BLOCK_TITLE,
+  TARGET_BLOCK_TITLE,
+} from '../src/chat/prompt-blocks';
 
 const OPTIONS = { sendImagesAsMultimodal: true, systemPrompt: 'SYS' };
 
@@ -170,6 +175,40 @@ describe('buildOpenAiMessages', () => {
       OPTIONS,
     );
     expect(messages[1]).toEqual({ role: 'user', content: '你好' });
+  });
+
+  it('历史轮次的当前片段块被剥离，仅最新一条保留', () => {
+    const first = `第一问\n\n${CURRENT_FRAGMENT_BLOCK_TITLE}\n\`\`\`html\n<div>旧</div>\n\`\`\``;
+    const last = `第二问\n\n${CURRENT_FRAGMENT_BLOCK_TITLE}\n\`\`\`html\n<div>新</div>\n\`\`\``;
+    const messages = buildOpenAiMessages(
+      [
+        uiMessage('user', [{ type: 'text', content: first }]),
+        uiMessage('assistant', [{ type: 'text', content: '好的' }]),
+        uiMessage('user', [{ type: 'text', content: last }]),
+      ],
+      OPTIONS,
+    );
+    expect(messages[1]).toEqual({ role: 'user', content: '第一问' });
+    expect(messages[3]).toEqual({ role: 'user', content: last });
+  });
+
+  it('历史轮次的目标区域与选中文本块被剥离，仅最新一条保留', () => {
+    const first = [
+      '第一问',
+      `${TARGET_BLOCK_TITLE}\n\`\`\`html\n<p>旧目标</p>\n\`\`\``,
+      `${SELECTION_BLOCK_TITLE}\n旧选区`,
+    ].join('\n\n');
+    const last = `第二问\n\n${TARGET_BLOCK_TITLE}\n\`\`\`html\n<p>新目标</p>\n\`\`\``;
+    const messages = buildOpenAiMessages(
+      [
+        uiMessage('user', [{ type: 'text', content: first }]),
+        uiMessage('assistant', [{ type: 'text', content: '好的' }]),
+        uiMessage('user', [{ type: 'text', content: last }]),
+      ],
+      OPTIONS,
+    );
+    expect(messages[1]).toEqual({ role: 'user', content: '第一问' });
+    expect(messages[3]).toEqual({ role: 'user', content: last });
   });
 });
 

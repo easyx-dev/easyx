@@ -40,6 +40,8 @@ export interface AiRichEditorConfig {
   systemPrompt?: string;
   /** 预览容器 <head> 附加代码（一段原始 HTML，如内置 <style>/<script>，原样注入） */
   previewHead?: string;
+  /** 预览区右键「用 AI 修改」入口（默认 true） */
+  previewEditMenu?: boolean;
   /**
    * 图片附件是否以多模态 content parts 发送（默认 true）
    * 关闭后图片只以文本清单里的地址出现，兼容不支持多模态的纯文本网关

@@ -61,4 +61,53 @@ describe('MarkdownContent', () => {
     // 头部含复制按钮
     expect(container.querySelectorAll('button').length).toBeGreaterThan(0);
   });
+
+  it('补丁块渲染为「修改补丁」diff 卡片并回调原文', () => {
+    const onApplyPatch = rs.fn();
+    const patch = [
+      '<<<<<<< SEARCH',
+      '<h2>旧</h2>',
+      '=======',
+      '<h2>新</h2>',
+      '>>>>>>> REPLACE',
+    ].join('\n');
+    render(
+      <MarkdownContent
+        content={`\`\`\`patch\n${patch}\n\`\`\``}
+        onApplyPatch={onApplyPatch}
+      />,
+    );
+    expect(screen.getByText('修改补丁')).toBeTruthy();
+    expect(screen.getByText('<h2>旧</h2>')).toBeTruthy();
+    expect(screen.getByText('<h2>新</h2>')).toBeTruthy();
+    fireEvent.click(screen.getByText('应用修改'));
+    expect(onApplyPatch).toHaveBeenCalledWith(patch);
+  });
+
+  it('未套围栏的裸补丁也渲染为 diff 卡片', () => {
+    const bare = [
+      '改成红色：',
+      '<<<<<<< SEARCH',
+      '<h2>旧</h2>',
+      '=======',
+      '<h2>新</h2>',
+      '>>>>>>> REPLACE',
+    ].join('\n');
+    render(<MarkdownContent content={bare} onApplyPatch={rs.fn()} />);
+    expect(screen.getByText('修改补丁')).toBeTruthy();
+    expect(screen.getByText('<h2>旧</h2>')).toBeTruthy();
+    expect(screen.getByText('<h2>新</h2>')).toBeTruthy();
+  });
+
+  it('SEARCH 内容写在同一行时也能渲染 diff 卡片', () => {
+    const inline = [
+      '<<<<<<< SEARCH <h2>旧</h2>',
+      '=======',
+      '<h2>新</h2>',
+      '>>>>>>> REPLACE',
+    ].join('\n');
+    render(<MarkdownContent content={inline} />);
+    expect(screen.getByText('修改补丁')).toBeTruthy();
+    expect(screen.getByText('<h2>旧</h2>')).toBeTruthy();
+  });
 });

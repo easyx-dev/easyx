@@ -124,22 +124,24 @@ packages/
 │   ├── tsconfig.json
 │   ├── src/
 │   │   ├── index.ts              # 公开入口（导入样式 + 导出组件/常量/类型/媒体工具）
-│   │   ├── AiRichEditor.tsx      # 主容器：顶栏 + 左预览/右对话 + 应用与流式同步
+│   │   ├── AiRichEditor.tsx      # 主容器：顶栏 + 左预览/右对话 + 补丁应用与重试 + 预览定向修改
 │   │   ├── types.ts              # AiRichEditorProps / AiRichEditorConfig 等（media/onNotify/onError 为顶层属性）
-│   │   ├── constants.ts          # 默认内容、预设指令、设备档位、system 提示词模板、附件上限
+│   │   ├── constants.ts          # 默认内容、预设指令、设备档位、system 提示词模板（含补丁协议）、附件上限
 │   │   ├── prompts.ts            # 内置 system 提示词构建
 │   │   ├── media/                # 媒体能力：类型/路由/错误/上传/片段生成/对话附件/清单文本
 │   │   ├── chat/                 # ChatProvider（headless 数据流 + 自研渲染）/ ChatComposer / AttachmentBar / ThinkBlock
+│   │   │                         # + prompt-blocks（上下文块拼接与分段解析）
 │   │   │                         # + OpenAI 协议层：openai-connection（适配器）/ openai-sse（SSE 解析）/ openai-messages（消息转换）
 │   │   ├── markdown/renderer.tsx # marked 词法 → React 元素（裸 HTML 丢弃 + 协议白名单）
-│   │   ├── components/           # 顶栏 / 预览 / 代码面板懒加载边界 / 设置面板 / markdown 消息 / 媒体浮层
+│   │   ├── components/           # 顶栏 / 预览（含右键编辑浮层）/ 代码面板懒加载边界 / 设置面板 / markdown 消息 / 补丁与上下文卡片 / 媒体浮层
 │   │   ├── code-editor/          # CodeMirror 6 封装：CodeEditor / extensions / gutter-add / gutter-line-select / theme / phrases / doc-sync
 │   │   ├── hooks/                # useIsDark（三级主题判定）/ useElementSize
 │   │   ├── ui/                   # 自研 UI 原语（按钮/模态框/菜单/分段/勾选框/输入/提示）+ feedback（兜底回调）+ Splitter
-│   │   ├── utils/                # extract（片段提取与预览文档）/ scope（样式作用域化）/ url（地址白名单）/ clipboard
-│   │   ├── styles/               # SCSS 分片（变量/基础/原语/浮层/分栏/骨架/内容/对话/代码面板/媒体）
+│   │   ├── utils/                # extract（片段提取与预览文档）/ scope（作用域化与逆向）/ blocks（预览块切分与目标回解）
+│   │   │                         # / patch（Search/Replace 协议）/ patch-markers（无环的补丁标记判定）/ url / clipboard
+│   │   ├── styles/               # SCSS 分片（变量/基础/原语/浮层/分栏/骨架/内容/对话/代码面板/媒体/预览编辑）
 │   │   └── env.d.ts
-│   └── tests/                # 提取/提示词/作用域化/markdown 渲染（含安全边界）/UI 原语与分栏/模态框/代码面板/媒体/白名单/兜底回调
+│   └── tests/                # 提取/补丁协议/预览块切分/上下文块/提示词/作用域化/markdown 渲染（含安全边界）/UI 原语与分栏/模态框/代码面板/媒体/白名单/兜底回调
 └── image-toolkit/            # @easyx/image-toolkit — 浏览器端图片处理套件
     ├── package.json
     ├── README.md
@@ -373,7 +375,11 @@ const editor = createEditor(containerElement, {
 - 数据流仍用 TanStack AI headless UI（`createChatHook` 模块作用域注册一次），渲染侧为包内自研（气泡 / 输入框 / 推荐指令 / 思考块）
 - `createInstanceChatOverrides` 把每实例的 `endpointUrl` / `model` / `requestHeaders` 与结束回调经 overrides 注入模块级 options（多实例互不串线，且经 ref 每次请求读取，宿主换连接无需重挂载）；`ChatProvider.tsx` 用 `ChatHookBinding` 收窄库返回类型，作为与库不可命名内部类型的唯一边界
 - **协议细节**：system 提示词作为 `messages[0]` 发送（不再是独立字段）；思考按厂商方言尽力识别 `reasoning_content` / `reasoning` / `thinking`；图片附件在「绝对 `http(s)` + `config.sendImagesAsMultimodal` 开启 + 类型为 image」三者同时成立时升级为 `image_url` 内容块，其余附件仍靠正文里的 `[已上传附件]` 清单；`[DONE]` 与 `finish_reason` 都缺失即判定流被切断并抛错，不把半截回复当成功；abort 静默退出
-- **样式作用域化**在应用时刻完成（`utils/scope.ts`）：片段内 `<style>` 选择器被改写为 `.{前缀} …`，前缀在实例创建时生成一次（`easyx-rich-content-<id>`），产物自带 scope，宿主可直接 `dangerouslySetInnerHTML`
+- **编辑模型是「源片段域」**：AI 与代码面板都作用于未作用域化的干净片段，作用域化只在输出/预览时派生。每条用户消息附带 `[当前片段]`（`chat/prompt-blocks.ts` 拼装）；构造请求时 `openai-messages.ts` 剥离历史轮次的该块、只保留最新一份，避免请求体随对话线性膨胀。对外 `value` / `onChange` 仍是 scoped 成品，宿主用法不变
+- **修改走「整段替换」**：修改类回复同样输出改动后的完整片段，客户端整段替换（`autoApply`）。对话历史因此天然是一份可回退的版本序列 —— 点任意历史 `HtmlCodeCard` 的「应用到编辑器」即可回退到该版本。system 提示词要求「做最小化改动、但给出完整片段」，并借 `[当前片段]` / `[目标区域]` / `[选中文本]` 定位改动焦点
+- **补丁块仅作兜底**：若模型仍违规输出 Aider 形态的 `<<<<<<< SEARCH / ======= / >>>>>>> REPLACE` 块，`utils/patch.ts` 负责解析与（手动）应用，`PatchCard` 渲染为 diff；**不自动应用、不自动重试**，只提示用户重新索要完整片段。解析对模型常见偏差容错（前导空白、大小写、≥3 连字符、内容与标记同行、漏写结束标记、未套围栏）
+- **对话消息可见性**：用户气泡按 `splitPromptBlocks` 分段渲染 —— 原话 + 附件缩略条 + `[当前片段]`/`[目标区域]` 只读代码卡片；助手回复里的完整片段渲染为 `HtmlCodeCard`（可回退并重新应用），差异块渲染为 `PatchCard`
+- **样式作用域化在应用时刻完成**（`utils/scope.ts`）：片段内 `<style>` 选择器被改写为 `.{前缀} …`，前缀在实例创建时生成一次（`easyx-rich-content-<id>`），产物自带 scope，宿主可直接 `dangerouslySetInnerHTML`。`prefixCss` 带**幂等守卫**（已带前缀的选择器不重复加）；`unscopeRichContent` 是其逆向（剥外层容器 + 去选择器前缀），上下文发送与预览生成都落在干净源片段上
 - **对话 markdown 自研渲染**（`markdown/renderer.tsx`）：marked 词法 → React 元素，全程不经 `dangerouslySetInnerHTML`；markdown 里的裸 HTML 丢弃、链接协议白名单校验。未闭合的围栏代码块在 marked 里同样是 `code` token，因此流式半成品能直接渲染成「半成品卡片」
 - **媒体插入**（`media/`）：能力经顶层 `media` 属性按类型注入 `{ upload, getList }`，与 `config` 分开存放（函数型配置无法进设置面板）。对话侧**点发送时才上传**本地附件（`ChatComposer` 负责粘贴/拖入/选择，`ChatInput` 负责并发上传），把 `[已上传附件]` 清单拼进消息文本供模型取用，附件明细同时写入消息 `metadata.easyxAttachments` 供气泡还原；代码面板侧由**行号左侧、跟随光标行**的 gutter 入口（`code-editor/gutter-add.ts`）或文件拖入（`EditorView.domEventHandlers`）触发，产物为自包含片段（`media/snippet.ts`）。媒体库列表取自**第一个配置了 `getList` 的类型**，条目类型按 `fileType`/扩展名逐个推断
 - **gutter 入口的三个关键点**：`lineMarkerChange` 必须显式声明光标行变化（CodeMirror 默认只在文档/视口变化时重绘 gutter），`initialSpacer` 用于入口滚出视口时保持列宽（否则内容横向跳动），`GutterMarker` 单例复用 DOM。**不要用绝对定位的 React 按钮替代**：它需要行号槽预留空白，而预留的空白区不可拖选文字（拖动会选中行号），实测会把「拖动选字」变成假选区。该入口在 `aria-hidden` 的 gutter 内，**只有鼠标可达**，键盘用户需依赖「网络地址」等替代路径
@@ -384,11 +390,12 @@ const editor = createEditor(containerElement, {
 - **媒体能力判定是纯函数**：`media/upload.ts` 的 `MediaNotConfiguredError` 是「未配置该类型上传接口」文案的唯一来源；`media/attachment.ts` 的 `planFileAttachments` 决定哪些文件被接纳、哪些报错或提醒（数量上限 `MEDIA_ATTACHMENT_LIMIT`）
 - **不做工具调用**：本包不声明任何工具，模型也无需回调宿主接口 —— 附件在发送前由客户端上传、地址写进消息（见 `media/`），宿主服务端零改动
 - **代码面板**（`code-editor/`）：CodeMirror 6，经 `components/EditorPanel.tsx` 懒加载边界按需进入宿主产物。扩展装配基线是**官方默认组合**（等价 basicSetup：行号、撤销、括号匹配/闭合、补全、矩形选择、当前行、选区匹配、折叠、多光标），另加 `html()`、软换行、`indentWithTab`、媒体插入（行号左侧 gutter 入口 + 文件拖入）与 `theme.ts` 的**令牌语法高亮**；**不引入 `codemirror` 元包**，而是用包内已有 `@codemirror/*` 依赖拼出同一组合（元包会带进第二份 `@codemirror/state`，`instanceof` 校验失败导致编辑器装配不起来）。相比官方 basicSetup 少 `lintKeymap`，且不用面向浅色背景的 `defaultHighlightStyle`。外部 value 的落地策略在 `doc-sync.ts`；自研的行号槽整行选择、中文文案保留在 `gutter-line-select.ts` / `phrases.ts`，当前不装配
-- **外部写入策略**（`doc-sync.ts`）：与当前文档成前缀关系时只追加尾部，否则整篇替换；外部写入一律不进撤销栈、不回吐 `onChange`。光标归属：整篇替换落到新内容末尾（不显式指定的话 CodeMirror 会把落在被删区间内的位置映射到起点），尾部追加时仅在光标原本位于末尾的情况下跟随，否则原地不动。注意作用域化会回溯改写 `<style>` 选择器，因此流式同步的 value 常常并非前缀延伸，会走整篇替换
+- **外部写入策略**（`doc-sync.ts`）：取公共前缀与公共后缀求出最小改动区间，只替换变化段；外部写入一律不进撤销栈、不回吐 `onChange`。光标归属：落入被删区间时落到插入内容末尾，尾部追加且光标原本在末尾时跟随，其余位置交给 CodeMirror 映射（保持相对位置）。最小 diff 是关键 —— 作用域化产物几乎永不与旧值成前缀关系，旧实现会退化为整篇替换并重置光标
 - **代码面板样式**：CodeMirror 的样式在运行时注入且晚于本包样式，故 `styles/_code-editor*.scss` 一律以 `.easyx-ai-rich-editor__code-panel .cm-editor` 起头并完整镜像其选择器链，靠具体度（而非注入顺序）取胜。语法高亮的类名为运行时哈希，只能在 `theme.ts` 里声明，但色值引用 `--easyx-ai-rich-editor-code-*`，亮暗切换与宿主覆盖仍是纯 CSS；刻意不用 CodeMirror 自带的 `defaultHighlightStyle`（面向浅色背景的固定色，暗色下对比度不足）
 - **UI 层自研**：除 React 外不依赖任何 UI 库。原语在 `ui/primitives/`，**浮层**（菜单 / Tooltip / 媒体选择）以 portal 渲染且**根节点必须补上 `easyx-ai-rich-editor-scope` 令牌作用域类**；**模态框是例外**，就地渲染在编辑器容器内（不 portal、不锁 body 滚动、不重建令牌作用域），主题与层叠都由所在容器决定；`Splitter` 支持拖拽与键盘，尺寸区间由两栏的 min/max 共同夹出
 - 暗色判定三级：令牌作用域 class `easyx-ai-rich-editor-scope-dark` → 宿主 `[data-theme]` 祖先（值以 `dark` 结尾）→ 系统 `prefers-color-scheme`；`useIsDark` 与包内样式保持同一优先级，仅用于转达 CodeMirror 内置扩展的亮暗变体（它读不到 CSS 变量）
 - 预览 `iframe` 默认 `allow-scripts allow-same-origin`（为加载同源资源），**仅可用于受信产物**
+- **预览区右键定向修改**（`utils/blocks.ts` + `components/PreviewPanel.tsx` / `PreviewEditMenu.tsx`）：预览文档由源片段现场生成，给**每个元素**打 `data-easyx-id="N"` 编号；父页经 `allow-same-origin` 读取 `contentDocument` 挂 `contextmenu` 监听（**不向预览注入脚本**），`closest` 命中**最内层元素**后回解源片段原文。元素原文在片段中不唯一时沿父链向上扩张到唯一祖先（最多到顶层）。**多选**：Shift + 右键增减目标（再次点已选元素即移除），每个目标各附一个 `[目标区域]` 块，用于「让两个元素一致」这类关系型改动。每个目标还会带上**关键计算样式摘要**（`utils/computed-style.ts`：color/font-size/display/margin 等实际生效值，过滤 none/normal/0px/全透明的噪音），弥补「模型只看源码、看不到层叠后的实际值」。编号只存在于预览文档，不写进 `value`；读不到 `contentDocument` 时静默降级。父页抢焦点后原生选区会被浏览器隐藏，故右键时记录各目标选区/元素的视口矩形（按 iframe 缩放换算），以 `position: fixed` 覆盖层在对话框打开期间保持高亮。可用 `config.previewEditMenu: false` 关闭
 
 ### 图片处理套件
 

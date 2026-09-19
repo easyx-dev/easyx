@@ -39,6 +39,9 @@ export function SettingsPanel({
   onSave,
 }: SettingsPanelProps) {
   const [autoApply, setAutoApply] = useState(config.autoApply ?? true);
+  const [previewEditMenu, setPreviewEditMenu] = useState(
+    config.previewEditMenu ?? true,
+  );
   const [systemPrompt, setSystemPrompt] = useState(config.systemPrompt ?? '');
   const [previewHead, setPreviewHead] = useState(config.previewHead ?? '');
   const [sendImagesAsMultimodal, setSendImagesAsMultimodal] = useState(
@@ -49,6 +52,7 @@ export function SettingsPanel({
   useEffect(() => {
     if (!open) return;
     setAutoApply(config.autoApply ?? true);
+    setPreviewEditMenu(config.previewEditMenu ?? true);
     setSystemPrompt(config.systemPrompt ?? '');
     setPreviewHead(config.previewHead ?? '');
     setSendImagesAsMultimodal(config.sendImagesAsMultimodal ?? true);
@@ -60,6 +64,7 @@ export function SettingsPanel({
     onSave({
       ...config,
       autoApply,
+      previewEditMenu,
       previewHead: previewHead.trim() ? previewHead : undefined,
       sendImagesAsMultimodal,
       systemPrompt: systemPrompt.trim() ? systemPrompt : undefined,
@@ -95,6 +100,20 @@ export function SettingsPanel({
               aria-label="自动应用到编辑器"
               checked={autoApply}
               onChange={setAutoApply}
+            />
+          </div>
+
+          <div className="easyx-ai-rich-editor__settings-row">
+            <div className="easyx-ai-rich-editor__settings-row-main">
+              <Text>预览区右键用 AI 修改</Text>
+              <Text block size="xs" tone="secondary">
+                在预览里选中内容或右键某个区块，就地描述修改
+              </Text>
+            </div>
+            <Checkbox
+              aria-label="预览区右键用 AI 修改"
+              checked={previewEditMenu}
+              onChange={setPreviewEditMenu}
             />
           </div>
 

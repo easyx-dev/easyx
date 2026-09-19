@@ -2,6 +2,7 @@
  * 对话附件与清单文本测试：附件模型、清单拼装/剥离的往返一致性
  */
 import { describe, expect, it } from '@rstest/core';
+import { splitPromptBlocks } from '../src/chat/prompt-blocks';
 import {
   createFileAttachment,
   createLibraryAttachment,
@@ -13,7 +14,6 @@ import { MediaNotConfiguredError } from '../src/media/errors';
 import {
   ATTACHMENT_BLOCK_TITLE,
   buildAttachmentBlock,
-  stripAttachmentBlock,
 } from '../src/media/prompt-text';
 import type { AiRichMediaConfig } from '../src/media/types';
 
@@ -158,23 +158,23 @@ describe('buildAttachmentBlock', () => {
   });
 });
 
-describe('stripAttachmentBlock', () => {
+describe('splitPromptBlocks（附件块还原）', () => {
   it('还原用户原话并去掉尾部空行', () => {
     const text = `把这张图插到标题下方\n\n${buildAttachmentBlock([
       { kind: 'image', name: 'a.png', url: '/a.png' },
     ])}`;
-    expect(stripAttachmentBlock(text)).toBe('把这张图插到标题下方');
+    expect(splitPromptBlocks(text).text).toBe('把这张图插到标题下方');
   });
 
-  it('仅附件（无原话）时返回空串', () => {
+  it('仅附件（无原话）时原话为空串', () => {
     expect(
-      stripAttachmentBlock(
+      splitPromptBlocks(
         buildAttachmentBlock([{ kind: 'image', name: 'a.png', url: '/a.png' }]),
-      ),
+      ).text,
     ).toBe('');
   });
 
   it('没有标记时原样返回', () => {
-    expect(stripAttachmentBlock('普通消息')).toBe('普通消息');
+    expect(splitPromptBlocks('普通消息').text).toBe('普通消息');
   });
 });
