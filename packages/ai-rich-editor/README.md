@@ -11,7 +11,7 @@ AI 驱动的「代码编辑 + 实时预览」工作台（React 组件）：由�
 
 ## 特性
 
-- **标准 OpenAI 协议**：连接三件套 `endpointUrl` + `model` + `requestHeaders`，宿主后端只需 OpenAI 兼容，无需配套 SDK
+- **对话接入只给协议**：传已鉴权的 OpenAI 端点 URL，或自定义适配器函数（server function 等），包内不持有端点、鉴权与模型知识
 - **实时预览**：设备档位、脚本开关、刷新与新窗口预览；可选并排代码面板（CodeMirror 6）
 - **片段作用域化**：片段内 `<style>` 选择器自动加前缀，直接嵌入宿主页面不污染全局
 - **媒体插入**：对话与代码面板两条路径，支持上传、网络地址与媒体库
@@ -40,12 +40,24 @@ export function MyPage() {
     <AiRichEditor
       value={html}
       onChange={setHtml}
-      endpointUrl="/v1/chat/completions"
-      model="gpt-4o-mini"
-      requestHeaders={{ Authorization: 'Bearer sk-…' }}
+      // 已鉴权的 OpenAI 兼容端点；也可传适配器函数接自己的 server function
+      chat="/api/ai/chat"
     />
   );
 }
+```
+
+`chat` 传函数时，接收本包拼装好的协议请求并流式返回增量：
+
+```tsx
+<AiRichEditor
+  chat={async function* ({ messages }, signal) {
+    // messages 形如 [{ role: 'system', content: '…' }, { role: 'user', content: '…' }]
+    for await (const chunk of myServerFunction({ messages }, signal)) {
+      yield chunk; // { content?, reasoning?, finishReason? }
+    }
+  }}
+/>
 ```
 
 对接协议、媒体与文档解析、通知与错误、主题等见 [使用指南](https://easyx-dev.github.io/easyx/ai-rich-editor/usage/)；Props 与全部导出见 [API 参考](https://easyx-dev.github.io/easyx/ai-rich-editor/api-reference/)。
@@ -54,15 +66,14 @@ export function MyPage() {
 
 [MIT](https://github.com/easyx-dev/easyx/blob/main/LICENSE)
 
-## 从 v1 迁移
+## 从 v2 迁移
 
-v2 把媒体类型统一为与 `@easyx/editor` 相同的命名与形状，并规整回调类型名：
+v3 把对话接入从「连接四件套」改为只给协议：宿主传已鉴权的 OpenAI 端点 URL，或自定义适配器函数。
 
-| v1 | v2 |
+| v2 | v3 |
 |----|----|
-| `AiRichMediaItem` | `MediaItem` |
-| `AiRichMediaListParams` / `AiRichMediaListResult` | `MediaListParams` / `MediaListResult` |
-| `AiRichMediaUploadConfig` / `AiRichMediaUploadProgress` | `MediaUploadConfig` / `MediaUploadProgress` |
-| `AiRichMediaKind` / `AiRichMediaConfig` | `MediaKind` / `MediaConfig` |
-| `PreviewDevice` | `AiRichPreviewDevice` |
-| `AiRichNotify` | `AiRichNotifyHandler` |
+| `endpointUrl` + `model` + `requestHeaders` | `chat`（传端点 URL，或适配器函数） |
+| `requestBody` | 不再透传，改由适配器函数自行构造请求 |
+| `AiRichRequestHeaders` | 移除（鉴权由端点或适配器负责） |
+
+传 URL 时请求体固定为 `{ messages, stream: true }`，**不带 `model`**（模型由端点侧决定）；需要自定义请求头、模型或非 OpenAI 协议时传适配器函数。

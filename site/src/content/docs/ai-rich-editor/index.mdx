@@ -21,14 +21,14 @@ import { Aside, Card, CardGrid, LinkCard } from '@astrojs/starlight/components';
 | 场景 | 定制化页面（新闻、活动、落地页等）的 HTML 内容生产 |
 | 输出 | **fragment-only**：只产出内容片段，不提供整页文档模式 |
 | 防污染 | 作用域化在**应用时刻**完成，产物自带 scope 前缀，宿主可直接当 HTML 引入 |
-| 传输 | **不持有**端点与鉴权知识 —— 经宿主提供的 OpenAI 兼容端点消费 |
+| 传输 | **不持有**端点与鉴权知识 —— 接入点由宿主给：已鉴权的 OpenAI 端点 URL，或自定义适配器函数 |
 | 依赖 | peer：`react` / `react-dom`；可选 peer：`mammoth` / `unpdf`（仅 `./parsers` 入口按需加载）。**除 React 外不依赖任何 UI 库** |
 
 ## 特性
 
 <CardGrid>
-  <Card title="标准 OpenAI 协议">
-    连接三件套 `endpointUrl` + `model` + `requestHeaders`，宿主后端无需配套 SDK。
+  <Card title="对话接入只给协议">
+    传已鉴权的 OpenAI 端点 URL，或自定义适配器函数；包内不持有端点与鉴权。
   </Card>
   <Card title="实时预览">
     设备档位、脚本开关、刷新与新窗口预览；可选并排代码面板。
@@ -68,15 +68,14 @@ export function MyPage() {
     <AiRichEditor
       value={html}
       onChange={setHtml}
-      endpointUrl="/v1/chat/completions"
-      model="gpt-4o-mini"
-      requestHeaders={{ Authorization: 'Bearer sk-…' }}
+      // 已鉴权的 OpenAI 兼容端点；也可传适配器函数接自己的 server function
+      chat="/api/ai/chat"
     />
   );
 }
 ```
 
-宿主的后端只需是任意 **OpenAI Chat Completions 兼容**服务（OpenAI、DeepSeek、vLLM、Ollama、one-api / new-api 等网关皆可）。`requestBody` 可追加温度等参数；`model` / `stream` / `messages` 由包内决定，不可覆盖。详见[使用指南](/easyx/ai-rich-editor/usage/)。
+`chat` 传字符串时，包内按 OpenAI Chat Completions 协议请求该端点，请求体固定为 `{ messages, stream: true }`（**不带 `model`**，模型与鉴权由端点侧决定）。传函数时，包内只给协议、由宿主自己发请求。详见[使用指南](/easyx/ai-rich-editor/usage/)。
 
 ## 产物：自带作用域的 HTML 片段
 
@@ -102,7 +101,7 @@ export function MyPage() {
 </Aside>
 
 <Aside type="note" title="单实例假设">
-`createChatHook` 的 options 固定在模块作用域，连接信息与结束回调经每实例 overrides 注入（多实例互不串线），但编辑器仍按**一页一个**设计。
+`createChatHook` 的 options 固定在模块作用域，每实例的接入点与结束回调经 overrides 注入（多实例互不串线），但编辑器仍按**一页一个**设计。
 </Aside>
 
 ## 延伸阅读

@@ -1,9 +1,9 @@
 /**
  * @easyx/ai-rich-editor 演示：对话生成 HTML 片段 + 实时预览
  *
- * 对话链路始终走真实实现（包内 OpenAI 适配器消费 SSE、流式同步到编辑器与预览）。
- * 默认模式在浏览器侧拦截演示端点、回放一段预录的 OpenAI 标准 SSE 流；
- * 经「模型连接」面板填入任意 OpenAI 兼容端点后，直接调用真实模型。
+ * 对话链路始终走真实实现（包内消费流式增量、实时同步到编辑器与预览）。
+ * 默认模式在浏览器侧拦截演示端点、回放一段预录的 OpenAI 标准 SSE 流（URL 接入）；
+ * 经「模型连接」面板填入端点后，改走演示自己的 OpenAI 适配器（函数接入，自带 model 与鉴权头）。
  *
  * 主题无需桥接：演示页把 data-theme 挂在 <html> 上，包内样式直接据此判定。
  */
@@ -30,6 +30,7 @@ import {
   installFetchMock,
   MOCK_ENDPOINT,
 } from './ai-rich-editor-demo/mock-stream';
+import { createDemoOpenAiAdapter } from './ai-rich-editor-demo/openai-adapter';
 import { findPreset } from './ai-rich-editor-demo/presets';
 
 /**
@@ -114,6 +115,11 @@ export default function AiRichEditorDemo() {
   const [panelOpen, setPanelOpen] = useState(false);
 
   const resolved = useMemo(() => resolveConnection(connection), [connection]);
+  // 内置回放走 URL 接入（演示端点），真实模型走函数接入（自带 model 与鉴权头）
+  const chatSource = useMemo(
+    () => (resolved ? createDemoOpenAiAdapter(resolved) : MOCK_ENDPOINT),
+    [resolved],
+  );
   const statusLabel = resolved
     ? `${findPreset(connection.preset).label} · ${resolved.model}`
     : '内置回放';
@@ -160,14 +166,12 @@ export default function AiRichEditorDemo() {
 
       <div style={{ padding: 16 }}>
         <AiRichEditor
-          endpointUrl={resolved?.endpointUrl ?? MOCK_ENDPOINT}
+          chat={chatSource}
           height={620}
           media={media}
-          model={resolved?.model ?? 'demo'}
           onChange={setHtml}
           // 演示里只接错误上报（打到控制台）；错误对用户的提示走包内轻提示
           onError={(error) => console.error(error)}
-          requestHeaders={resolved?.requestHeaders}
           tools={tools}
           value={html}
         />

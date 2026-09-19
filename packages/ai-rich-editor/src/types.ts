@@ -1,9 +1,10 @@
 /**
  * AI Rich Editor 开放类型：会话消息、控制器配置与组件 Props
  *
- * 对话对外协议是标准 OpenAI Chat Completions 流式接口：宿主只需提供一个
- * OpenAI 兼容端点（endpointUrl + model + requestHeaders），无需配套服务端 SDK。
+ * 对话接入只给协议：宿主经顶层 `chat` 属性传「已鉴权的 OpenAI 端点 URL」或
+ * 「自定义适配器函数」，包内不持有端点、鉴权与模型知识（协议见 chat/protocol.ts）。
  */
+import type { AiRichChatSource } from './chat/protocol';
 import type { MediaConfig } from './media/types';
 import type { AiRichDocumentParser } from './parsers/types';
 
@@ -38,16 +39,8 @@ export interface AiRichEditorTools {
 }
 
 /**
- * 对话请求头：静态对象，或每次请求求值的函数（便于轮换 token）。
- * 用于鉴权（如 `Authorization: Bearer …`），包内不持有任何密钥知识。
- */
-export type AiRichRequestHeaders =
-  | Record<string, string>
-  | (() => Record<string, string>);
-
-/**
  * 统一包配置项（设置面板展示/编辑，保存后生效）
- * 其余顶层属性（endpointUrl / model / media / onNotify / onError 等）不归入此对象
+ * 其余顶层属性（chat / media / onNotify / onError 等）不归入此对象
  */
 export interface AiRichEditorConfig {
   /** AI 回复结束后是否自动把内容应用到编辑器（默认 true，仍保留手动「应用到编辑器」按钮） */
@@ -71,17 +64,15 @@ export interface AiRichEditorProps {
   value?: string;
   /** 内容变化回调 */
   onChange?: (value: string) => void;
-  /** 对话流式端点（**OpenAI Chat Completions 兼容**，如 `/v1/chat/completions`） */
-  endpointUrl: string;
-  /** 模型名（OpenAI 协议必填，如 `gpt-4o-mini`、`deepseek-chat`） */
-  model: string;
-  /** 对话请求头（鉴权等，如 `{ Authorization: 'Bearer …' }`） */
-  requestHeaders?: AiRichRequestHeaders;
   /**
-   * 追加进每次对话请求体的字段（如 `{ temperature: 0.7 }`）。
-   * `model` / `stream` / `messages` 由包内决定，同名键不会被覆盖。
+   * 对话接入（**顶层属性**）：包内只给协议，不持有端点、鉴权与模型知识。
+   * - 传字符串：视为**已鉴权的 OpenAI Chat Completions 端点**，包内负责请求与 SSE 解析。
+   *   请求体固定为 `{ messages, stream: true }`，**不带 model**（模型与鉴权由端点侧决定），
+   *   可用同源 cookie 鉴权。需要自定义请求头 / 额外字段 / 非 OpenAI 协议时改用函数。
+   * - 传函数：调用方自定义适配器，接收协议请求并流式返回增量；迭代器正常结束即本轮完成。
+   * 协议与类型见 `@easyx/ai-rich-editor` 导出的 `AiRichChatSource` 等。
    */
-  requestBody?: Record<string, unknown>;
+  chat: AiRichChatSource;
   /**
    * 媒体能力（**顶层属性，非 config**）：按类型注入上传与媒体库接口。
    * - 图片 / 视频 / 音频：对话里粘贴、拖入或选择文件后，发送时经对应 upload 上传，地址随消息给模型

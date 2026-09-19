@@ -1,12 +1,19 @@
 /**
- * OpenAI 连接适配器测试
+ * 对话连接适配器测试
  *
- * 重点验证对外协议形状（请求体 / 请求头）、增量到 TanStack 分片的翻译，
- * 以及三条失败路径：HTTP 错误、流内错误、无结束标记的截断。abort 视为正常停止。
+ * 覆盖两种接入形态的分发与统一翻译：
+ * - 字符串：内置 OpenAI 路径（请求体固定 `{ messages, stream: true }`、无 model），
+ *   以及 HTTP 错误 / 流内错误 / 无结束标记的截断三条失败路径
+ * - 函数：适配器收到协议请求与 signal，增量翻译为 TanStack 分片，异常原样抛出
+ * abort 一律视为正常停止。
  */
 import { afterEach, describe, expect, it, rs } from '@rstest/core';
 import type { UIMessage } from '@tanstack/ai-react';
-import { createOpenAiConnection } from '../src/chat/openai-connection';
+import { createChatConnection } from '../src/chat/chat-connection';
+import type {
+  AiRichChatAdapter,
+  AiRichChatRequest,
+} from '../src/chat/protocol';
 
 afterEach(() => rs.unstubAllGlobals());
 
@@ -45,45 +52,31 @@ interface Captured {
   init: RequestInit;
 }
 
-/** 用固定 SSE 行构造连接与请求捕获 */
-function setup(
-  lines: readonly string[],
-  refs?: {
-    endpointUrl?: string;
-    model?: string;
-    requestHeaders?: Record<string, string> | (() => Record<string, string>);
-  },
-) {
+/** 用固定 SSE 行构造字符串接入的连接与请求捕获 */
+function setupUrl(lines: readonly string[], url = 'https://api.test/v1/chat') {
   let captured: Captured | undefined;
   rs.stubGlobal(
     'fetch',
-    async (url: string, init: RequestInit): Promise<Response> => {
-      captured = { url, init };
+    async (input: string, init: RequestInit): Promise<Response> => {
+      captured = { init, url: input };
       return sseResponse(lines);
     },
   );
-  const connection = createOpenAiConnection({
-    endpointUrl: {
-      current: refs?.endpointUrl ?? 'https://api.test/v1/chat/completions',
-    },
-    model: { current: refs?.model ?? 'gpt-4o-mini' },
-    requestHeaders: { current: refs?.requestHeaders },
-  });
   return {
-    connection,
+    connection: createChatConnection({ source: { current: url } }),
     getCaptured: () => captured,
   };
 }
 
 async function collect(
-  connection: ReturnType<typeof createOpenAiConnection>,
-  data?: Record<string, unknown>,
+  connection: ReturnType<typeof createChatConnection>,
+  body?: Record<string, unknown>,
   signal?: AbortSignal,
 ) {
   const chunks: Array<Record<string, unknown>> = [];
   for await (const chunk of connection.connect(
     [userMessage('生成一个卡片')],
-    data,
+    body,
     signal,
   )) {
     chunks.push(chunk as unknown as Record<string, unknown>);
@@ -91,64 +84,36 @@ async function collect(
   return chunks;
 }
 
-describe('请求构造', () => {
-  it('发送标准 OpenAI 请求体（system 前置、stream 固定为 true）', async () => {
-    const { connection, getCaptured } = setup([data('[DONE]')]);
-    await collect(connection, { systemPrompt: 'SYS', temperature: 0.5 });
-    const captured = getCaptured();
-    expect(captured?.url).toBe('https://api.test/v1/chat/completions');
-    const body = JSON.parse(String(captured?.init.body));
-    expect(body.model).toBe('gpt-4o-mini');
-    expect(body.stream).toBe(true);
-    expect(body.temperature).toBe(0.5);
-    expect(body.messages).toEqual([
-      { role: 'system', content: 'SYS' },
-      { role: 'user', content: '生成一个卡片' },
-    ]);
-  });
-
-  it('透传字段不能覆盖 model / messages / stream', async () => {
-    const { connection, getCaptured } = setup([data('[DONE]')]);
-    await collect(connection, {
-      messages: [{ role: 'user', content: '伪造' }],
-      model: 'deepseek-chat',
-      stream: false,
-    });
-    const body = JSON.parse(String(getCaptured()?.init.body));
-    expect(body.stream).toBe(true);
-    expect(body.model).toBe('gpt-4o-mini');
-    expect(body.messages.at(-1)).toEqual({
-      role: 'user',
-      content: '生成一个卡片',
-    });
-  });
-
-  it('合并宿主请求头（静态对象与函数两种形态）', async () => {
-    const { connection, getCaptured } = setup([data('[DONE]')], {
-      requestHeaders: () => ({ Authorization: 'Bearer token' }),
-    });
+describe('字符串接入（内置 OpenAI 路径）', () => {
+  it('请求体固定为 messages + stream，system 前置且不带 model', async () => {
+    const { connection, getCaptured } = setupUrl([data('[DONE]')]);
     await collect(connection, { systemPrompt: 'SYS' });
-    const headers = getCaptured()?.init.headers as Record<string, string>;
-    expect(headers.Authorization).toBe('Bearer token');
+    const captured = getCaptured();
+    expect(captured?.url).toBe('https://api.test/v1/chat');
+    const body = JSON.parse(String(captured?.init.body));
+    expect(body).toEqual({
+      messages: [
+        { role: 'system', content: 'SYS' },
+        { role: 'user', content: '生成一个卡片' },
+      ],
+      stream: true,
+    });
+    expect(body.model).toBeUndefined();
+    const headers = captured?.init.headers as Record<string, string>;
     expect(headers['Content-Type']).toBe('application/json');
     expect(headers.Accept).toBe('text/event-stream');
+    expect(captured?.init.credentials).toBe('same-origin');
   });
-});
 
-describe('分片翻译', () => {
   it('正文增量翻译为 START / CONTENT / END', async () => {
-    const { connection } = setup([
-      data({
-        choices: [{ delta: { role: 'assistant' }, finish_reason: null }],
-      }),
+    const { connection } = setupUrl([
       contentChunk('你'),
       contentChunk('好'),
       data({ choices: [{ delta: {}, finish_reason: 'stop' }] }),
       data('[DONE]'),
     ]);
     const chunks = await collect(connection, { systemPrompt: 'SYS' });
-    const types = chunks.map((chunk) => chunk.type);
-    expect(types).toEqual([
+    expect(chunks.map((chunk) => chunk.type)).toEqual([
       'TEXT_MESSAGE_START',
       'TEXT_MESSAGE_CONTENT',
       'TEXT_MESSAGE_CONTENT',
@@ -161,7 +126,7 @@ describe('分片翻译', () => {
   });
 
   it('思考增量翻译为 REASONING_MESSAGE_CONTENT，且与正文各自独立的消息 id', async () => {
-    const { connection } = setup([
+    const { connection } = setupUrl([
       data({ choices: [{ delta: { reasoning_content: '先想' } }] }),
       contentChunk('再答'),
       data('[DONE]'),
@@ -178,7 +143,7 @@ describe('分片翻译', () => {
   });
 
   it('无 [DONE] 但带 finish_reason 也算正常收尾', async () => {
-    const { connection } = setup([
+    const { connection } = setupUrl([
       contentChunk('好'),
       data({ choices: [{ delta: {}, finish_reason: 'stop' }] }),
     ]);
@@ -188,17 +153,79 @@ describe('分片翻译', () => {
   });
 });
 
-describe('失败路径', () => {
+describe('函数接入（自定义适配器）', () => {
+  function setupAdapter(adapter: AiRichChatAdapter) {
+    return createChatConnection({ source: { current: adapter } });
+  }
+
+  it('适配器收到协议请求（system 前置）与 signal，增量被翻译', async () => {
+    const received: Array<{ request: AiRichChatRequest; signal: AbortSignal }> =
+      [];
+    const adapter: AiRichChatAdapter = (request, signal) => {
+      received.push({ request, signal });
+      return (async function* () {
+        yield { reasoning: '先想' };
+        yield { content: '答' };
+      })();
+    };
+    const chunks = await collect(setupAdapter(adapter), {
+      systemPrompt: 'SYS',
+    });
+    expect(received).toHaveLength(1);
+    expect(received[0].request.messages).toEqual([
+      { role: 'system', content: 'SYS' },
+      { role: 'user', content: '生成一个卡片' },
+    ]);
+    expect(received[0].signal).toBeInstanceOf(AbortSignal);
+    expect(chunks.map((chunk) => chunk.type)).toEqual([
+      'REASONING_MESSAGE_CONTENT',
+      'TEXT_MESSAGE_START',
+      'TEXT_MESSAGE_CONTENT',
+      'TEXT_MESSAGE_END',
+    ]);
+  });
+
+  it('迭代器正常结束即视为完成（不要求结束标记）', async () => {
+    const adapter: AiRichChatAdapter = () =>
+      (async function* () {
+        yield { content: '好' };
+      })();
+    await expect(collect(setupAdapter(adapter))).resolves.toHaveLength(3);
+  });
+
+  it('适配器抛出的错误原样冒泡', async () => {
+    const adapter: AiRichChatAdapter = () =>
+      (async function* () {
+        yield { content: '半' };
+        throw new Error('后端不可用');
+      })();
+    await expect(collect(setupAdapter(adapter))).rejects.toThrow('后端不可用');
+  });
+
+  it('已中止的信号不再产出分片，适配器抛错也静默', async () => {
+    const controller = new AbortController();
+    controller.abort();
+    // 首个 next() 即抛错（非生成器，避免 useYield 约束）
+    const adapter: AiRichChatAdapter = () => ({
+      [Symbol.asyncIterator]: () => ({
+        next: () => Promise.reject(new Error('AbortError')),
+      }),
+    });
+    await expect(
+      collect(setupAdapter(adapter), undefined, controller.signal),
+    ).resolves.toEqual([]);
+  });
+});
+
+describe('内置路径的失败路径', () => {
   it('HTTP 非 2xx 抛出错误体文案', async () => {
     rs.stubGlobal('fetch', async () => {
       return new Response(JSON.stringify({ error: { message: '额度不足' } }), {
         status: 429,
       });
     });
-    const connection = createOpenAiConnection({
-      endpointUrl: { current: 'https://api.test/v1/chat/completions' },
-      model: { current: 'gpt-4o-mini' },
-      requestHeaders: { current: undefined },
+    const connection = createChatConnection({
+      source: { current: 'https://api.test/v1/chat' },
     });
     await expect(collect(connection, { systemPrompt: 'SYS' })).rejects.toThrow(
       '额度不足',
@@ -206,7 +233,7 @@ describe('失败路径', () => {
   });
 
   it('流内错误对象中断整条流', async () => {
-    const { connection } = setup([
+    const { connection } = setupUrl([
       contentChunk('半'),
       data({ error: { message: '模型不可用' } }),
     ]);
@@ -216,7 +243,7 @@ describe('失败路径', () => {
   });
 
   it('既无 [DONE] 也无 finish_reason 时视为流被截断', async () => {
-    const { connection } = setup([contentChunk('半')]);
+    const { connection } = setupUrl([contentChunk('半')]);
     await expect(collect(connection, { systemPrompt: 'SYS' })).rejects.toThrow(
       'AI 响应流被中断',
     );
@@ -226,10 +253,8 @@ describe('失败路径', () => {
     rs.stubGlobal('fetch', async () => {
       throw new TypeError('Failed to fetch');
     });
-    const connection = createOpenAiConnection({
-      endpointUrl: { current: 'https://api.test/v1/chat/completions' },
-      model: { current: 'gpt-4o-mini' },
-      requestHeaders: { current: undefined },
+    const connection = createChatConnection({
+      source: { current: 'https://api.test/v1/chat' },
     });
     await expect(collect(connection, { systemPrompt: 'SYS' })).rejects.toThrow(
       '无法连接 AI 服务',
@@ -237,7 +262,7 @@ describe('失败路径', () => {
   });
 
   it('已中止的信号不产出分片也不报错', async () => {
-    const { connection } = setup([contentChunk('半')]);
+    const { connection } = setupUrl([contentChunk('半')]);
     const controller = new AbortController();
     controller.abort();
     await expect(

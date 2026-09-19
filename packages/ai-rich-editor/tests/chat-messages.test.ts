@@ -1,15 +1,12 @@
 /**
- * 会话消息 → OpenAI 消息转换测试
+ * 会话消息 → 对话协议消息转换测试
  *
  * 关注协议差异点：system 前置、思考不回传、附件清单留文本、
  * 图片仅在「绝对 http(s) + 开启多模态 + 图片类型」三者同时成立时升级为 content parts。
  */
 import { describe, expect, it } from '@rstest/core';
 import type { UIMessage } from '@tanstack/ai-react';
-import {
-  buildOpenAiMessages,
-  isRemoteHttpUrl,
-} from '../src/chat/openai-messages';
+import { buildChatMessages, isRemoteHttpUrl } from '../src/chat/chat-messages';
 import {
   CURRENT_FRAGMENT_BLOCK_TITLE,
   SELECTION_BLOCK_TITLE,
@@ -36,9 +33,9 @@ function imageAttachment(url: string, name = 'a.png') {
   return { kind: 'image', name, url };
 }
 
-describe('buildOpenAiMessages', () => {
+describe('buildChatMessages', () => {
   it('system 提示词置于首位，用户与助手文本按序转换', () => {
-    const messages = buildOpenAiMessages(
+    const messages = buildChatMessages(
       [
         uiMessage('user', [{ type: 'text', content: '生成一个卡片' }]),
         uiMessage('assistant', [{ type: 'text', content: '<div/>' }]),
@@ -53,7 +50,7 @@ describe('buildOpenAiMessages', () => {
   });
 
   it('思考 part 不回传给模型', () => {
-    const messages = buildOpenAiMessages(
+    const messages = buildChatMessages(
       [
         uiMessage('assistant', [
           { type: 'thinking', content: '内部推理' },
@@ -66,7 +63,7 @@ describe('buildOpenAiMessages', () => {
   });
 
   it('图片附件升级为多模态 content parts', () => {
-    const messages = buildOpenAiMessages(
+    const messages = buildChatMessages(
       [
         uiMessage(
           'user',
@@ -86,7 +83,7 @@ describe('buildOpenAiMessages', () => {
   });
 
   it('仅带图片（无文字）时也发送多模态内容', () => {
-    const messages = buildOpenAiMessages(
+    const messages = buildChatMessages(
       [uiMessage('user', [], [imageAttachment('https://cdn.test/a.png')])],
       OPTIONS,
     );
@@ -99,7 +96,7 @@ describe('buildOpenAiMessages', () => {
   });
 
   it('blob: 与相对路径不进入多模态（服务端取不到）', () => {
-    const messages = buildOpenAiMessages(
+    const messages = buildChatMessages(
       [
         uiMessage(
           'user',
@@ -116,7 +113,7 @@ describe('buildOpenAiMessages', () => {
   });
 
   it('非图片类型附件不做多模态', () => {
-    const messages = buildOpenAiMessages(
+    const messages = buildChatMessages(
       [
         uiMessage(
           'user',
@@ -130,7 +127,7 @@ describe('buildOpenAiMessages', () => {
   });
 
   it('助手消息不生成多模态内容块（协议不允许 assistant 带 image_url）', () => {
-    const messages = buildOpenAiMessages(
+    const messages = buildChatMessages(
       [
         uiMessage(
           'assistant',
@@ -144,7 +141,7 @@ describe('buildOpenAiMessages', () => {
   });
 
   it('关闭多模态后只保留文本（含清单）', () => {
-    const messages = buildOpenAiMessages(
+    const messages = buildChatMessages(
       [
         uiMessage(
           'user',
@@ -161,7 +158,7 @@ describe('buildOpenAiMessages', () => {
   });
 
   it('空文本消息被跳过', () => {
-    const messages = buildOpenAiMessages(
+    const messages = buildChatMessages(
       [uiMessage('user', []), uiMessage('assistant', [])],
       OPTIONS,
     );
@@ -170,7 +167,7 @@ describe('buildOpenAiMessages', () => {
   });
 
   it('非法附件项被忽略（不因脏数据崩掉）', () => {
-    const messages = buildOpenAiMessages(
+    const messages = buildChatMessages(
       [uiMessage('user', [{ type: 'text', content: '你好' }], [{ kind: 'x' }])],
       OPTIONS,
     );
@@ -180,7 +177,7 @@ describe('buildOpenAiMessages', () => {
   it('历史轮次的当前片段块被剥离，仅最新一条保留', () => {
     const first = `第一问\n\n${CURRENT_FRAGMENT_BLOCK_TITLE}\n\`\`\`html\n<div>旧</div>\n\`\`\``;
     const last = `第二问\n\n${CURRENT_FRAGMENT_BLOCK_TITLE}\n\`\`\`html\n<div>新</div>\n\`\`\``;
-    const messages = buildOpenAiMessages(
+    const messages = buildChatMessages(
       [
         uiMessage('user', [{ type: 'text', content: first }]),
         uiMessage('assistant', [{ type: 'text', content: '好的' }]),
@@ -199,7 +196,7 @@ describe('buildOpenAiMessages', () => {
       `${SELECTION_BLOCK_TITLE}\n旧选区`,
     ].join('\n\n');
     const last = `第二问\n\n${TARGET_BLOCK_TITLE}\n\`\`\`html\n<p>新目标</p>\n\`\`\``;
-    const messages = buildOpenAiMessages(
+    const messages = buildChatMessages(
       [
         uiMessage('user', [{ type: 'text', content: first }]),
         uiMessage('assistant', [{ type: 'text', content: '好的' }]),

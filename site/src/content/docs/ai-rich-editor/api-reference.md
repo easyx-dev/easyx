@@ -9,10 +9,7 @@ description: AiRichEditor 的 Props、配置项、媒体能力、文档解析、
 |------|------|--------|------|
 | `value` | `string` | `DEFAULT_HTML` | 当前 HTML 内容 |
 | `onChange` | `(value: string) => void` | — | 内容变化回调（应用时刻已作用域化） |
-| `endpointUrl` | `string` | — | **必填**，OpenAI Chat Completions 兼容端点 |
-| `model` | `string` | — | **必填**，模型名 |
-| `requestHeaders` | `AiRichRequestHeaders` | — | 请求头，静态对象或每次请求求值的函数 |
-| `requestBody` | `Record<string, unknown>` | — | 追加进请求体的字段；`model` / `stream` / `messages` 不可覆盖 |
+| `chat` | `AiRichChatSource` | — | **必填**，对话接入：已鉴权的 OpenAI 端点 URL，或自定义适配器函数 |
 | `media` | `MediaConfig` | — | 媒体能力（顶层属性，非 config） |
 | `tools` | `AiRichEditorTools` | — | 宿主注入的能力集合，目前含文档解析 |
 | `allowedUrlSchemes` | `readonly string[]` | `[]` | 追加允许的 URL 协议（只增不减） |
@@ -21,6 +18,44 @@ description: AiRichEditor 的 Props、配置项、媒体能力、文档解析、
 | `height` | `number \| string` | `640` | 工作台整体高度 |
 | `config` | `AiRichEditorConfig` | 见下 | 统一配置，**仅初始值、非受控** |
 | `onConfigChange` | `(config: AiRichEditorConfig) => void` | — | 设置面板保存后回写，用于持久化 |
+
+## 对话接入
+
+`chat` 只给协议，包内不持有端点、鉴权与模型知识。传字符串走包内 OpenAI 路径，传函数则由宿主自行请求：
+
+```ts
+/** 接入点：字符串为已鉴权的 OpenAI 端点（包内负责请求与 SSE 解析），函数为自定义适配器 */
+type AiRichChatSource = string | AiRichChatAdapter;
+
+/** 函数接入点：把协议请求包成自己的协议请求，流式返回增量 */
+type AiRichChatAdapter = (
+  request: AiRichChatRequest,
+  signal: AbortSignal,
+) => AsyncIterable<AiRichChatChunk>;
+
+interface AiRichChatRequest {
+  messages: AiRichChatMessage[];
+}
+
+interface AiRichChatMessage {
+  role: 'system' | 'user' | 'assistant';
+  content: string | AiRichChatContentPart[];
+}
+
+type AiRichChatContentPart =
+  | { type: 'text'; text: string }
+  | { type: 'image_url'; image_url: { url: string } };
+
+interface AiRichChatChunk {
+  content?: string; // 正文增量
+  reasoning?: string; // 思考增量
+  finishReason?: string; // 结束原因
+}
+```
+
+- 字符串接入：请求体固定 `{ messages, stream: true }`，**不带 `model`**（模型由端点侧决定），用 `credentials: 'same-origin'`，可依托同源 cookie 鉴权
+- 字符串接入的结束判定以 `[DONE]` 或 `finish_reason` 为准；函数接入以迭代器正常结束为准，异常中断请自行抛错
+- 需要自定义请求头 / 额外请求体字段 / 非 OpenAI 协议时，一律传函数适配器
 
 ## AiRichEditorConfig
 
@@ -146,7 +181,7 @@ interface AiRichParsedDocument {
 | `AiRichEditorConfig` | 可序列化配置（设置面板编辑） |
 | `AiRichEditorTools` | 宿主注入的能力集合 |
 | `AiRichNotifyHandler` / `AiRichErrorHandler` | 通知 / 错误回调 |
-| `AiRichRequestHeaders` | 对话请求头（静态对象或求值函数） |
+| `AiRichChatSource` / `AiRichChatAdapter` / `AiRichChatRequest` / `AiRichChatMessage` / `AiRichChatContentPart` / `AiRichChatChunk` | 对话接入协议 |
 | `AiRichPreviewDevice` | 预览设备档位 `{ key, label, width?, height? }` |
 | `MediaConfig` / `MediaUploadConfig` / `MediaItem` / `MediaListParams` / `MediaListResult` / `MediaKind` / `MediaUploadProgress` | 媒体契约 |
 | `AiRichDocumentParser` / `AiRichParsedDocument` / `AiRichDocumentKind` | 文档解析 |

@@ -5,6 +5,14 @@
 import './styles/index.scss';
 
 export { AiRichEditor } from './AiRichEditor';
+export type {
+  AiRichChatAdapter,
+  AiRichChatChunk,
+  AiRichChatContentPart,
+  AiRichChatMessage,
+  AiRichChatRequest,
+  AiRichChatSource,
+} from './chat/protocol';
 export {
   type AiRichPreviewDevice,
   DEFAULT_CONFIG,
@@ -37,7 +45,6 @@ export type {
   AiRichEditorTools,
   AiRichErrorHandler,
   AiRichNotifyHandler,
-  AiRichRequestHeaders,
 } from './types';
 export { buildPreviewDocument, extractHtmlFragments } from './utils/extract';
 export { listAllowedSchemes, sanitizeUrl } from './utils/url';

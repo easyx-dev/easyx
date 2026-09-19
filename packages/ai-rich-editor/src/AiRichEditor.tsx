@@ -1,7 +1,7 @@
 /**
  * AI Rich Editor 主容器：顶栏 + 左(预览，可选编辑器)/右(AI 对话) 两栏工作台
  * 默认两栏：左=预览区、右=AI 对话面板（min400/max600）；「编辑器」为顶栏开关，打开后在左栏与预览并排。
- * value / onChange 兼容受控注入；对话能力经 OpenAI 兼容端点（endpointUrl + model + requestHeaders）注入；
+ * value / onChange 兼容受控注入；对话接入经顶层 chat 注入（已鉴权的 OpenAI 端点 URL 或自定义适配器函数）；
  * 包配置项统一收拢到 config（经设置面板编辑保存生效），函数型注入项（media/onNotify/onError）留在顶层
  *
  * 编辑模型：AI 与代码面板都作用于「源片段」（未作用域化的干净 HTML），作用域化只在输出/预览时派生；
@@ -10,7 +10,7 @@
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  buildSendBody,
+  buildSendData,
   createInstanceChatOverrides,
   EditorCfgContext,
   useAppChat,
@@ -19,6 +19,7 @@ import {
   buildCurrentFragmentBlock,
   buildTargetBlock,
 } from './chat/prompt-blocks';
+import type { AiRichChatSource } from './chat/protocol';
 import { EditorPanel } from './components/EditorPanel';
 import { HelpPanel } from './components/HelpPanel';
 import { PreviewPanel } from './components/PreviewPanel';
@@ -58,10 +59,7 @@ type ProgrammaticSend = (input: ProgrammaticSendInput) => void;
 export function AiRichEditor({
   value = DEFAULT_HTML,
   onChange,
-  endpointUrl,
-  model,
-  requestHeaders,
-  requestBody,
+  chat: chatSource,
   media,
   tools,
   allowedUrlSchemes,
@@ -185,20 +183,12 @@ export function AiRichEditor({
     win.document.close();
   }, [value, previewHead]);
 
-  // 每实例 chat 连接信息：endpointUrl / model / requestHeaders 经 overrides 注入，多实例互不串线；
-  // 三者都在每次请求时从 ref 读取，因此宿主更换连接后无需重挂载
-  const endpointUrlRef = useRef(endpointUrl);
+  // 每实例对话接入点（URL 或适配器函数）经 overrides 注入，多实例互不串线；
+  // 经 ref 在每次请求时读取，因此宿主更换接入点后无需重挂载
+  const chatSourceRef = useRef<AiRichChatSource>(chatSource);
   useEffect(() => {
-    endpointUrlRef.current = endpointUrl;
-  }, [endpointUrl]);
-  const modelRef = useRef(model);
-  useEffect(() => {
-    modelRef.current = model;
-  }, [model]);
-  const requestHeadersRef = useRef(requestHeaders);
-  useEffect(() => {
-    requestHeadersRef.current = requestHeaders;
-  }, [requestHeaders]);
+    chatSourceRef.current = chatSource;
+  }, [chatSource]);
   const onCompleteRef = useRef<((content: string) => void) | undefined>(
     handleAiComplete,
   );
@@ -207,16 +197,10 @@ export function AiRichEditor({
   }, [handleAiComplete]);
 
   const chatOverrides = useMemo(
-    () =>
-      createInstanceChatOverrides(
-        endpointUrlRef,
-        modelRef,
-        requestHeadersRef,
-        onCompleteRef,
-      ),
+    () => createInstanceChatOverrides(chatSourceRef, onCompleteRef),
     [],
   );
-  // 对话实例（headless UI）：连接信息与结束回调经 overrides 注入，多实例互不串线
+  // 对话实例（headless UI）：接入点与结束回调经 overrides 注入，多实例互不串线
   const chat = useAppChat(chatOverrides);
 
   /** 程序化发送：直接在容器内组装消息经 chat 发出，不经输入框，避免依赖子组件的临时通道 */
@@ -233,8 +217,7 @@ export function AiRichEditor({
         .sendMessage(
           { content },
           {
-            body: buildSendBody({
-              requestBody,
+            body: buildSendData({
               sendImagesAsMultimodal,
               systemPrompt,
             }),
@@ -242,7 +225,7 @@ export function AiRichEditor({
         )
         .catch(() => {});
     },
-    [chat, requestBody, sendImagesAsMultimodal, systemPrompt],
+    [chat, sendImagesAsMultimodal, systemPrompt],
   );
 
   // 预览区右键「用 AI 修改」：把目标区域（可多个）与指令交给对话发送
@@ -290,7 +273,6 @@ export function AiRichEditor({
       onApplyPatch: handleApplyPatch,
       onError: reportError,
       onNotify: notify,
-      requestBody,
       sendImagesAsMultimodal,
       systemPrompt,
       urlOptions,
@@ -299,7 +281,6 @@ export function AiRichEditor({
     [
       systemPrompt,
       sendImagesAsMultimodal,
-      requestBody,
       media,
       tools,
       handleApplyHtml,

@@ -134,7 +134,7 @@ packages/
 │   │   ├── parsers/              # 文档解析（独立入口 ./parsers）：类型/路由/错误/默认解析器（docx→HTML、pdf→文本）/上下文块/解析态
 │   │   ├── chat/                 # ChatProvider（headless 数据流 + 自研渲染）/ ChatComposer / AttachmentBar / DocumentBar / ThinkBlock
 │   │   │                         # + prompt-blocks（上下文块拼接与分段解析）
-│   │   │                         # + OpenAI 协议层：openai-connection（适配器）/ openai-sse（SSE 解析）/ openai-messages（消息转换）
+│   │   │                         # + 对话接入：protocol（协议）/ chat-connection（连接适配器）/ chat-messages（消息转换）/ openai-fetch（内置 OpenAI 路径）/ openai-sse（SSE 解析）
 │   │   ├── markdown/renderer.tsx # marked 词法 → React 元素（裸 HTML 丢弃 + 协议白名单）
 │   │   ├── components/           # 顶栏 / 预览（含右键编辑浮层）/ 代码面板懒加载边界 / 设置面板 / 使用说明面板 / markdown 消息 / 补丁与上下文卡片 / 媒体浮层
 │   │   ├── code-editor/          # CodeMirror 6 封装：CodeEditor / extensions / gutter-add / gutter-line-select / theme / phrases / doc-sync
@@ -185,7 +185,7 @@ site/                        # Astro + Starlight 文档站点（系列库共用�
     │       ├── editor-height.tsx
     │       ├── table-plus-demo.tsx
     │       ├── ai-rich-editor-demo.tsx  # 回放/真实模型双模式 + 本地 Blob 媒体能力
-    │       │   └── ai-rich-editor-demo/ # 连接面板 / 预设 / 持久化 / 回放 SSE
+    │       │   └── ai-rich-editor-demo/ # 连接面板 / 预设 / 持久化 / 回放 SSE / OpenAI 适配器（函数接入参考实现）
     │       └── image-toolkit-demo.tsx   # canvas 现场生成源图
     ├── content/
     │   ├── config.ts
@@ -372,12 +372,12 @@ const editor = createEditor(containerElement, {
 `@easyx/ai-rich-editor` 是 React 重客户端组件，只产出可嵌入内容字段的 HTML 片段（fragment），不输出整页文档：
 
 - 两栏工作台：左预览（可选代码面板）｜右 AI 对话，顶栏统一收拢预览控件与勾选框
-- **对外协议是标准 OpenAI Chat Completions 流式接口**：连接三件套为顶层 `endpointUrl`（完整端点，如 `/v1/chat/completions`）+ `model` + `requestHeaders`（静态对象或求值函数），`requestBody` 追加进请求体；宿主后端只需 OpenAI 兼容，**不需要任何服务端 SDK**。包内**不持有**端点/鉴权知识
-- **协议层三件套**（`chat/`）：`openai-connection.ts` 是连接适配器，对外收发标准 OpenAI 协议、对内把增量翻译成 TanStack 的 StreamChunk（`model` / `stream` / `messages` 由适配器最终决定，`requestBody` 不可覆盖同名字段）；`openai-sse.ts` 与 `openai-messages.ts` 分别是纯函数式的 SSE 解析与消息转换，便于单测
+- **对话接入只给协议**：顶层 `chat` 是唯一接入点，二选一 —— 传字符串（**已鉴权的 OpenAI Chat Completions 端点**，包内按 `{ messages, stream: true }` 请求并解析 SSE，**不带 `model`**，模型与鉴权由端点侧决定，`credentials: 'same-origin'` 可走同源 cookie）或传函数（调用方适配器，server function / 自包协议，接收协议请求、流式返回协议增量）。包内**不持有**端点、鉴权与模型知识；需要自定义请求头 / 额外字段 / 非 OpenAI 协议一律走函数
+- **协议层**（`chat/`）：`protocol.ts` 定义公开协议（`AiRichChatSource` / `AiRichChatAdapter` / `AiRichChatRequest` / `AiRichChatChunk` 等）；`chat-connection.ts` 是连接适配器，按接入点形态分发并把增量翻译成 TanStack 的 StreamChunk；`chat-messages.ts` 是纯函数式的消息转换；`openai-fetch.ts` 是字符串路径的请求，复用 `openai-sse.ts` 的纯函数式 SSE 解析，便于单测
 - 数据流仍用 TanStack AI headless UI（`createChatHook` 模块作用域注册一次），渲染侧为包内自研（气泡 / 输入框 / 推荐指令 / 思考块）
-- `createInstanceChatOverrides` 把每实例的 `endpointUrl` / `model` / `requestHeaders` 与结束回调经 overrides 注入模块级 options（多实例互不串线，且经 ref 每次请求读取，宿主换连接无需重挂载）；`ChatProvider.tsx` 用 `ChatHookBinding` 收窄库返回类型，作为与库不可命名内部类型的唯一边界
-- **协议细节**：system 提示词作为 `messages[0]` 发送（不再是独立字段）；思考按厂商方言尽力识别 `reasoning_content` / `reasoning` / `thinking`；图片附件在「绝对 `http(s)` + `config.sendImagesAsMultimodal` 开启 + 类型为 image」三者同时成立时升级为 `image_url` 内容块，其余附件仍靠正文里的 `[已上传附件]` 清单；`[DONE]` 与 `finish_reason` 都缺失即判定流被切断并抛错，不把半截回复当成功；abort 静默退出
-- **编辑模型是「源片段域」**：AI 与代码面板都作用于未作用域化的干净片段，作用域化只在输出/预览时派生。每条用户消息附带 `[当前片段]`（`chat/prompt-blocks.ts` 拼装）；构造请求时 `openai-messages.ts` 剥离历史轮次的该块、只保留最新一份，避免请求体随对话线性膨胀。对外 `value` / `onChange` 仍是 scoped 成品，宿主用法不变
+- `createInstanceChatOverrides` 把每实例的接入点 `chat` 与结束回调经 overrides 注入模块级 options（多实例互不串线，且经 ref 每次请求读取，宿主换接入点无需重挂载）；`ChatProvider.tsx` 用 `ChatHookBinding` 收窄库返回类型，作为与库不可命名内部类型的唯一边界
+- **协议细节**：system 提示词作为 `messages[0]` 发送；思考按厂商方言尽力识别 `reasoning_content` / `reasoning` / `thinking`；图片附件在「绝对 `http(s)` + `config.sendImagesAsMultimodal` 开启 + 类型为 image」三者同时成立时升级为 `image_url` 内容块，其余附件仍靠正文里的 `[已上传附件]` 清单；**字符串接入**下 `[DONE]` 与 `finish_reason` 都缺失即判定流被切断并抛错，不把半截回复当成功（函数接入以迭代器正常结束为准，异常由适配器自行抛出）；abort 静默退出
+- **编辑模型是「源片段域」**：AI 与代码面板都作用于未作用域化的干净片段，作用域化只在输出/预览时派生。每条用户消息附带 `[当前片段]`（`chat/prompt-blocks.ts` 拼装）；构造请求时 `chat-messages.ts` 剥离历史轮次的该块、只保留最新一份，避免请求体随对话线性膨胀。对外 `value` / `onChange` 仍是 scoped 成品，宿主用法不变
 - **修改走「整段替换」**：修改类回复同样输出改动后的完整片段，客户端整段替换（`autoApply`）。对话历史因此天然是一份可回退的版本序列 —— 点任意历史 `HtmlCodeCard` 的「应用到编辑器」即可回退到该版本。system 提示词要求「做最小化改动、但给出完整片段」，并借 `[当前片段]` / `[目标区域]` / `[选中文本]` 定位改动焦点
 - **补丁块仅作兜底**：若模型仍违规输出 Aider 形态的 `<<<<<<< SEARCH / ======= / >>>>>>> REPLACE` 块，`utils/patch.ts` 负责解析与（手动）应用，`PatchCard` 渲染为 diff；**不自动应用、不自动重试**，只提示用户重新索要完整片段。解析对模型常见偏差容错（前导空白、大小写、≥3 连字符、内容与标记同行、漏写结束标记、未套围栏）
 - **对话消息可见性**：用户气泡按 `splitPromptBlocks` 分段渲染 —— 原话 + 附件缩略条 + `[当前片段]`/`[目标区域]` 只读代码卡片；助手回复里的完整片段渲染为 `HtmlCodeCard`（可回退并重新应用），差异块渲染为 `PatchCard`

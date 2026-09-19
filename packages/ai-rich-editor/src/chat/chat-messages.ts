@@ -1,8 +1,8 @@
 /**
- * 会话消息 → OpenAI Chat Completions 消息转换（纯函数）
+ * 会话消息 → 对话协议消息转换（纯函数）
  *
- * 四处协议适配：
- * - system 提示词在 OpenAI 协议里是普通消息，故注入到消息首位（不再是独立字段）
+ * 四处适配：
+ * - system 提示词注入消息首位
  * - 思考内容不回传：协议无语义，模型也不需要重复自己的推理
  * - 图片附件按需升级为多模态 content parts；其余类型仍靠消息正文里的文本清单
  * - 本包经 useChat 只会传 UIMessage；ModelMessage 分支仅为满足库的联合类型，只取文本
@@ -10,18 +10,9 @@
 import type { UIMessage } from '@tanstack/ai-react';
 import { parseSentAttachments } from '../media/attachment';
 import { removeFragmentBlock, removeTargetBlocks } from './prompt-blocks';
+import type { AiRichChatContentPart, AiRichChatMessage } from './protocol';
 
-/** OpenAI 内容块：Chat Completions 只标准化了文本与图片 */
-export type OpenAiContentPart =
-  | { type: 'text'; text: string }
-  | { type: 'image_url'; image_url: { url: string } };
-
-export interface OpenAiChatMessage {
-  role: 'system' | 'user' | 'assistant';
-  content: string | OpenAiContentPart[];
-}
-
-export interface BuildOpenAiMessagesOptions {
+export interface BuildChatMessagesOptions {
   /** system 提示词（包内置模板或宿主自定义） */
   systemPrompt: string;
   /** 图片是否以多模态形式发送；关闭后只保留正文里的文本清单 */
@@ -135,12 +126,12 @@ function lastUserIndex(messages: readonly ConversableMessage[]): number {
   return -1;
 }
 
-/** 组装请求用的 OpenAI 消息序列 */
-export function buildOpenAiMessages(
+/** 组装请求用的协议消息序列（system 恒为首条） */
+export function buildChatMessages(
   messages: readonly ConversableMessage[],
-  options: BuildOpenAiMessagesOptions,
-): OpenAiChatMessage[] {
-  const result: OpenAiChatMessage[] = [
+  options: BuildChatMessagesOptions,
+): AiRichChatMessage[] {
+  const result: AiRichChatMessage[] = [
     { role: 'system', content: options.systemPrompt },
   ];
   const lastUser = lastUserIndex(messages);
@@ -159,7 +150,7 @@ export function buildOpenAiMessages(
       continue;
     }
 
-    const parts: OpenAiContentPart[] = [];
+    const parts: AiRichChatContentPart[] = [];
     if (text.trim()) parts.push({ type: 'text', text });
     for (const url of images) {
       parts.push({ type: 'image_url', image_url: { url } });

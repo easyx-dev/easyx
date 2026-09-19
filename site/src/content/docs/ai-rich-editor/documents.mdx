@@ -20,8 +20,7 @@ import { AiRichEditor } from '@easyx/ai-rich-editor';
 import { createDefaultDocumentParser } from '@easyx/ai-rich-editor/parsers';
 
 <AiRichEditor
-  endpointUrl="/v1/chat/completions"
-  model="gpt-4o-mini"
+  chat="/api/ai/chat"
   tools={{ parseDocument: createDefaultDocumentParser() }}
 />
 ```
@@ -34,8 +33,7 @@ import { createDefaultDocumentParser } from '@easyx/ai-rich-editor/parsers';
 
 ```tsx
 <AiRichEditor
-  endpointUrl="/v1/chat/completions"
-  model="gpt-4o-mini"
+  chat="/api/ai/chat"
   tools={{
     parseDocument: async (file) => {
       const form = new FormData();

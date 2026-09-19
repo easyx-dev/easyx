@@ -2,7 +2,7 @@
  * 演示连接配置：持久化、解析与连通性探测
  *
  * 密钥以明文存在 localStorage，仅用于本机演示 —— 面板内会显著警示。
- * 解析结果直接对应 AiRichEditor 的连接三件套；内置回放返回 undefined。
+ * 解析结果用于构造演示的 OpenAI 适配器；内置回放返回 undefined。
  */
 import { DEMO_PRESET_KEY, findPreset, toEndpointUrl } from './presets';
 

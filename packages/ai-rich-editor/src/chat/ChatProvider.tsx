@@ -2,12 +2,12 @@
  * AI 富编辑器对话区：TanStack AI headless 数据流 + 包内自研渲染层
  * 基于 @tanstack/ai-react/ui 的 createChatHook：模块作用域注册一次，
  * components（layout/message/input）+ partsComponents（text/thinking/fallback）
- * 驱动消息渲染；宿主经 EditorCfgContext 注入 runtime 配置（systemPrompt/requestBody/onApplyHtml/notify）。
- * 数据流底层是标准 OpenAI Chat Completions 流式连接（见 chat/openai-connection.ts），
- * 渲染侧全部走包内原语：气泡、输入框、推荐指令、思考块均为自研实现。
+ * 驱动消息渲染；宿主经 EditorCfgContext 注入 runtime 配置（systemPrompt/onApplyHtml/notify）。
+ * 数据流底层是对话连接适配器（见 chat/chat-connection.ts）：接入点可以是已鉴权的
+ * OpenAI 端点 URL，也可以是调用方自己的适配器函数。渲染侧全部走包内原语。
  *
  * 单实例假设：编辑器一页一个；createChatHook 的 options 在模块作用域固定，
- * 每实例的连接信息（endpointUrl/model/requestHeaders）与结束回调经 overrides 注入。
+ * 每实例的接入点（chat）与结束回调经 overrides 注入。
  */
 import type { ConnectConnectionAdapter, UIMessage } from '@tanstack/ai-react';
 import type {
@@ -66,7 +66,6 @@ import type {
   AiRichEditorTools,
   AiRichErrorHandler,
   AiRichNotifyHandler,
-  AiRichRequestHeaders,
 } from '../types';
 import { IconRobot, IconTrash } from '../ui/icons';
 import { Alert } from '../ui/primitives/Alert';
@@ -75,8 +74,9 @@ import { Tooltip } from '../ui/primitives/Tooltip';
 import type { SanitizeUrlOptions } from '../utils/url';
 import { AttachmentBar } from './AttachmentBar';
 import { ChatComposer } from './ChatComposer';
-import { createOpenAiConnection } from './openai-connection';
+import { createChatConnection } from './chat-connection';
 import { buildCurrentFragmentBlock, splitPromptBlocks } from './prompt-blocks';
+import type { AiRichChatSource } from './protocol';
 import { ThinkBlock } from './ThinkBlock';
 
 /** 运行期注入给 chat 组件的配置（不含连接信息，后者走模块 ref） */
@@ -85,8 +85,6 @@ export interface EditorChatConfig {
   systemPrompt?: string;
   /** 图片是否以多模态 content parts 发送（缺省 true） */
   sendImagesAsMultimodal?: boolean;
-  /** 追加进对话请求体的字段（如 { temperature: 0.7 }） */
-  requestBody?: Record<string, unknown>;
   /** 「应用到编辑器」回调（完整 HTML 代码块替换当前内容） */
   onApplyHtml?: (html: string) => void;
   /** 「应用修改」回调（补丁块应用到当前内容） */
@@ -166,19 +164,14 @@ function toReadonlyAttachments(items: SentAttachment[]): PendingAttachment[] {
 }
 
 /**
- * 组装每次发送的保留字段与透传请求体
+ * 组装每次发送经 `connect(messages, data)` 传给连接适配器的保留字段
  *
- * systemPrompt / sendImagesAsMultimodal 是适配器的保留键（会被摘出并单独处理），
- * 其余字段（requestBody）原样合并进 OpenAI 请求体。保留键放在最后，避免被透传字段覆盖。
+ * systemPrompt / sendImagesAsMultimodal 是适配器的保留键，会被摘出并用于消息组装。
  */
-export function buildSendBody(
-  cfg: Pick<
-    EditorChatConfig,
-    'requestBody' | 'systemPrompt' | 'sendImagesAsMultimodal'
-  >,
+export function buildSendData(
+  cfg: Pick<EditorChatConfig, 'systemPrompt' | 'sendImagesAsMultimodal'>,
 ): Record<string, unknown> {
   return {
-    ...cfg.requestBody,
     systemPrompt: cfg.systemPrompt ?? buildDefaultSystemPrompt(),
     sendImagesAsMultimodal: cfg.sendImagesAsMultimodal ?? true,
   };
@@ -186,22 +179,16 @@ export function buildSendBody(
 
 /**
  * 构建每个实例的 chat 运行时覆盖项（connection / onFinish）。
- * createChatHook 的 options 在模块作用域固定，而连接信息是每实例动态值，
+ * createChatHook 的 options 在模块作用域固定，而接入点是每实例动态值，
  * 故经 useAppChat 的 overrides 注入（运行时 {...options, ...overrides} 覆盖同名字段），
  * 使多实例互不串线。
  */
 export function createInstanceChatOverrides(
-  endpointUrlRef: { current: string },
-  modelRef: { current: string },
-  requestHeadersRef: { current: AiRichRequestHeaders | undefined },
+  sourceRef: { current: AiRichChatSource },
   onCompleteRef: { current: ((content: string) => void) | undefined },
 ): InstanceChatOverrides {
   return {
-    connection: createOpenAiConnection({
-      endpointUrl: endpointUrlRef,
-      model: modelRef,
-      requestHeaders: requestHeadersRef,
-    }),
+    connection: createChatConnection({ source: sourceRef }),
     onFinish: (message: UIMessage) => {
       const content = textOf(message);
       if (content.trim()) onCompleteRef.current?.(content);
@@ -517,7 +504,7 @@ function ChatInput(_props: InputProps<typeof chatOptions>) {
         items.length > 0
           ? { content, metadata: { easyxAttachments: items } }
           : { content },
-        { body: buildSendBody(cfg) },
+        { body: buildSendData(cfg) },
       );
     },
     [chat, cfg],
@@ -655,7 +642,7 @@ function ChatLayout({
   const handlePreset = (preset: string) => {
     if (chat.isLoading) return;
     // 失败由 chat.error 驱动界面提示并上报 onError；此处吞掉 rejection 避免未处理 promise
-    chat.sendMessage(preset, { body: buildSendBody(cfg) }).catch(() => {});
+    chat.sendMessage(preset, { body: buildSendData(cfg) }).catch(() => {});
   };
 
   return (

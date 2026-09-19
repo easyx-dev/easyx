@@ -5,35 +5,68 @@ description: 对话协议、修改与版本回退、媒体插入、配置、通�
 
 import { Aside } from '@astrojs/starlight/components';
 
-## 对话协议
+## 对话接入
 
-包内把请求组装成标准 OpenAI 流式调用，并消费标准 `data:` + `[DONE]` 响应：
+包内只给协议，接入点由宿主任选其一，经顶层 `chat` 属性传入：
 
-```jsonc
-// POST {endpointUrl}
-{
-  "model": "gpt-4o-mini",
-  "stream": true,
-  "messages": [
-    { "role": "system", "content": "<内置或自定义 system 提示词>" },
-    { "role": "user", "content": "…" }
-  ]
+- **传字符串** —— 已鉴权的 OpenAI Chat Completions 端点，包内负责请求与 SSE 解析
+- **传函数** —— 自定义适配器，接收包内拼装好的协议请求，流式返回增量
+
+### 协议
+
+请求由包内组装（`system` 提示词恒为首条，历史轮次的上下文块已剥离）：
+
+```ts
+interface AiRichChatRequest {
+  messages: Array<{
+    role: 'system' | 'user' | 'assistant';
+    content:
+      | string
+      | Array<
+          | { type: 'text'; text: string }
+          | { type: 'image_url'; image_url: { url: string } }
+        >;
+  }>;
 }
 ```
 
-```text
-# text/event-stream
-data: {"choices":[{"delta":{"content":"这"},"finish_reason":null}]}
-data: {"choices":[{"delta":{},"finish_reason":"stop"}]}
-data: [DONE]
+响应由接入方流式返回：
+
+```ts
+interface AiRichChatChunk {
+  content?: string; // 正文增量
+  reasoning?: string; // 思考增量
+  finishReason?: string; // 结束原因
+}
 ```
 
-- **请求**：`model` / `stream` / `messages` 由包内决定，`requestBody` 中的同名字段不生效；system 提示词作为 `messages[0]` 发送
-- **思考**：按厂商方言尽力识别 `reasoning_content` / `reasoning` / `thinking`，渲染为可折叠思考块
+### 两种接入
+
+```tsx
+// 一：已鉴权的 OpenAI 端点在宿主自己的鉴权体系内 —— 直接给 URL
+// 请求体固定 { messages, stream: true }，不带 model（模型由端点侧决定）
+<AiRichEditor chat="/api/ai/chat" />
+
+// 二：自己的 server function / 需要自定义请求头与 model / 非 OpenAI 协议 —— 给函数
+<AiRichEditor
+  chat={async function* ({ messages }, signal) {
+    const res = await fetch('/my/chat', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ model: 'my-model', messages }),
+      signal,
+    });
+    if (!res.ok || !res.body) throw new Error('请求失败');
+    for await (const chunk of parseMyProtocol(res.body)) yield chunk;
+  }}
+/>
+```
+
+- **终止**：字符串接入以 `[DONE]` 或 `finish_reason` 为准，两者都缺失即判定流被切断并报错；函数接入迭代器正常结束即完成，异常中断请自行抛错
+- **思考**：字符串接入按厂商方言尽力识别 `reasoning_content` / `reasoning` / `thinking`，渲染为可折叠思考块
 - **图片**：绝对 `http(s)` 地址且 `config.sendImagesAsMultimodal` 开启时作为 `image_url` 内容块发送；其余附件靠正文里的 `[已上传附件]` 清单传递地址
-- **终止**：以 `[DONE]` 或 `finish_reason` 为准，两者都缺失即判定流被切断并报错，不会把半截回复当成功应用
 - **中断**：`stop` 中止当前生成并静默退出
-- **错误**：HTTP 非 2xx 与流内 `{"error":…}` 均抛出 `Error`，走 `onNotify` + `onError` 两条通道
+- **错误**：字符串接入的 HTTP 非 2xx、流内 `{"error":…}` 与截断都会抛出 `Error`，函数接入的错误原样上抛，一律走 `onNotify` + `onError` 两条通道
 
 ### 上下文块
 
@@ -53,8 +86,7 @@ data: [DONE]
 
 ```tsx
 <AiRichEditor
-  endpointUrl="/v1/chat/completions"
-  model="gpt-4o-mini"
+  chat="/api/ai/chat"
   media={{
     image: {
       upload: async (file, onProgress) => ({
@@ -135,8 +167,7 @@ data: [DONE]
 
 ```tsx
 <AiRichEditor
-  endpointUrl="/v1/chat/completions"
-  model="gpt-4o-mini"
+  chat="/api/ai/chat"
   onNotify={(type, content) => myToast(type, content)}
   onError={(error) => myReporter(error)}
 />
