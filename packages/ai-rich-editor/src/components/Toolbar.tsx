@@ -8,6 +8,7 @@ import type { AiRichErrorHandler, AiRichNotify } from '../types';
 import {
   IconCopy,
   IconExternalLink,
+  IconHelp,
   IconReload,
   IconSetting,
 } from '../ui/icons';
@@ -32,6 +33,8 @@ interface ToolbarProps {
   onToggleEditor: () => void;
   /** 打开设置面板 */
   onOpenSettings: () => void;
+  /** 打开使用说明 */
+  onOpenHelp: () => void;
   onNotify?: AiRichNotify;
   onError?: AiRichErrorHandler;
 }
@@ -52,6 +55,7 @@ export function Toolbar({
   showEditor,
   onToggleEditor,
   onOpenSettings,
+  onOpenHelp,
   onNotify,
   onError,
 }: ToolbarProps) {
@@ -150,6 +154,17 @@ export function Toolbar({
           >
             设置
           </Button>
+        </Tooltip>
+
+        <Tooltip title="使用说明">
+          <Button
+            aria-label="使用说明"
+            icon={<IconHelp />}
+            iconOnly
+            onClick={onOpenHelp}
+            size="sm"
+            variant="text"
+          />
         </Tooltip>
       </div>
     </div>

@@ -127,6 +127,7 @@ packages/
 │   │   ├── AiRichEditor.tsx      # 主容器：顶栏 + 左预览/右对话 + 补丁应用与重试 + 预览定向修改
 │   │   ├── types.ts              # AiRichEditorProps / AiRichEditorConfig / AiRichEditorTools 等（media/tools/onNotify/onError 为顶层属性）
 │   │   ├── constants.ts          # 默认内容、预设指令、设备档位、system 提示词模板（含补丁协议）、附件/文档上限
+│   │   ├── help-content.ts       # 使用说明文案（面向使用者的分区数据，渲染见 components/HelpPanel.tsx）
 │   │   ├── prompts.ts            # 内置 system 提示词构建
 │   │   ├── media/                # 媒体能力：类型/路由/错误/上传/片段生成/对话附件/清单文本
 │   │   ├── parsers/              # 文档解析（独立入口 ./parsers）：类型/路由/错误/默认解析器（docx→HTML、pdf→文本）/上下文块/解析态
@@ -134,7 +135,7 @@ packages/
 │   │   │                         # + prompt-blocks（上下文块拼接与分段解析）
 │   │   │                         # + OpenAI 协议层：openai-connection（适配器）/ openai-sse（SSE 解析）/ openai-messages（消息转换）
 │   │   ├── markdown/renderer.tsx # marked 词法 → React 元素（裸 HTML 丢弃 + 协议白名单）
-│   │   ├── components/           # 顶栏 / 预览（含右键编辑浮层）/ 代码面板懒加载边界 / 设置面板 / markdown 消息 / 补丁与上下文卡片 / 媒体浮层
+│   │   ├── components/           # 顶栏 / 预览（含右键编辑浮层）/ 代码面板懒加载边界 / 设置面板 / 使用说明面板 / markdown 消息 / 补丁与上下文卡片 / 媒体浮层
 │   │   ├── code-editor/          # CodeMirror 6 封装：CodeEditor / extensions / gutter-add / gutter-line-select / theme / phrases / doc-sync
 │   │   ├── hooks/                # useIsDark（三级主题判定）/ useElementSize
 │   │   ├── ui/                   # 自研 UI 原语（按钮/模态框/菜单/分段/勾选框/输入/提示）+ feedback（兜底回调）+ Splitter
@@ -389,6 +390,7 @@ const editor = createEditor(containerElement, {
 - **文档解析（Word / PDF）**（`parsers/`）：能力经顶层 `tools.parseDocument` 注入，**接口是异步方法** `(file: File) => Promise<AiRichParsedDocument>`，宿主可在浏览器本地解析，也可接自己的服务端解析接口。默认解析器拆到独立入口 `./parsers`（`createDefaultDocumentParser` / `createDocxParser` / `createPdfParser`）：`mammoth` 的浏览器预构建包（自包含 Buffer，宿主无需 polyfill）转 docx 为 HTML，`unpdf` 的 serverless pdf.js（worker 内联）提取按页文本；两者为**可选 peerDependencies**，在入口内动态 `import`，宿主不用则完全不进产物。添加即解析（解析态在 `DocumentBar`，失败保留条目可重试），发送时以 `[文档内容]` 上下文块注入（`parsers/prompt-text.ts`），docx 图片替换为 `[图片]` 占位、超 `DOCUMENT_MAX_CHARS`（30000）截断；该块是持久源材料，**不参与历史剥离**（区别于 `[当前片段]`/`[目标区域]`）。只支持 `.docx`/`.pdf`（旧版 `.doc` 在宿主没有附件上传能力时报明确错误，否则落回媒体附件链路），扫描件提示无文本层，单次上限 `DOCUMENT_ATTACHMENT_LIMIT`（3）
 - **通知与错误两条通道**（`ui/feedback.ts`）：`createErrorReporter` 把「可见提示」与「程序上报」串成一条路径 —— 错误先经 `onNotify('error', error.message)` 呈现（兜底内置轻提示），再经 `onError` 上报（兜底 `console.error`，**不上浮任何 UI**）。包内不构造错误文案 UI，错误一律抛出 Error 实例（`MediaNotConfiguredError` / `InvalidMediaUrlError` 供宿主分支）；会话流错误保留对话区 `Alert` 并同样走两条通道（即 Alert + 一条轻提示）
 - **配置分层**：可序列化配置在 `config`（设置面板可编辑、经 `onConfigChange` 回写），函数型注入项（`media` / `tools` / `onNotify` / `onError`）与 `allowedUrlSchemes` 一律顶层。设置用**就地渲染的模态框**（`ui/primitives/Modal.tsx`，不 portal、不锁 body 滚动、高度随内容自适应且上限 90% / 宽上限 800px），不再有抽屉与设置下拉
+- **使用说明入口**：顶栏图标按钮打开「使用说明」模态框（`components/HelpPanel.tsx` + `help-content.ts`）。文案**面向使用者**，只讲界面上看得到的功能与操作步骤，不涉及宿主集成、配置变量与实现原理；数据与渲染分离，便于维护与测试
 - **媒体与文档的接纳判定是纯函数**：`media/upload.ts` 的 `MediaNotConfiguredError` 是「未配置该类型上传接口」文案的唯一来源；`media/attachment.ts` 的 `planFileAttachments` 决定哪些文件被接纳、哪些报错或提醒（数量上限 `MEDIA_ATTACHMENT_LIMIT`）；`parsers/document-state.ts` 的 `splitDocumentFiles` 决定本地文件走解析还是媒体链路（旧版 `.doc` 有附件上传能力时落回媒体，否则报错），`normalizeParsedDocument` 补全远程解析缺失的来源信息
 - **不做工具调用**：本包不声明任何工具，模型也无需回调宿主接口 —— 附件在发送前由客户端上传、文档在宿主侧解析（本地或宿主自己的接口）、地址与正文写进消息（见 `media/` 与 `parsers/`），宿主对话服务端零改动
 - **代码面板**（`code-editor/`）：CodeMirror 6，经 `components/EditorPanel.tsx` 懒加载边界按需进入宿主产物。扩展装配基线是**官方默认组合**（等价 basicSetup：行号、撤销、括号匹配/闭合、补全、矩形选择、当前行、选区匹配、折叠、多光标），另加 `html()`、软换行、`indentWithTab`、媒体插入（行号左侧 gutter 入口 + 文件拖入）与 `theme.ts` 的**令牌语法高亮**；**不引入 `codemirror` 元包**，而是用包内已有 `@codemirror/*` 依赖拼出同一组合（元包会带进第二份 `@codemirror/state`，`instanceof` 校验失败导致编辑器装配不起来）。相比官方 basicSetup 少 `lintKeymap`，且不用面向浅色背景的 `defaultHighlightStyle`。外部 value 的落地策略在 `doc-sync.ts`；自研的行号槽整行选择、中文文案保留在 `gutter-line-select.ts` / `phrases.ts`，当前不装配

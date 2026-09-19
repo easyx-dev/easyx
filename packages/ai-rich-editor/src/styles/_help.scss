@@ -1,0 +1,39 @@
+/**
+ * 使用说明面板：分区列表与条目
+ * 分区容器与标题复用设置面板的 section 样式，此处只补列表形态
+ */
+.easyx-ai-rich-editor__help {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+}
+
+.easyx-ai-rich-editor__help-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 0;
+  margin: 0;
+  list-style: none;
+}
+
+/* 条目：前置圆点定位在文本首行中部 */
+.easyx-ai-rich-editor__help-item {
+  position: relative;
+  padding-left: 16px;
+}
+
+.easyx-ai-rich-editor__help-item::before {
+  position: absolute;
+  top: 0.55em;
+  left: 4px;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--easyx-ai-rich-editor-primary);
+  content: '';
+}
+
+.easyx-ai-rich-editor__help-item > .easyx-ai-rich-editor__text {
+  line-height: 1.6;
+}

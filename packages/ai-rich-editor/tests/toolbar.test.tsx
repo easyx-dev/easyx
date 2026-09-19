@@ -27,6 +27,7 @@ function renderToolbar(overrides: Record<string, unknown> = {}) {
     onError: rs.fn(),
     onNotify: rs.fn(),
     onOpenInNewWindow: rs.fn(),
+    onOpenHelp: rs.fn(),
     onOpenSettings: rs.fn(),
     onRefresh: rs.fn(),
     onToggleEditor: rs.fn(),
@@ -72,6 +73,12 @@ describe('Toolbar', () => {
     expect(handlers.onToggleScripts).toHaveBeenCalledTimes(1);
     fireEvent.click(screen.getByRole('checkbox', { name: '显示代码编辑器' }));
     expect(handlers.onToggleEditor).toHaveBeenCalledTimes(1);
+  });
+
+  it('点击「使用说明」触发帮助入口回调', () => {
+    const handlers = renderToolbar();
+    fireEvent.click(screen.getByRole('button', { name: '使用说明' }));
+    expect(handlers.onOpenHelp).toHaveBeenCalledTimes(1);
   });
 
   it('无内容时复制给出警告，不写剪贴板', () => {

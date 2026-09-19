@@ -20,6 +20,7 @@ import {
   buildTargetBlock,
 } from './chat/prompt-blocks';
 import { EditorPanel } from './components/EditorPanel';
+import { HelpPanel } from './components/HelpPanel';
 import { PreviewPanel } from './components/PreviewPanel';
 import { SettingsPanel } from './components/SettingsPanel';
 import { Toolbar } from './components/Toolbar';
@@ -77,6 +78,7 @@ export function AiRichEditor({
   const [scriptsEnabled, setScriptsEnabled] = useState(true);
   const [reloadKey, setReloadKey] = useState(0);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [helpOpen, setHelpOpen] = useState(false);
   // 运行期配置：config 作为初始值，设置面板保存后更新（不受 config 后续变化影响）
   const [runtimeConfig, setRuntimeConfig] = useState<AiRichEditorConfig>(
     () => ({
@@ -343,6 +345,7 @@ export function AiRichEditor({
         onError={reportError}
         onNotify={notify}
         onOpenInNewWindow={handleOpenInNewWindow}
+        onOpenHelp={() => setHelpOpen(true)}
         onOpenSettings={() => setSettingsOpen(true)}
         onRefresh={() => setReloadKey((k) => k + 1)}
         onToggleEditor={() => setShowEditor((prev) => !prev)}
@@ -411,6 +414,8 @@ export function AiRichEditor({
         open={settingsOpen}
         urlSchemes={listAllowedSchemes(urlOptions)}
       />
+
+      <HelpPanel onClose={() => setHelpOpen(false)} open={helpOpen} />
     </div>
   );
 }

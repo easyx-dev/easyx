@@ -87,6 +87,23 @@ export function IconSetting({ size = 15, ...rest }: IconProps) {
   );
 }
 
+export function IconHelp({ size = 15, ...rest }: IconProps) {
+  return (
+    <svg
+      aria-hidden="true"
+      height={size}
+      viewBox="0 0 24 24"
+      width={size}
+      {...stroke}
+      {...rest}
+    >
+      <circle cx="12" cy="12" r="9" />
+      <path d="M9.6 9.4a2.5 2.5 0 1 1 3.5 2.3c-.7.4-1.1 1-1.1 1.8v.2" />
+      <path d="M12 17h.01" />
+    </svg>
+  );
+}
+
 export function IconCode({ size = 15, ...rest }: IconProps) {
   return (
     <svg
