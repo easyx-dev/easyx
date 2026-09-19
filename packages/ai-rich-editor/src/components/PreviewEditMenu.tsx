@@ -7,7 +7,7 @@
  */
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import type { AiRichNotify } from '../types';
+import type { AiRichNotifyHandler } from '../types';
 import { cx, scopeClass } from '../ui/cx';
 import { Button } from '../ui/primitives/Button';
 import type { PreviewTarget } from '../utils/blocks';
@@ -20,7 +20,7 @@ export interface PreviewEditMenuProps {
   targets: PreviewTarget[];
   /** 是否暗色（决定令牌作用域类） */
   dark: boolean;
-  onNotify?: AiRichNotify;
+  onNotify?: AiRichNotifyHandler;
   onClose: () => void;
   onSubmit: (instruction: string) => void;
 }

@@ -5,13 +5,13 @@
  * `onNotify('error', …)` 呈现（两者的组装见 ui/feedback.ts 的 createErrorReporter）。
  */
 import { mediaKindLabel } from './routing';
-import type { AiRichMediaKind } from './types';
+import type { MediaKind } from './types';
 
 /** 对应类型的上传接口未配置 */
 export class MediaNotConfiguredError extends Error {
-  readonly kind: AiRichMediaKind;
+  readonly kind: MediaKind;
 
-  constructor(kind: AiRichMediaKind) {
+  constructor(kind: MediaKind) {
     super(`未配置${mediaKindLabel(kind)}上传接口`);
     this.name = 'MediaNotConfiguredError';
     this.kind = kind;

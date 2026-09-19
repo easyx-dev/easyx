@@ -7,7 +7,7 @@
  */
 import { type ReactNode, useEffect, useMemo, useRef } from 'react';
 import { renderMarkdown } from '../markdown/renderer';
-import type { AiRichErrorHandler, AiRichNotify } from '../types';
+import type { AiRichErrorHandler, AiRichNotifyHandler } from '../types';
 import { IconCode, IconCopy } from '../ui/icons';
 import { Button } from '../ui/primitives/Button';
 import { Tooltip } from '../ui/primitives/Tooltip';
@@ -25,7 +25,7 @@ function HtmlCodeCard({
 }: {
   html: string;
   onApplyHtml?: (html: string) => void;
-  onNotify?: AiRichNotify;
+  onNotify?: AiRichNotifyHandler;
   onError?: AiRichErrorHandler;
 }) {
   const preRef = useRef<HTMLPreElement>(null);
@@ -106,7 +106,7 @@ interface MarkdownContentProps {
   /** 点击「应用修改」回调（传入补丁块原文） */
   onApplyPatch?: (content: string) => void;
   /** 轻提示回调（复制代码等） */
-  onNotify?: AiRichNotify;
+  onNotify?: AiRichNotifyHandler;
   /** 错误回调（复制失败） */
   onError?: AiRichErrorHandler;
   /** 链接与图片地址的白名单选项（宿主可追加协议） */

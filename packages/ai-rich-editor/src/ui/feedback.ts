@@ -5,11 +5,11 @@
  * - 通知（onNotify）：给人看的文案，兜底为内置轻提示（错误的可见提示也从这里出）
  * - 错误（onError）：给程序看的错误实例，兜底为 console.error（不上浮任何 UI）
  */
-import type { AiRichErrorHandler, AiRichNotify } from '../types';
+import type { AiRichErrorHandler, AiRichNotifyHandler } from '../types';
 import { toast } from './toast';
 
 /** 缺省通知：包内置轻提示 */
-export const defaultOnNotify: AiRichNotify = (type, content) => {
+export const defaultOnNotify: AiRichNotifyHandler = (type, content) => {
   toast(type, content);
 };
 
@@ -20,7 +20,7 @@ export const defaultOnError: AiRichErrorHandler = (error) => {
 
 export interface ErrorReporterOptions {
   /** 可见提示通道（缺省用内置轻提示） */
-  notify?: AiRichNotify;
+  notify?: AiRichNotifyHandler;
   /** 上报通道（缺省只 console.error） */
   onError?: AiRichErrorHandler;
 }

@@ -36,11 +36,7 @@ import {
   resolveItemKind,
   resolveMediaKind,
 } from '../media/routing';
-import type {
-  AiRichMediaConfig,
-  AiRichMediaItem,
-  AiRichMediaKind,
-} from '../media/types';
+import type { MediaConfig, MediaItem, MediaKind } from '../media/types';
 import {
   hasMediaLibrary,
   resolveLibrarySource,
@@ -57,18 +53,18 @@ export type MediaPick =
   | {
       type: 'upload';
       file: File;
-      kind: AiRichMediaKind;
+      kind: MediaKind;
       /** 立即上传模式下带回的上传结果 */
-      item?: AiRichMediaItem;
+      item?: MediaItem;
     }
   | { type: 'url'; url: string }
-  | { type: 'library'; kind: AiRichMediaKind; item: AiRichMediaItem };
+  | { type: 'library'; kind: MediaKind; item: MediaItem };
 
 type TabKey = 'upload' | 'url' | 'library';
 
 /** 可用入口：按「上传 / 网络地址 / 媒体库」顺序给出，未配置能力的入口不出现 */
 function availableTabs(
-  media: AiRichMediaConfig | undefined,
+  media: MediaConfig | undefined,
   allowUrl: boolean | undefined,
 ): TabKey[] {
   const keys: TabKey[] = [];
@@ -82,7 +78,7 @@ export interface MediaPickerPanelProps {
   /** 定位锚点；为 null 时不渲染 */
   anchor: HTMLElement | null;
   open: boolean;
-  media?: AiRichMediaConfig;
+  media?: MediaConfig;
   /** 允许手工填写网络地址（对话附件不需要） */
   allowUrl?: boolean;
   /** 上传延迟到调用方（对话附件在发送时才上传） */
@@ -141,7 +137,7 @@ export function MediaPickerPanel({
     });
   }, [open, anchor, placement, media, allowUrl]);
 
-  const pickLibraryItem = (item: AiRichMediaItem) => {
+  const pickLibraryItem = (item: MediaItem) => {
     onPick({ type: 'library', kind: resolveItemKind(item), item });
     onClose();
   };
@@ -327,7 +323,7 @@ export function MediaPickerPanel({
 export interface MediaPickerProps {
   /** 触发元素（注入点击与展开态） */
   trigger: ReactElement<Record<string, unknown>>;
-  media?: AiRichMediaConfig;
+  media?: MediaConfig;
   /** 允许手工填写网络地址（对话附件不需要） */
   allowUrl?: boolean;
   /** 上传延迟到调用方（对话附件在发送时才上传） */

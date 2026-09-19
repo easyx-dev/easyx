@@ -26,11 +26,10 @@ const demoModules = import.meta.glob<{ default: ComponentType }>('./*.tsx');
 /** slug 与标题登记表，组件按同名文件懒加载 */
 const demoMeta = [
   { slug: 'editor-demo', title: '全功能编辑器' },
-  { slug: 'vanilla-demo', title: '原生 API' },
-  { slug: 'table-plus-demo', title: '表格增强套件' },
-  { slug: 'height-demo', title: '高度模式' },
-  { slug: 'ai-rich-editor-demo', title: 'AI 富文本工作台' },
-  { slug: 'image-toolkit-demo', title: '图片编辑套件' },
+  { slug: 'editor-height', title: '高度模式' },
+  { slug: 'table-plus-demo', title: '表格增强' },
+  { slug: 'ai-rich-editor-demo', title: 'AI 工作台' },
+  { slug: 'image-toolkit-demo', title: '图片编辑' },
 ];
 
 export const demos: DemoEntry[] = demoMeta.map(({ slug, title }) => {

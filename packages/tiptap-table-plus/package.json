@@ -1,6 +1,8 @@
 {
   "name": "@easyx/tiptap-table-plus",
-  "version": "1.0.0",
+  "version": "1.0.1",
+  "description": "Tiptap 表格增强套件，提供单元格样式、选区覆盖层、节点背景色与中英文右键菜单",
+  "license": "MIT",
   "type": "module",
   "sideEffects": [
     "**/*.css",

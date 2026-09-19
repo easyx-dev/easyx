@@ -1,0 +1,180 @@
+---
+title: AI Rich Editor 使用指南
+description: 对话协议、修改与版本回退、媒体插入、配置、通知与错误、主题与预览区右键修改
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+## 对话协议
+
+包内把请求组装成标准 OpenAI 流式调用，并消费标准 `data:` + `[DONE]` 响应：
+
+```jsonc
+// POST {endpointUrl}
+{
+  "model": "gpt-4o-mini",
+  "stream": true,
+  "messages": [
+    { "role": "system", "content": "<内置或自定义 system 提示词>" },
+    { "role": "user", "content": "…" }
+  ]
+}
+```
+
+```text
+# text/event-stream
+data: {"choices":[{"delta":{"content":"这"},"finish_reason":null}]}
+data: {"choices":[{"delta":{},"finish_reason":"stop"}]}
+data: [DONE]
+```
+
+- **请求**：`model` / `stream` / `messages` 由包内决定，`requestBody` 中的同名字段不生效；system 提示词作为 `messages[0]` 发送
+- **思考**：按厂商方言尽力识别 `reasoning_content` / `reasoning` / `thinking`，渲染为可折叠思考块
+- **图片**：绝对 `http(s)` 地址且 `config.sendImagesAsMultimodal` 开启时作为 `image_url` 内容块发送；其余附件靠正文里的 `[已上传附件]` 清单传递地址
+- **终止**：以 `[DONE]` 或 `finish_reason` 为准，两者都缺失即判定流被切断并报错，不会把半截回复当成功应用
+- **中断**：`stop` 中止当前生成并静默退出
+- **错误**：HTTP 非 2xx 与流内 `{"error":…}` 均抛出 `Error`，走 `onNotify` + `onError` 两条通道
+
+### 上下文块
+
+每条用户消息都附带 `[当前片段]`（源片段）；构造请求时历史轮次的该块会被剥离，只保留最新一份，避免请求体随对话线性膨胀。`[文档内容]`（Word / PDF 解析结果）是持久源材料，不参与剥离。
+
+## 修改与版本回退
+
+修改类请求把当前片段一并发送，并明确要求：**只做最小化改动，但输出改动后的完整片段**。
+
+- 每条助手回复都是一个完整可应用的版本，按时间线留在对话里；点任意历史代码卡片的「应用到编辑器」即可回退到该版本
+- 代码面板中的内容也可随时手改，AI 下一次整段替换前会读到最新内容
+- 若模型仍违规输出 Search / Replace 差异块，包内只渲染为 diff 卡片并提供手动「应用修改」，**不自动应用**，并提示重新索要完整片段
+
+## 媒体插入
+
+媒体能力经**顶层 `media` 属性**注入（不在 `config` 里：上传与列表都是函数，设置面板无法编辑）。
+
+```tsx
+<AiRichEditor
+  endpointUrl="/v1/chat/completions"
+  model="gpt-4o-mini"
+  media={{
+    image: {
+      upload: async (file, onProgress) => ({
+        id: file.name,
+        url: await myUpload(file, onProgress),
+        name: file.name,
+        size: file.size,
+      }),
+      getList: async ({ page, pageSize, keyword }) => ({ items, total }),
+    },
+    video: { upload, getList },
+    audio: { upload, getList },
+    attachment: { upload },
+  }}
+/>
+```
+
+`MediaItem` 等类型与 [`@easyx/editor`](/easyx/editor/) 共用同一套媒体契约，宿主接口可复用。
+
+两条插入路径：
+
+1. **对话**：把文件**粘贴 / 拖入输入框**，或点回形针从上传与媒体库中选择。**点发送时**才调用对应类型的 `upload`，拿到地址后把 `[已上传附件]` 清单拼进消息，由模型决定插到哪里、如何书写标签。上传失败不发送，输入与附件保留可重试。
+2. **代码面板**：**行号左侧、跟随光标所在行**的「+」打开同一套浮层；也可把文件直接拖进代码区，按落点插入。
+
+插入的是自包含片段：
+
+- 图片：`<img src alt style="max-width:100%;height:auto;">`
+- 视频：`<video src controls playsinline style="max-width:100%;"></video>`
+- 音频：`<audio src controls></audio>`
+- 附件：`<a href download>文件名（尺寸）</a>`
+
+未配置 `upload` 的类型不可上传，**添加那一刻即报错**。「媒体库」入口由 `getList` 决定是否出现，列表取自**第一个配置了 `getList` 的类型**（媒体库通常是一份共享资源，条目类型按 `fileType` 或扩展名逐个推断）。
+
+### 地址校验的信任边界
+
+| 来源 | 是否校验 |
+|------|----------|
+| 用户手输（「网络地址」页签） | 校验 |
+| AI 回复里的链接与图片 | 校验 |
+| 宿主 `upload` / `getList` 返回的地址 | **不校验**（宿主服务端产物，属可信来源） |
+
+规则是协议白名单：默认放行 `http(s)` / `mailto` / `tel` / `blob` 与相对路径，拦下 `javascript:` / `data:` 等。`blob:` 放行是因为它只能由同源脚本现场铸造，无法像 `data:` 那样从字符串直接构造。
+
+宿主可用 `allowedUrlSchemes` **追加**协议（只增不减；危险协议写进去也会被忽略）：
+
+```tsx
+<AiRichEditor allowedUrlSchemes={['ipfs:', 'app:']} />
+```
+
+## 配置与设置面板
+
+可序列化配置统一收拢到 `config`，经顶栏「设置」模态框编辑，保存后生效：
+
+| 配置项 | 类型 | 默认值 | 说明 |
+|--------|------|--------|------|
+| `autoApply` | `boolean` | `true` | 回复结束后自动应用到编辑器（仍保留手动按钮） |
+| `previewEditMenu` | `boolean` | `true` | 预览区右键「用 AI 修改」入口 |
+| `systemPrompt` | `string` | 内置模板 | 自定义 system 提示词，作为 `messages[0]` 发送 |
+| `previewHead` | `string` | — | 预览 `<head>` 附加代码（原始 HTML） |
+| `sendImagesAsMultimodal` | `boolean` | `true` | 图片附件以多模态 content parts 发送 |
+
+函数型注入项（`media` / `tools` / `onNotify` / `onError`）与 `allowedUrlSchemes` 一律是**顶层属性**，不进 `config`。
+
+设置模态框**就地渲染在编辑器容器内**（不 portal），高度随内容自适应、上限为容器的 90%，宽度上限 800px，只承载可编辑的可序列化项。
+
+<Aside type="caution">
+`config` 为**仅初始值（非受控）** —— 挂载后改动 `config` 不会生效。运行期请经设置面板修改；如需持久化，用 `onConfigChange` 回写宿主。
+</Aside>
+
+## 通知与错误
+
+两条通道分开，均为顶层属性；**错误会同时走两条** —— 一条给人看，一条给程序看：
+
+| 通道 | 类型 | 承载 | 未注入时的兜底 |
+|------|------|------|----------------|
+| `onNotify` | `AiRichNotifyHandler` | 用户可见文案（成功 / 提醒 / 所有错误提示） | 包内置轻提示 |
+| `onError` | `AiRichErrorHandler` | 错误实例，供日志 / 上报 / 分支 | `console.error`（不上浮 UI） |
+
+```tsx
+<AiRichEditor
+  endpointUrl="/v1/chat/completions"
+  model="gpt-4o-mini"
+  onNotify={(type, content) => myToast(type, content)}
+  onError={(error) => myReporter(error)}
+/>
+```
+
+- 错误提示文案取自 `error.message`，宿主无需自行翻译
+- `onError` 收到的是 `Error`，可按类分支：`error instanceof MediaNotConfiguredError` / `InvalidMediaUrlError`
+- 兜底刻意做得很轻：通知用包内轻提示，错误只打 `console.error`，**绝不弹原生 alert**
+- 会话流错误在对话区保留 `Alert`（属对话状态），同时也会走两条通道
+
+## 主题
+
+亮暗判定优先级（与包内样式一致）：
+
+1. 令牌作用域 class `easyx-ai-rich-editor-scope-dark`
+2. 最近的宿主 `[data-theme]` 祖先（值以 `dark` 结尾，如 `dark`、`admin-dark`）
+3. 两者都没有时跟随系统 `prefers-color-scheme`
+
+代码面板的语法高亮与结构配色全部走 `--easyx-ai-rich-editor-code-*` 令牌（跟随上述判定，无需 JS）。浮层（菜单 / Tooltip / 媒体选择 / 轻提示）以 portal 渲染，包内会把触发元素所处的主题一并带到浮层根上，因此浮层不会脱主题。
+
+所有颜色经 `--easyx-ai-rich-editor-*` CSS 变量控制，可在宿主覆盖。
+
+## 预览区右键定向修改
+
+在预览里选中文字，或右键某个区块，即可就地描述修改：
+
+- 右键弹出行内输入框（Enter 发送 / Shift+Enter 换行 / Esc 取消）
+- **目标优先级**：有文字选区时以选中文本为焦点，无选区时以右键所在的最内层元素为单位；元素原文在片段中不唯一时沿父链向上扩张到唯一祖先
+- **多选**：对话框打开后按 **Shift + 右键** 增减目标（再次点已选元素即移除），用于「让这两个一致」这类关系型改动
+- 发送的消息为每个目标附一个 `[目标区域]` 块，并带上该元素的**关键计算样式摘要**（color / font-size / display / margin 等实际生效值）与 `[选中文本]`；回复仍是**改动后的完整片段**
+- 预览文档由包内注入 `data-easyx-id` 编号做命中映射，**不向 iframe 注入脚本**；父页经 `allow-same-origin` 读取 DOM，读不到时静默降级
+- 对话框打开期间以覆盖层保持全部目标高亮（原生选区在父页抢焦点后会被浏览器隐藏）
+- 可用 `config.previewEditMenu: false` 关闭
+
+## 渲染与代码卡片
+
+- 助手消息的 markdown 走「marked 词法 → React 元素」自研渲染：markdown 里的**裸 HTML 一律丢弃**，链接协议白名单校验，全程不经 `dangerouslySetInnerHTML`
+- 完整片段渲染为 `HtmlCodeCard`（可回退并重新应用）；Search / Replace 差异块渲染为 `PatchCard`（删除行红底 / 新增行绿底 + 手动「应用修改」）
+- 用户消息按上下文块分段渲染：原话 + 附件缩略条 + `[当前片段]` / `[目标区域]` 只读代码卡片
+- 流式生成中，出现**已闭合**的完整片段即同步到编辑器与预览；未闭合的半成品不落地，避免残缺 HTML 污染文档
+- 外部写入（流式同步 / 应用片段 / 手动应用补丁）与用户输入区别对待：按公共前后缀求最小改动区间，只替换变化段；不进撤销栈，也不回吐 `onChange`

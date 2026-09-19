@@ -6,7 +6,7 @@
  * 「应用修改」在 autoApply 关闭时提供手动落地入口。
  */
 import { useMemo } from 'react';
-import type { AiRichErrorHandler, AiRichNotify } from '../types';
+import type { AiRichErrorHandler, AiRichNotifyHandler } from '../types';
 import { IconCode, IconCopy } from '../ui/icons';
 import { Button } from '../ui/primitives/Button';
 import { Tooltip } from '../ui/primitives/Tooltip';
@@ -49,7 +49,7 @@ interface PatchCardProps {
   content: string;
   /** 「应用修改」回调（未提供时不显示按钮，如纯展示场景） */
   onApply?: (content: string) => void;
-  onNotify?: AiRichNotify;
+  onNotify?: AiRichNotifyHandler;
   onError?: AiRichErrorHandler;
 }
 

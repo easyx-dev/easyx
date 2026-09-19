@@ -1,0 +1,70 @@
+---
+title: Image Toolkit 引擎与打包
+description: 引擎能力矩阵、无损优化收益、wasm 资源与宿主打包器配置、已知取舍
+---
+
+## 能力矩阵（实测）
+
+引擎版本：`ImageMagick 7.1.2-30 Q8 wasm32`，对应 `@imagemagick/magick-wasm@0.0.43`（版本固定：glue 与 wasm 必须严格同版）。
+
+| 格式 | 解码（可编辑） | 编码（可输出） | 无损优化 | 说明 |
+|------|:---:|:---:|:---:|------|
+| JPEG | ✅ | ✅ | ⚠️ 近无损 | 质量 100 重编码仍有约 24% 像素字节差异（视觉不可分辨） |
+| PNG | ✅ | ✅ | ✅ 逐像素无损 | `png:compression-level=9` |
+| WebP | ✅ | ✅ | ✅ 逐像素无损 | `webp:lossless=true, method=6` |
+| TIFF | ✅ | ✅ | ✅ 逐像素无损 | LZW |
+| GIF | ✅ | ❌ | ❌ | 可读可裁；动图会被压平 |
+| AVIF / HEIC | ❌ | ❌ | ❌ | 本 wasm 构建下编解码器不可用 |
+| BMP / ICO / TGA | ❌ | — | ❌ | 需显式指定格式才能解码，收益低故不纳入 |
+| SVG | ❌ | ❌ | ❌ | 规避 ImageMagick XML 解析器的历史外部引用风险 |
+
+「可编辑」= 能自动识别 + 解码 + 编码，是 `PROCESSABLE_FORMATS` 的判定依据；「可输出」是 `OUTPUT_FORMATS` 的判定依据，两者都在 `src/limits.ts`（单一事实来源）。
+
+## 无损优化的真实收益
+
+以 `compression-level=1` 写出的 1600×1200 类照片 PNG 作为「劣质源」实测：
+
+- PNG compression-level 9：**−41.5%**（逐像素一致）
+- WebP lossless + method 6：**−43.2%**（逐像素一致）
+- JPEG 质量 100：**−30.2%**（**非**逐像素一致）
+
+用引擎自己高质量编码的图作源会得到接近 0 的收益 —— **收益高度取决于源文件编码质量**。
+
+指定输出 PNG 的最大颜色数时，引擎先做调色板量化（Riemersma 抖动）再编码，这正是 TinyPNG 的主力手段。连续色调（照片、渐变）降色会出现色带，扁平插画与图标几乎无感。
+
+**无损优化与缩放互斥**：缩放必然重采样改变像素，选中无损优化时缩放被禁用；但允许叠加裁切（裁切只取像素子集，保留区像素不变）。
+
+## wasm 资源与宿主打包器
+
+**默认**：无需任何配置，wasm 随包发布（`dist/ui/engine/magick.wasm`，约 14 MB），内网与私有化部署开箱可用。包内同时附带上游第三方许可声明 `dist/THIRD-PARTY-NOTICES/NOTICE`。
+
+产物中 Worker 与 wasm 都以**标准静态写法**引用，宿主打包器据此把它们复制进自己的产物：
+
+```js
+new Worker(new URL('./engine/worker.js', import.meta.url), { type: 'module' });
+new URL('./engine/magick.wasm', import.meta.url);
+```
+
+因此必须让打包器处理本包的 `dist`：
+
+- 不要把本包产物当作「外部资源、不解析」处理，也不要改写这两个表达式
+- Vite 开发态的依赖预打包若找不到上述资源，把本包加入 `optimizeDeps.exclude` 即可
+
+可选：指向 CDN 或自有静态资源（绝对 URL 需服务端提供 CORS 与 `application/wasm`）：
+
+```ts
+import { configureImageEngine } from '@easyx/image-toolkit/ui';
+
+configureImageEngine({ wasmUrl: '/static/magick.wasm' });
+```
+
+从源码自定义构建时设置 `EASYX_IMAGE_TOOLKIT_REMOTE=1` 可剥离本地 wasm 副本，此时必须注入地址，否则启动时明确报错而非静默失败。
+
+## 已知取舍
+
+- **JPEG 没有真正的无损重编码**：ImageMagick 未暴露 jpegtran 式系数透传，只能质量 100 重编码
+- **不提供手动旋转**：EXIF 方向已由 `autoOrient()` 自动处理，手动旋转会破坏「裁切矩形基于定向后原像素坐标」的约定
+- **TIFF 不可无损优化**：引擎具备 TIFF LZW 能力，但 TIFF 不在 `OUTPUT_FORMATS` 内，界面据此提示而非静默无反应
+- **输入上限**：超过 `maxInputBytes`（50 MB）或 `maxInputPixels`（5000 万像素）的图不在浏览器内处理；单边上限 `maxDimension`（8192px）
+- **编码会丢元数据**：需要保留 EXIF / ICC 时不要勾选「剥离元数据」
+- **编码结果必须校验**：`encode()` 复制字节后用 `sniffImage` 校验格式，避免损坏数据流入存储

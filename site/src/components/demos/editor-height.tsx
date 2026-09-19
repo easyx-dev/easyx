@@ -1,4 +1,4 @@
-import type { EasyxEditorOptions } from '@easyx/editor';
+import type { EditorOptions } from '@easyx/editor';
 import { createEditor } from '@easyx/editor';
 import { useEffect, useRef, useState } from 'react';
 
@@ -50,7 +50,7 @@ interface HeightCaseProps {
   title: string;
   desc: string;
   code: string;
-  options?: EasyxEditorOptions;
+  options?: EditorOptions;
 }
 
 /** 单个高度模式示例：标题 + 配置代码 + 编辑器实例 */
@@ -87,23 +87,23 @@ function HeightCase({ title, desc, code, options }: HeightCaseProps) {
   }, [theme]);
 
   return (
-    <section className="height-demo-case">
-      <header className="height-demo-case-header">
+    <section className="editor-height-case">
+      <header className="editor-height-case-header">
         <div>
-          <h3 className="height-demo-case-title">{title}</h3>
-          <p className="height-demo-case-desc">{desc}</p>
+          <h3 className="editor-height-case-title">{title}</h3>
+          <p className="editor-height-case-desc">{desc}</p>
         </div>
-        <code className="height-demo-case-code">{code}</code>
+        <code className="editor-height-case-code">{code}</code>
       </header>
-      <div className="height-demo-editor" ref={containerRef} />
+      <div className="editor-height-editor" ref={containerRef} />
     </section>
   );
 }
 
 export default function HeightDemo() {
   return (
-    <div className="height-demo">
-      <p className="height-demo-intro">
+    <div className="editor-height">
+      <p className="editor-height-intro">
         编辑器通过 <code>height</code>、<code>minHeight</code>、
         <code>maxHeight</code> 与 <code>resizable</code> 配置控制高度行为：
         自动高度随内容伸缩；定高与最大高度在内容超出后内部滚动；开启

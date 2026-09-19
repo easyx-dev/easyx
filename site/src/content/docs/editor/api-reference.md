@@ -1,192 +1,189 @@
 ---
-title: API 参考
-description: EasyX Editor createEditor 完整 API 类型定义与说明
+title: Editor API 参考
+description: createEditor 的完整参数、实例方法、事件与媒体类型定义
 ---
-
-# API 参考
-
-`createEditor()` 的完整参数、返回值与相关类型定义。
 
 ## createEditor
 
 ```ts
-import { createEditor } from '@easyx/editor'
+import { createEditor } from '@easyx/editor';
 
-const editor = createEditor(container: HTMLElement, options: EasyxEditorOptions)
+const editor = createEditor(container: HTMLElement, options: EditorOptions);
 ```
 
-在指定 DOM 容器中创建编辑器实例，返回一个包含 API 方法和事件系统的 `EditorInstance` 对象。
+在指定容器中创建编辑器实例，返回 `EditorInstance`。容器为空时抛出 `Error`。
 
-## EasyxEditorOptions
+## EditorOptions
 
-| 字段 | 类型 | 默认值 | 说明 |
-|------|------|--------|------|
-| `defaultContent` | `string` | `''` | 编辑器初始 HTML 内容 |
-| `defaultTheme` | `'light' \| 'dark'` | `'light'` | 编辑器默认主题 |
-| `placeholder` | `string` | — | 编辑器为空时显示的占位文字 |
-| `readOnly` | `boolean` | `false` | 是否只读 |
-| `autoFocus` | `boolean` | `false` | 是否自动聚焦 |
-| `height` | `number \| 'auto' \| string` | `'auto'` | 编辑器高度。`'auto'`/缺省随内容伸缩；给定值为定高并内部滚动；number 视为 px |
-| `minHeight` | `number \| string` | — | 最小高度，内容撑开时保底 |
-| `maxHeight` | `number \| string` | — | 最大高度，内容撑到上限后内部滚动 |
-| `resizable` | `boolean` | `false` | 是否启用右下角拖拽手柄调节高度，受 `minHeight`/`maxHeight` 约束 |
-| `image` | `ImageMediaUploadConfig` | — | 图片上传、列表与缩放配置 |
-| `video` | `MediaUploadConfig` | — | 视频上传与列表配置 |
-| `audio` | `MediaUploadConfig` | — | 音频上传与列表配置 |
-| `attachment` | `MediaUploadConfig` | — | 附件上传与列表配置 |
-| `onChange` | `(content: string) => void` | — | 内容变更回调 |
-| `onFocus` | `() => void` | — | 编辑器聚焦回调 |
-| `onBlur` | `() => void` | — | 编辑器失焦回调 |
-| `onReady` | `() => void` | — | 编辑器初始化完成回调 |
-| `onDestroy` | `() => void` | — | 编辑器销毁回调 |
+| 配置项 | 类型 | 默认值 | 说明 |
+|--------|------|--------|------|
+| `defaultContent` | `EditorContentType` | — | 初始 HTML 内容 |
+| `defaultTheme` | `EditorTheme` | `'light'` | 初始主题，同时决定表格增强套件主题 |
+| `placeholder` | `string` | `'输入内容…'` | 空内容时的占位文字 |
+| `readOnly` | `boolean` | `false` | 只读模式 |
+| `autoFocus` | `boolean` | `false` | 创建后自动聚焦 |
+| `height` | `number \| 'auto' \| string` | `'auto'` | 见[高度模式](/easyx/editor/height/) |
+| `minHeight` | `number \| string` | — | 最小高度，`number` 视为 `px` |
+| `maxHeight` | `number \| string` | — | 最大高度，超出后内部滚动 |
+| `resizable` | `boolean` | `false` | 右下角拖拽手柄调节高度 |
+| `image` | `EditorImageConfig` | — | 图片上传、媒体库与缩放配置 |
+| `video` | `MediaUploadConfig` | — | 视频上传与媒体库配置 |
+| `audio` | `MediaUploadConfig` | — | 音频上传与媒体库配置 |
+| `attachment` | `MediaUploadConfig` | — | 附件上传与媒体库配置 |
+| `onChange` | `(content: EditorContentType) => void` | — | 内容变更回调 |
+| `onReady` | `() => void` | — | 初始化完成回调 |
+| `onFocus` | `() => void` | — | 聚焦回调 |
+| `onBlur` | `() => void` | — | 失焦回调 |
+| `onDestroy` | `() => void` | — | 销毁回调 |
 
-## EditorInstance API
+## 实例方法
 
 ### 内容操作
 
 | 方法 | 返回值 | 说明 |
 |------|--------|------|
-| `getHTML()` | `string` | 获取编辑器 HTML 内容 |
-| `getText()` | `string` | 获取编辑器纯文本内容 |
+| `getHTML()` | `string` | 获取 HTML 内容 |
 | `setHTML(html)` | `void` | 设置 HTML 内容 |
-| `setJSON(json)` | `void` | 设置 ProseMirror JSON 文档 |
-| `getJSON()` | `object` | 获取 ProseMirror JSON 文档 |
-| `clear()` | `void` | 清空编辑器内容 |
+| `getJSON()` | `Record<string, unknown>` | 获取 ProseMirror JSON |
+| `setJSON(json)` | `void` | 设置 ProseMirror JSON |
+| `getText()` | `string` | 获取纯文本 |
+| `clear()` | `void` | 清空内容 |
+| `isEmpty()` | `boolean` | 是否为空 |
 
-### 状态查询
+### 状态与控制
 
 | 方法 | 返回值 | 说明 |
 |------|--------|------|
-| `isEmpty()` | `boolean` | 编辑器是否为空 |
-| `isFocused()` | `boolean` | 编辑器是否聚焦 |
-| `isDisabled()` | `boolean` | 编辑器是否禁用 |
-
-### 编辑器控制
-
-| 方法 | 说明 |
-|------|------|
-| `focus()` | 聚焦编辑器 |
-| `blur()` | 失焦编辑器 |
-| `enable()` | 启用编辑器 |
-| `disable()` | 禁用编辑器 |
-| `setTheme(theme)` | 切换主题（`'light'` \| `'dark'`） |
-| `getContainer()` | 获取容器 DOM 元素 |
-| `destroy()` | 销毁编辑器实例 |
+| `setTheme(theme)` | `void` | 切换主题（`EditorTheme`），同步表格主题 |
+| `focus()` / `blur()` | `void` | 聚焦 / 失焦 |
+| `isFocused()` | `boolean` | 是否聚焦 |
+| `enable()` / `disable()` | `void` | 启用 / 禁用编辑 |
+| `isDisabled()` | `boolean` | 是否禁用 |
+| `getContainer()` | `HTMLElement` | 获取挂载容器 |
+| `destroy()` | `void` | 销毁实例，清理 DOM 与事件监听 |
 
 ### 事件系统
 
 | 方法 | 说明 |
 |------|------|
 | `on(event, handler)` | 监听事件 |
-| `off(event, handler)` | 取消事件监听 |
-| `once(event, handler)` | 单次事件监听 |
+| `off(event, handler)` | 移除监听 |
+| `once(event, handler)` | 监听一次 |
 | `emit(event, ...args)` | 触发事件 |
 
-**内置事件：**
+## 事件
 
-| 事件 | 说明 |
-|------|------|
-| `change` | 编辑器内容变更 |
-| `focus` | 编辑器聚焦 |
-| `blur` | 编辑器失焦 |
-| `ready` | 编辑器初始化完成 |
-| `destroy` | 编辑器销毁 |
-| `uploadError` | 粘贴 / 拖入上传失败，参数为 `(file, error)` |
+| 事件 | 参数 | 触发时机 |
+|------|------|----------|
+| `change` | `content: string` | 内容变更 |
+| `ready` | — | 初始化完成 |
+| `focus` | — | 获得焦点 |
+| `blur` | — | 失去焦点 |
+| `destroy` | — | 实例销毁 |
+| `uploadError` | `file: File, error: unknown` | 粘贴 / 拖入上传失败 |
 
-## 粘贴与拖入上传
+```ts
+editor.on('change', (content) => console.log(content));
+editor.on('uploadError', (file, error) => console.error(file.name, error));
+```
 
-编辑器内容区支持直接**粘贴**或**拖入**文件自动上传：仅当剪贴板/拖放仅包含文件（无富文本）时接管，按文件类型路由到对应媒体的 `upload`（图片 / 视频 / 音频 / 附件）。上传失败时触发 `uploadError` 事件。
+## 媒体类型
 
-## MediaUploadConfig
+### MediaUploadConfig
 
 | 字段 | 类型 | 说明 |
 |------|------|------|
-| `upload` | `(file: File, onProgress?: (progress: number) => void) => Promise<MediaItem>` | 文件上传函数 |
-| `getList` | `(params: MediaListParams) => Promise<MediaListResult>` | 媒体列表分页查询 |
+| `upload` | `(file: File, onProgress?: MediaUploadProgress) => Promise<MediaItem>` | 上传单个文件 |
+| `getList` | `(params: MediaListParams) => Promise<MediaListResult>` | 媒体库分页查询，提供后出现「媒体库」页签 |
 
-## ImageMediaUploadConfig
+### EditorImageConfig
 
-图片配置在通用媒体配置基础上增加图片专属选项：
+在 `MediaUploadConfig` 基础上增加图片专属选项：
 
 | 字段 | 类型 | 默认值 | 说明 |
 |------|------|--------|------|
-| `upload` | 同 `MediaUploadConfig.upload` | — | 图片上传函数 |
-| `getList` | 同 `MediaUploadConfig.getList` | — | 图片列表分页查询 |
-| `resizable` | `boolean` | `true` | 是否开启图片拖拽缩放（四角手柄） |
+| `resizable` | `boolean` | `true` | 是否启用图片拖拽缩放 |
 
-## 图片能力
-
-图片节点（`imageUpload`）具备业内主流的富文本操作能力：
-
-- **三种插入方式**：点击工具栏媒体按钮弹出下拉，通过 **Tab 切换**「上传」（调 `upload`）、「网络地址」（直接粘贴 URL）、「媒体库」（调 `getList` 浏览并选择，未配置 `getList` 时隐藏该入口）；媒体库列表限高滚动并支持分页
-- **拖拽缩放**：选中图片后拖动四角手柄调整尺寸（像素），也可通过选中浮层按 **百分比** 设置宽度；`resizable: false` 可关闭缩放
-- **对齐方式**：选中图片后浮层可切换左对齐 / 居中 / 右对齐，渲染为 `data-align` 属性
-- **选中浮层**：选中图片时在图片上方弹出操作浮层，提供对齐、宽度百分比、替代文本（alt）输入、删除、查看原图
-
-## 视频能力
-
-视频节点（`videoNode`）支持在选中浮层中设置以下属性，序列化到 `<video>` 标签：
-
-| 属性 | 说明 |
-|------|------|
-| `data-align` | 对齐方式（左 / 中 / 右），渲染在 wrapper 上 |
-| `poster` | 封面地址，浮层中输入框填写，空值清除 |
-| `controls` | 是否显示原生控制器（默认开启） |
-| `autoplay` | 是否自动播放（默认关闭） |
-
-视频 / 音频 / 附件同样支持上传、网络地址、媒体库三种插入方式。
-
-## MediaItem
+### MediaItem
 
 | 字段 | 类型 | 说明 |
 |------|------|------|
 | `id` | `string` | 媒体唯一标识 |
-| `url` | `string` | 媒体资源地址 |
-| `name` | `string` | 媒体显示名称 |
+| `url` | `string` | 资源地址 |
+| `name` | `string` | 显示名称 |
 | `size` | `number` | 文件大小（字节） |
-| `thumbnailUrl` | `string` | 缩略图地址（可选） |
-| `duration` | `number` | 时长（音频/视频，可选） |
-| `fileType` | `string` | 文件类型（可选） |
+| `thumbnailUrl` | `string` | 缩略图地址 |
+| `duration` | `number` | 时长（音视频，单位由宿主约定） |
+| `fileType` | `string` | 文件类型 |
 
-## MediaListParams
+### MediaListParams
 
 | 字段 | 类型 | 说明 |
 |------|------|------|
-| `page` | `number` | 页码（从 1 开始） |
+| `page` | `number` | 页码，从 1 开始 |
 | `pageSize` | `number` | 每页条数 |
 | `keyword` | `string` | 搜索关键词 |
 
-## MediaListResult
+### MediaListResult
 
 | 字段 | 类型 | 说明 |
 |------|------|------|
-| `items` | `MediaItem[]` | 媒体列表数据 |
+| `items` | `MediaItem[]` | 当前页数据 |
 | `total` | `number` | 总数 |
+
+## 媒体能力
+
+图片、视频、音频、附件统一支持三种插入方式（工具栏媒体按钮下拉，Tab 切换）：
+
+- **上传**：调用对应类型的 `upload`
+- **网络地址**：直接粘贴 URL
+- **媒体库**：调用 `getList` 浏览选择；未配置时该页签隐藏
+
+### 图片
+
+- **拖拽缩放**：选中图片后拖动四角手柄调整像素宽度；`resizable: false` 可关闭
+- **宽度百分比**：选中浮层中按百分比设置宽度
+- **对齐**：左 / 中 / 右，序列化为 `data-align`
+- **选中浮层**：对齐、宽度、替代文本（alt）、删除、查看原图
+
+### 视频
+
+视频节点序列化到 `<video>` 标签，选中浮层可设置以下属性：
+
+| 属性 | 说明 |
+|------|------|
+| `data-align` | 对齐方式，渲染在 wrapper 上 |
+| `poster` | 封面地址，空值清除 |
+| `controls` | 是否显示原生控制器，默认开启 |
+| `autoplay` | 是否自动播放，默认关闭 |
+
+音频与附件同样支持上传、网络地址、媒体库三种插入方式。
 
 ## 内置扩展
 
-`createEditor` 内建 21 个 Tiptap 扩展，开箱即用：
+`createEditor` 已注册全部扩展，无需手动配置：
 
-| 扩展 | 能力 |
+| 分组 | 扩展 |
 |------|------|
-| StarterKit | 基础编辑能力（加粗、斜体、标题、列表等） |
-| TextStyle | 文本样式基础 |
-| Color | 文字前景色 |
-| BackgroundColor | 文字背景高亮色 |
-| FontSize | 字号 12px～48px |
-| FontFamily | 字体选择 |
-| LineHeight | 行高 1～3 |
-| TextAlign | 文本对齐（左/中/右/两端） |
-| Subscript / Superscript | 下标 / 上标 |
-| Typography | 印刷符号智能替换 |
-| TaskList / TaskItem | 任务列表 |
-| Indent | 段落缩进 |
-| TablePlus | 表格（可调整列宽） |
-| Placeholder | 占位符提示 |
-| BubbleMenu | 选中文字气泡菜单 |
-| ImageMenu | 图片选中浮层（对齐/宽度/替代文本/删除/查看原图） |
-| VideoMenu | 视频选中浮层（对齐/封面/控制器/自动播放/删除） |
-| ImageUpload | 图片插入（上传/URL/媒体库）、拖拽缩放、对齐 |
-| VideoNode | 视频插入（对齐/封面/控制器/自动播放） |
-| AudioNode | 音频插入 |
-| AttachmentNode | 附件插入 |
+| 基础编辑 | StarterKit（加粗 / 斜体 / 标题 / 列表 / 引用 / 代码块 / 撤销等） |
+| 文本样式 | TextStyle、Color、BackgroundColor、FontSize、FontFamily、LineHeight |
+| 段落 | TextAlign、Indent |
+| 特殊标记 | Subscript、Superscript、Typography |
+| 列表 | TaskList、TaskItem |
+| 表格 | TableKit、TablePlus |
+| 占位 | Placeholder |
+| 气泡菜单 | BubbleMenu（文本选区）、imageBubbleMenu、videoBubbleMenu |
+| 链接 | LinkOpen（`Cmd/Ctrl+Click` 与 `Alt+Enter` 打开链接） |
+| 媒体 | ImageUpload、VideoNode、AudioNode、AttachmentNode |
+
+## 公开类型
+
+| 类型 | 说明 |
+|------|------|
+| `EditorOptions` | `createEditor` 配置项 |
+| `EditorTheme` | `'light' \| 'dark'` |
+| `EditorContentType` | 内容类型，等价 `string` |
+| `EditorImageConfig` | 图片媒体配置（`MediaUploadConfig` + `resizable`） |
+| `MediaUploadConfig` / `MediaItem` / `MediaListParams` / `MediaListResult` | 媒体契约，与 [`@easyx/ai-rich-editor`](/easyx/ai-rich-editor/api-reference/) 同名同形 |
+| `MediaUploadProgress` | 上传进度回调 `(progress: number) => void` |
+| `EditorEventHandler` | 事件监听回调 `(...args: unknown[]) => void` |

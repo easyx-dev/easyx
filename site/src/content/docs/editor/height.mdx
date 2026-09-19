@@ -1,45 +1,45 @@
 ---
-title: 高度模式
-description: 通过 height / minHeight / maxHeight / resizable 配置编辑器高度行为
+title: Editor 高度模式
+description: 通过 height / minHeight / maxHeight / resizable 控制编辑器的高度与滚动行为
 ---
 
 import IframeDemo from '../../../components/IframeDemo.tsx';
 import { getDemoSource } from '../../../components/demo-sources.ts';
 
-编辑器通过高度相关配置控制编辑区尺寸与滚动行为，覆盖自动伸缩、定高、最大高度与可拖拽调节四种模式。
+编辑器通过四个配置项控制编辑区尺寸与滚动：自适应、定高、最大高度与拖拽调节。
 
-<IframeDemo slug="height-demo" sourceCode={getDemoSource('height-demo')} client:load />
+<IframeDemo slug="editor-height" sourceCode={getDemoSource('editor-height')} client:load />
 
-## 高度配置
+## 配置项
 
-| 配置项 | 类型 | 说明 |
-|--------|------|------|
-| `height` | `number \| 'auto' \| string` | 编辑器高度。`'auto'` / 缺省表示随内容伸缩；给定值时为固定高度，内容超出后内部滚动。number 视为 `px` |
-| `minHeight` | `number \| string` | 最小高度，内容撑开时保底 |
-| `maxHeight` | `number \| string` | 最大高度，内容撑到上限后内部滚动 |
-| `resizable` | `boolean` | 是否启用右下角拖拽手柄调节高度，受 `minHeight` / `maxHeight` 约束 |
+| 配置项 | 类型 | 默认值 | 说明 |
+|--------|------|--------|------|
+| `height` | `number \| 'auto' \| string` | `'auto'` | `'auto'` 随内容伸缩；给定值时定高并内部滚动，`number` 视为 `px` |
+| `minHeight` | `number \| string` | — | 最小高度，内容撑开时保底 |
+| `maxHeight` | `number \| string` | — | 最大高度，内容撑到上限后内部滚动 |
+| `resizable` | `boolean` | `false` | 启用右下角拖拽手柄，受 `minHeight` / `maxHeight` 约束 |
 
-## 使用方式
+`minHeight` / `maxHeight` / `height` 的字符串值支持任意 CSS 长度单位。
+
+## 四种模式
 
 ```ts
-import { createEditor } from '@easyx/editor'
+import { createEditor } from '@easyx/editor';
 
-// 自动高度：内容撑开，保底 200px
-const auto = createEditor(el, {})
+// 自动高度：随内容伸缩（默认）
+const auto = createEditor(el, {});
 
-// 定高 320px，内容超出后内部滚动，可拖拽调节
-const fixed = createEditor(el, { height: 320, resizable: true })
+// 定高 320px：内容超出后内部滚动，可拖拽调节
+const fixed = createEditor(el, { height: 320, resizable: true });
 
-// 最大高度 380px，内容超出后内部滚动
-const max = createEditor(el, { maxHeight: 380 })
+// 最大高度 380px：先自然伸缩，到上限后内部滚动
+const bounded = createEditor(el, { maxHeight: 380 });
 
-// 支持任意 CSS 长度单位
-const vh = createEditor(el, { maxHeight: '50vh' })
+// 任意 CSS 长度
+const viewport = createEditor(el, { maxHeight: '50vh' });
 ```
 
-## 行为说明
-
 - **自动高度**：编辑区随内容自然伸缩，不出现内部滚动条，适合嵌入式轻量场景。
-- **定高**：编辑区锁定高度，内容超出后编辑区内部滚动，顶部工具栏保持固定。
+- **定高**：编辑区锁定高度，内容超出后内部滚动，顶部工具栏保持固定。
 - **最大高度**：内容先自然伸缩，达到上限后内部滚动，避免占满整页。
-- **可拖拽**：底边出现拖拽手柄，鼠标拖动或聚焦后按上下方向键（步进 10px）调节高度，并受 `minHeight` / `maxHeight` 钳制。
+- **可拖拽**：底边出现拖拽手柄；鼠标拖动，或聚焦后按上下方向键（步进 10px）调节，并受 `minHeight` / `maxHeight` 钳制。

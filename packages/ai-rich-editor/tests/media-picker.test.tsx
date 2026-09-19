@@ -9,11 +9,11 @@ import { afterEach, describe, expect, it, rs } from '@rstest/core';
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { MediaPicker } from '../src/components/MediaPicker';
 import { InvalidMediaUrlError } from '../src/media/errors';
-import type { AiRichMediaConfig } from '../src/media/types';
+import type { MediaConfig } from '../src/media/types';
 
 afterEach(() => cleanup());
 
-function imageConfig(): AiRichMediaConfig {
+function imageConfig(): MediaConfig {
   return {
     image: {
       upload: async (file) => ({ id: '1', url: '/a.png', name: file.name }),
@@ -22,7 +22,7 @@ function imageConfig(): AiRichMediaConfig {
 }
 
 function renderPicker(props: {
-  media?: AiRichMediaConfig;
+  media?: MediaConfig;
   allowUrl?: boolean;
   deferUpload?: boolean;
   allowedUrlSchemes?: readonly string[];
@@ -162,7 +162,7 @@ describe('上传', () => {
 
 describe('媒体库', () => {
   it('选择条目时回调推断出的类型与条目', async () => {
-    const media: AiRichMediaConfig = {
+    const media: MediaConfig = {
       image: {
         upload: async () => ({ id: '1', url: '/a.png', name: 'a.png' }),
         getList: async () => ({

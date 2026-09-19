@@ -3,7 +3,7 @@
  */
 import { describe, expect, it, rs } from '@rstest/core';
 import { MediaNotConfiguredError, toError } from '../src/media/errors';
-import type { AiRichMediaConfig, AiRichMediaItem } from '../src/media/types';
+import type { MediaConfig, MediaItem } from '../src/media/types';
 import {
   canUpload,
   hasMediaLibrary,
@@ -15,7 +15,7 @@ function fakeFile(name: string, type: string, size = 8): File {
   return { name, type, size } as File;
 }
 
-const uploaded: AiRichMediaItem = {
+const uploaded: MediaItem = {
   id: '1',
   url: 'https://cdn.test/a.png',
   name: 'a.png',
@@ -48,7 +48,7 @@ describe('uploadMediaFile', () => {
         return { ...uploaded, name: file.name };
       },
     );
-    const config: AiRichMediaConfig = { image: { upload } };
+    const config: MediaConfig = { image: { upload } };
     const onProgress = rs.fn();
     const result = await uploadMediaFile(
       config,
@@ -63,7 +63,7 @@ describe('uploadMediaFile', () => {
 
 describe('能力判定', () => {
   it('canUpload 只看对应类型', () => {
-    const config: AiRichMediaConfig = {
+    const config: MediaConfig = {
       image: { upload: async () => uploaded },
     };
     expect(canUpload(config, 'image')).toBe(true);
@@ -71,7 +71,7 @@ describe('能力判定', () => {
   });
 
   it('hasMediaLibrary 只认媒体库能力', () => {
-    const libraryOnly: AiRichMediaConfig = {
+    const libraryOnly: MediaConfig = {
       image: {
         upload: async () => uploaded,
         getList: async () => ({ items: [], total: 0 }),

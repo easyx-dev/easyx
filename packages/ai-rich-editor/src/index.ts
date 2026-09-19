@@ -6,24 +6,24 @@ import './styles/index.scss';
 
 export { AiRichEditor } from './AiRichEditor';
 export {
+  type AiRichPreviewDevice,
   DEFAULT_CONFIG,
   DEFAULT_HTML,
   DEFAULT_SYSTEM_PROMPT_TEMPLATE,
   PRESET_PROMPTS,
   PREVIEW_DEVICES,
-  type PreviewDevice,
 } from './constants';
 export { InvalidMediaUrlError, MediaNotConfiguredError } from './media/errors';
 export { mediaKindLabel, resolveMediaKind } from './media/routing';
 export { buildMediaSnippet } from './media/snippet';
 export type {
-  AiRichMediaConfig,
-  AiRichMediaItem,
-  AiRichMediaKind,
-  AiRichMediaListParams,
-  AiRichMediaListResult,
-  AiRichMediaUploadConfig,
-  AiRichMediaUploadProgress,
+  MediaConfig,
+  MediaItem,
+  MediaKind,
+  MediaListParams,
+  MediaListResult,
+  MediaUploadConfig,
+  MediaUploadProgress,
 } from './media/types';
 export type {
   AiRichDocumentKind,
@@ -36,7 +36,7 @@ export type {
   AiRichEditorProps,
   AiRichEditorTools,
   AiRichErrorHandler,
-  AiRichNotify,
+  AiRichNotifyHandler,
   AiRichRequestHeaders,
 } from './types';
 export { buildPreviewDocument, extractHtmlFragments } from './utils/extract';

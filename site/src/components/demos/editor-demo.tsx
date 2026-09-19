@@ -223,13 +223,11 @@ export default function EditorDemo() {
       </div>
 
       <div className="demo-editor-body">
-        <div className="vanilla-editor-wrapper" ref={containerRef} />
+        <div className="demo-editor-wrapper" ref={containerRef} />
       </div>
 
-      <details className="vanilla-demo-output">
-        <summary className="vanilla-demo-output-summary">
-          查看 HTML 输出
-        </summary>
+      <details className="demo-editor-output">
+        <summary className="demo-editor-output-summary">查看 HTML 输出</summary>
         <pre className="demo-code-block">{html || '<空>'}</pre>
       </details>
     </div>

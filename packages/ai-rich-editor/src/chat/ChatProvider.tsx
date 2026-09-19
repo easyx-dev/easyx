@@ -45,7 +45,7 @@ import {
 } from '../media/attachment';
 import { toError } from '../media/errors';
 import { buildAttachmentBlock } from '../media/prompt-text';
-import type { AiRichMediaConfig, SentAttachment } from '../media/types';
+import type { MediaConfig, SentAttachment } from '../media/types';
 import { canUpload, uploadMediaFile } from '../media/upload';
 import {
   createPendingDocument,
@@ -65,7 +65,7 @@ import { buildDefaultSystemPrompt } from '../prompts';
 import type {
   AiRichEditorTools,
   AiRichErrorHandler,
-  AiRichNotify,
+  AiRichNotifyHandler,
   AiRichRequestHeaders,
 } from '../types';
 import { IconRobot, IconTrash } from '../ui/icons';
@@ -92,11 +92,11 @@ export interface EditorChatConfig {
   /** 「应用修改」回调（补丁块应用到当前内容） */
   onApplyPatch?: (content: string) => void;
   /** 通知回调（复制代码等轻提示） */
-  onNotify?: AiRichNotify;
+  onNotify?: AiRichNotifyHandler;
   /** 错误上报（上传失败、会话流错误等） */
   onError?: AiRichErrorHandler;
   /** 媒体能力（上传 / 媒体库）：对话附件与代码面板插入共用 */
-  media?: AiRichMediaConfig;
+  media?: MediaConfig;
   /** 宿主注入的能力集合（目前含文档解析） */
   tools?: AiRichEditorTools;
   /** 链接与图片地址的白名单选项（宿主可追加协议） */

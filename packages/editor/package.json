@@ -1,7 +1,8 @@
 {
   "name": "@easyx/editor",
-  "version": "1.1.2",
+  "version": "2.0.0",
   "description": "零框架依赖的 Tiptap 富文本编辑器，内置工具栏、气泡菜单、媒体上传与表格增强",
+  "license": "MIT",
   "type": "module",
   "exports": {
     ".": {

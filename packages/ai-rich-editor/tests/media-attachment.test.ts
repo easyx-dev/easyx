@@ -15,7 +15,7 @@ import {
   ATTACHMENT_BLOCK_TITLE,
   buildAttachmentBlock,
 } from '../src/media/prompt-text';
-import type { AiRichMediaConfig } from '../src/media/types';
+import type { MediaConfig } from '../src/media/types';
 
 function fakeFile(name: string, type: string, size = 8): File {
   return { name, type, size } as File;
@@ -55,7 +55,7 @@ describe('附件模型', () => {
 });
 
 describe('planFileAttachments', () => {
-  const media: AiRichMediaConfig = {
+  const media: MediaConfig = {
     image: {
       upload: async (file) => ({ id: '1', url: '/a.png', name: file.name }),
     },

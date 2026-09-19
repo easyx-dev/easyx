@@ -16,7 +16,7 @@ import {
 import type { MediaPick } from '../components/MediaPicker';
 import { MediaPicker } from '../components/MediaPicker';
 import type { PendingAttachment } from '../media/attachment';
-import type { AiRichMediaConfig } from '../media/types';
+import type { MediaConfig } from '../media/types';
 import type { PendingDocument } from '../parsers/document-state';
 import type { AiRichErrorHandler } from '../types';
 import { IconArrowUp, IconFile, IconPaperclip, IconStop } from '../ui/icons';
@@ -58,7 +58,7 @@ export interface ChatComposerProps {
   /** 媒体入口的选择结果（上传 / 媒体库） */
   onPickMedia?: (pick: MediaPick) => void;
   /** 媒体能力 */
-  media?: AiRichMediaConfig;
+  media?: MediaConfig;
   /** 错误上报（入口不可用、上传失败等） */
   onError?: AiRichErrorHandler;
 }

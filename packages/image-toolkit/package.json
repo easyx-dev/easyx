@@ -2,6 +2,7 @@
   "name": "@easyx/image-toolkit",
   "version": "1.0.0",
   "description": "浏览器端图片处理套件：裁切/缩放/格式转换/无损优化全部由 wasm 引擎在客户端完成；根入口提供零依赖的魔数嗅探与操作归一化纯逻辑",
+  "license": "MIT",
   "type": "module",
   "exports": {
     ".": {

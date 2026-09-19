@@ -4,28 +4,24 @@
  * 路由规则与 @easyx/editor 的粘贴/拖入分流保持一致：图片/视频/音频按 MIME 前缀，
  * 其余一律兜底为附件。
  */
-import type {
-  AiRichMediaConfig,
-  AiRichMediaItem,
-  AiRichMediaKind,
-} from './types';
+import type { MediaConfig, MediaItem, MediaKind } from './types';
 
 /** 媒体类型固定顺序（界面展示与上传路由共用） */
-export const MEDIA_KINDS: readonly AiRichMediaKind[] = [
+export const MEDIA_KINDS: readonly MediaKind[] = [
   'image',
   'video',
   'audio',
   'attachment',
 ];
 
-const KIND_LABELS: Record<AiRichMediaKind, string> = {
+const KIND_LABELS: Record<MediaKind, string> = {
   image: '图片',
   video: '视频',
   audio: '音频',
   attachment: '附件',
 };
 
-const KIND_ACCEPT: Record<AiRichMediaKind, string> = {
+const KIND_ACCEPT: Record<MediaKind, string> = {
   image: 'image/*',
   video: 'video/*',
   audio: 'audio/*',
@@ -33,12 +29,12 @@ const KIND_ACCEPT: Record<AiRichMediaKind, string> = {
 };
 
 /** 媒体类型的中文名 */
-export function mediaKindLabel(kind: AiRichMediaKind): string {
+export function mediaKindLabel(kind: MediaKind): string {
   return KIND_LABELS[kind];
 }
 
 /** 文件 MIME → 媒体类型 */
-export function resolveMediaKind(fileType: string): AiRichMediaKind {
+export function resolveMediaKind(fileType: string): MediaKind {
   const type = fileType.toLowerCase();
   if (type.startsWith('image/')) return 'image';
   if (type.startsWith('video/')) return 'video';
@@ -47,7 +43,7 @@ export function resolveMediaKind(fileType: string): AiRichMediaKind {
 }
 
 /** 文件选择框的 accept：只列出宿主编排了上传接口的类型 */
-export function mediaAccept(media?: AiRichMediaConfig): string {
+export function mediaAccept(media?: MediaConfig): string {
   return MEDIA_KINDS.filter((kind) => media?.[kind]?.upload)
     .map((kind) => KIND_ACCEPT[kind])
     .filter(Boolean)
@@ -55,14 +51,14 @@ export function mediaAccept(media?: AiRichMediaConfig): string {
 }
 
 /** 扩展名 → 媒体类型：媒体库条目不携带 MIME 时兜底（允许尾部查询串与锚点） */
-const EXTENSION_KINDS: ReadonlyArray<[RegExp, AiRichMediaKind]> = [
+const EXTENSION_KINDS: ReadonlyArray<[RegExp, MediaKind]> = [
   [/\.(png|jpe?g|gif|webp|avif|svg|bmp|ico)(?:[?#].*)?$/i, 'image'],
   [/\.(mp4|webm|mov|m4v|ogv|mkv)(?:[?#].*)?$/i, 'video'],
   [/\.(mp3|wav|ogg|m4a|aac|flac|opus)(?:[?#].*)?$/i, 'audio'],
 ];
 
 /** 媒体库条目的类型推断：优先 fileType，其次按文件名与地址的扩展名 */
-export function resolveItemKind(item: AiRichMediaItem): AiRichMediaKind {
+export function resolveItemKind(item: MediaItem): MediaKind {
   const fileType = item.fileType ?? '';
   if (fileType.includes('/')) return resolveMediaKind(fileType);
   // 名称优先于地址：名称无扩展名时再退回地址

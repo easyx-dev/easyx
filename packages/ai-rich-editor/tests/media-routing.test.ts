@@ -9,7 +9,7 @@ import {
   resolveItemKind,
   resolveMediaKind,
 } from '../src/media/routing';
-import type { AiRichMediaConfig, AiRichMediaItem } from '../src/media/types';
+import type { MediaConfig, MediaItem } from '../src/media/types';
 
 describe('resolveMediaKind', () => {
   it('图片/视频/音频按 MIME 前缀分流', () => {
@@ -29,7 +29,7 @@ describe('resolveMediaKind', () => {
 });
 
 describe('mediaAccept', () => {
-  const config: AiRichMediaConfig = {
+  const config: MediaConfig = {
     image: { upload: async () => ({ id: '1', url: '/a.png', name: 'a.png' }) },
   };
 
@@ -44,7 +44,7 @@ describe('mediaAccept', () => {
 });
 
 describe('resolveItemKind', () => {
-  function item(partial: Partial<AiRichMediaItem>): AiRichMediaItem {
+  function item(partial: Partial<MediaItem>): MediaItem {
     return { id: '1', url: '/x', name: 'x', ...partial };
   }
 

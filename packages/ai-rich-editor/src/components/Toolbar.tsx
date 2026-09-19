@@ -4,7 +4,7 @@
  */
 
 import { PREVIEW_DEVICES } from '../constants';
-import type { AiRichErrorHandler, AiRichNotify } from '../types';
+import type { AiRichErrorHandler, AiRichNotifyHandler } from '../types';
 import {
   IconCopy,
   IconExternalLink,
@@ -35,7 +35,7 @@ interface ToolbarProps {
   onOpenSettings: () => void;
   /** 打开使用说明 */
   onOpenHelp: () => void;
-  onNotify?: AiRichNotify;
+  onNotify?: AiRichNotifyHandler;
   onError?: AiRichErrorHandler;
 }
 

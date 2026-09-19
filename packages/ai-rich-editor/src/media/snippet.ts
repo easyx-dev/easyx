@@ -12,10 +12,10 @@
 import type { SanitizeUrlOptions } from '../utils/url';
 import { sanitizeUrl } from '../utils/url';
 import { formatBytes } from './routing';
-import type { AiRichMediaKind } from './types';
+import type { MediaKind } from './types';
 
 export interface MediaSnippetInput {
-  kind: AiRichMediaKind;
+  kind: MediaKind;
   url: string;
   /** 文件名 / 替代文本 */
   name?: string;

@@ -11,9 +11,9 @@
 import {
   AiRichEditor,
   type AiRichEditorTools,
-  type AiRichMediaConfig,
-  type AiRichMediaItem,
   DEFAULT_HTML,
+  type MediaConfig,
+  type MediaItem,
 } from '@easyx/ai-rich-editor';
 import { createDefaultDocumentParser } from '@easyx/ai-rich-editor/parsers';
 import { useEffect, useMemo, useState } from 'react';
@@ -41,7 +41,7 @@ import { findPreset } from './ai-rich-editor-demo/presets';
 function uploadToBlobUrl(
   file: File,
   onProgress?: (progress: number) => void,
-): Promise<AiRichMediaItem> {
+): Promise<MediaItem> {
   return new Promise((resolve) => {
     onProgress?.(0.35);
     window.setTimeout(() => {
@@ -58,9 +58,9 @@ function uploadToBlobUrl(
 }
 
 /** 演示媒体库：内联 SVG 转 Blob 地址，避免依赖站点静态资源；模块级只建一次 */
-let libraryCache: AiRichMediaItem[] | undefined;
+let libraryCache: MediaItem[] | undefined;
 
-function getLibraryItems(): AiRichMediaItem[] {
+function getLibraryItems(): MediaItem[] {
   if (libraryCache) return libraryCache;
   const make = (
     id: string,
@@ -68,7 +68,7 @@ function getLibraryItems(): AiRichMediaItem[] {
     label: string,
     color: string,
     size: number,
-  ): AiRichMediaItem => {
+  ): MediaItem => {
     const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="240" height="160"><rect width="240" height="160" rx="12" fill="${color}"/><text x="120" y="90" font-family="system-ui" font-size="20" fill="#fff" text-anchor="middle">${label}</text></svg>`;
     const url = URL.createObjectURL(new Blob([svg], { type: 'image/svg+xml' }));
     return {
@@ -89,7 +89,7 @@ function getLibraryItems(): AiRichMediaItem[] {
 }
 
 /** 演示媒体配置：图片/视频/音频/附件均可上传，媒体库共用同一份示例数据 */
-function createDemoMedia(): AiRichMediaConfig {
+function createDemoMedia(): MediaConfig {
   const getList = async () => {
     const items = getLibraryItems();
     return { items, total: items.length };

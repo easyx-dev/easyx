@@ -1,13 +1,17 @@
 # EasyX
 
-EasyX 系列库的 pnpm monorepo：每个库独立安装、独立发版，共用一套文档站点与演示环境。
+EasyX 系列库的 pnpm monorepo：每个库独立安装、独立发版，共用一套 Astro + Starlight 文档站点与演示环境。
 
 ## 库
 
 | 包 | 说明 |
 |----|------|
-| [`@easyx/editor`](packages/editor) | 零框架依赖的 Tiptap 富文本编辑器，内置工具栏、气泡菜单、媒体上传与高度控制 |
-| [`@easyx/tiptap-table-plus`](packages/tiptap-table-plus) | Tiptap 表格增强套件：行列操作、单元格样式、70 色背景与中英文右键菜单 |
+| [`@easyx/editor`](packages/editor) | 零框架依赖的 Tiptap 富文本编辑器，内置工具栏、气泡菜单、媒体上传与表格增强 |
+| [`@easyx/tiptap-table-plus`](packages/tiptap-table-plus) | Tiptap 表格增强套件：单元格样式、选区覆盖层、70 色色板与中英文右键菜单 |
+| [`@easyx/ai-rich-editor`](packages/ai-rich-editor) | AI 驱动的 HTML 片段工作台：对话生成、实时预览、片段样式自动作用域化 |
+| [`@easyx/image-toolkit`](packages/image-toolkit) | 浏览器端图片处理套件：裁切、缩放、格式转换与无损优化全部由 wasm 引擎完成 |
+
+各库能力与演示见[文档站点](https://easyx-dev.github.io/easyx/)。
 
 ## 快速开始
 
@@ -17,18 +21,18 @@ pnpm dev
 ```
 
 ```ts
-import { createEditor } from '@easyx/editor'
+import { createEditor } from '@easyx/editor';
 
-const editor = createEditor(document.getElementById('editor'), {
+const editor = createEditor(document.getElementById('editor')!, {
   placeholder: '请输入…',
   defaultTheme: 'light',
   image: {
-    upload: async (file) => ({ id: '1', url: '...', name: file.name }),
+    upload: async (file) => ({ id: file.name, url: '...', name: file.name }),
   },
-  onChange: (html) => console.log(html),
-})
+  onChange: (content) => console.log(content),
+});
 
-editor.setHTML('<p>Hello World</p>')
+editor.setHTML('<p>Hello World</p>');
 ```
 
 ## 命令
@@ -55,23 +59,25 @@ pnpm --filter site dev              # 单独启动站点
 ## 项目结构
 
 ```
-packages/            # 各库，一个库一个目录，包名 @easyx/<lib>
-├── editor/          # @easyx/editor
-└── tiptap-table-plus/  # @easyx/tiptap-table-plus
-site/                # Astro + Starlight 文档站点（全系列共用）
+packages/                    # 各库，一个库一个目录，包名 @easyx/<lib>
+├── editor/                  # @easyx/editor
+├── tiptap-table-plus/       # @easyx/tiptap-table-plus
+├── ai-rich-editor/          # @easyx/ai-rich-editor
+└── image-toolkit/           # @easyx/image-toolkit
+site/                        # Astro + Starlight 文档站点（全系列共用）
 ```
 
 ## 技术栈
 
 - **构建**：Rslib（库）+ Astro / Starlight（站点）
 - **语言**：TypeScript（strict）
-- **Lint/Format**：Biome
+- **Lint / Format**：Biome
 - **测试**：Rstest + `@rstest/adapter-rslib`
 - **包管理**：pnpm（monorepo）
 
 ## 新增库
 
-新增库遵循 [AGENTS.md](./AGENTS.md) 中「新增一个库」的约定：目录与包名、构建与依赖声明、测试、样式命名空间、文档与 Demo、发布登记六项。
+新增库遵循 [AGENTS.md](./AGENTS.md) 中「新增一个库」的约定：目录与包名、构建与依赖声明、测试、样式命名空间、文档与 Demo、发布登记。文档与演示的写法见「文档与演示规范」。
 
 ## 发布
 

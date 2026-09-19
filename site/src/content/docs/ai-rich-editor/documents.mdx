@@ -1,22 +1,17 @@
 ---
-title: 文档解析（Word / PDF）
+title: AI Rich Editor 文档解析
 description: 在浏览器端解析 Word / PDF，交给 AI 生成或修改现有内容；解析能力经 tools.parseDocument 异步注入
 ---
 
-# 文档解析（Word / PDF）
-
 把 Word（`.docx`）或 PDF 交给 AI，据此**生成**新片段，或**修改**编辑器里的现有内容。
 
-解析全部在宿主侧完成，包内只消费解析结果：
-
-- 能力经顶层 `tools.parseDocument` 注入，是一个**异步方法** —— 可以在浏览器本地解析，也可以调用你自己的服务端解析接口；
-- 包内自带浏览器端默认解析器（`./parsers` 入口，按需加载 `mammoth` / `unpdf`），可直接使用；
-- 解析结果以 `[文档内容]` 上下文块随用户消息发出，模型据此产出片段。
+解析全部在宿主侧完成，包内只消费解析结果：能力经顶层 `tools.parseDocument` 注入，是一个**异步方法** —— 可在浏览器本地解析，也可调用自己的服务端解析接口。
 
 ## 快速上手
 
+使用包内默认解析器需额外安装两个可选依赖：
+
 ```bash
-# 使用包内默认解析器时，需额外安装两个可选依赖
 pnpm add mammoth unpdf
 ```
 
@@ -28,10 +23,10 @@ import { createDefaultDocumentParser } from '@easyx/ai-rich-editor/parsers';
   endpointUrl="/v1/chat/completions"
   model="gpt-4o-mini"
   tools={{ parseDocument: createDefaultDocumentParser() }}
-/>;
+/>
 ```
 
-传入 `tools.parseDocument` 后，对话输入框出现「添加文档」入口；也可直接把 `.docx` / `.pdf` 粘贴或拖入输入框。文档在**添加时**即开始解析，解析中就绪前不能发送。
+传入 `tools.parseDocument` 后，对话输入框出现「添加文档」入口，也可直接把 `.docx` / `.pdf` 粘贴或拖入。文档在**添加时**即开始解析，解析完成前不能发送。
 
 ## 接入服务端解析
 
@@ -52,7 +47,7 @@ import { createDefaultDocumentParser } from '@easyx/ai-rich-editor/parsers';
       return { html: data.html, text: data.text, pageCount: data.pageCount, warnings: data.warnings };
     },
   }}
-/>;
+/>
 ```
 
 此时完全不引入 `./parsers` 入口，`mammoth` / `unpdf` 也不会进入宿主产物。
@@ -84,11 +79,11 @@ interface AiRichParsedDocument {
 | `documentAccept(extensions?)` | 文件选择框 accept，默认 `.docx,.pdf` |
 | `DEFAULT_DOCUMENT_EXTENSIONS` | 默认扩展名清单 |
 
-- **Word**：用 mammoth 的浏览器预构建包转成语义化 HTML（标题 / 段落 / 列表 / 表格 / 加粗斜体）；图片统一替换为 `[图片]` 占位，不内联 base64。
-- **PDF**：用 unpdf 提取**纯文本**（按页拼接，不还原表格与分栏），worker 已内联，浏览器端无需配置 `workerSrc`。
-- 只支持 `.docx`；旧版 `.doc` 二进制格式无法解析，宿主配了附件上传时落回媒体附件，否则给出明确错误。扫描件（无文本层）会提示「未提取到文本」。
+- **Word**：用 mammoth 的浏览器预构建包转成语义化 HTML（标题 / 段落 / 列表 / 表格 / 加粗斜体）；图片统一替换为 `[图片]` 占位，不内联 base64
+- **PDF**：用 unpdf 提取**纯文本**（按页拼接，不还原表格与分栏），worker 已内联，浏览器端无需配置 `workerSrc`
+- 只支持 `.docx` / `.pdf`；旧版 `.doc` 二进制格式无法解析，宿主配了附件上传时落回媒体附件，否则给出明确错误。扫描件（无文本层）会提示「未提取到文本」
 
-## 限制与提示
+## 限制
 
 | 项 | 值 |
 |----|----|
@@ -113,8 +108,8 @@ interface AiRichParsedDocument {
 
 内置 system 提示词已约定：
 
-- 只出现 `[文档内容]` → **据此生成**规范片段，保留原文信息与层级，不编造文档中没有的内容；
-- 同时出现 `[当前片段]` → 以文档为依据对当前片段做**最小化改写**；
-- 文档被截断时（块内标注）不臆测未给出的内容。
+- 只出现 `[文档内容]` → **据此生成**规范片段，保留原文信息与层级，不编造文档中没有的内容
+- 同时出现 `[当前片段]` → 以文档为依据对当前片段做**最小化改写**
+- 文档被截断时（块内标注）不臆测未给出的内容
 
 `[文档内容]` 是持久源材料，不像 `[当前片段]` 那样在历史轮次被剥离；体积由字符预算控制。

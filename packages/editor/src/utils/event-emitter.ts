@@ -1,21 +1,21 @@
-export type EventHandler = (...args: unknown[]) => void;
+export type EditorEventHandler = (...args: unknown[]) => void;
 
 export class EventEmitter {
-  private handlers: Map<string, Set<EventHandler>> = new Map();
+  private handlers: Map<string, Set<EditorEventHandler>> = new Map();
 
-  on(event: string, handler: EventHandler): void {
+  on(event: string, handler: EditorEventHandler): void {
     if (!this.handlers.has(event)) {
       this.handlers.set(event, new Set());
     }
     this.handlers.get(event)!.add(handler);
   }
 
-  off(event: string, handler: EventHandler): void {
+  off(event: string, handler: EditorEventHandler): void {
     this.handlers.get(event)?.delete(handler);
   }
 
-  once(event: string, handler: EventHandler): void {
-    const wrapper: EventHandler = (...args: unknown[]) => {
+  once(event: string, handler: EditorEventHandler): void {
+    const wrapper: EditorEventHandler = (...args: unknown[]) => {
       this.off(event, wrapper);
       handler(...args);
     };

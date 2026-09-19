@@ -8,11 +8,11 @@
 import { afterEach, describe, expect, it, rs } from '@rstest/core';
 import { cleanup, render, screen } from '@testing-library/react';
 import { MediaLibraryPanel } from '../src/components/MediaLibraryPanel';
-import type { AiRichMediaListResult } from '../src/media/types';
+import type { MediaListResult } from '../src/media/types';
 
 afterEach(() => cleanup());
 
-const ITEMS: AiRichMediaListResult = {
+const ITEMS: MediaListResult = {
   items: [{ id: '1', url: '/a.png', name: 'a.png', size: 1024 }],
   total: 1,
 };

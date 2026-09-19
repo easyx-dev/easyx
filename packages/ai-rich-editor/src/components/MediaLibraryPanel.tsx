@@ -9,9 +9,9 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { toError } from '../media/errors';
 import { formatBytes, resolveItemKind } from '../media/routing';
 import type {
-  AiRichMediaItem,
-  AiRichMediaListParams,
-  AiRichMediaListResult,
+  MediaItem,
+  MediaListParams,
+  MediaListResult,
 } from '../media/types';
 import { cx } from '../ui/cx';
 import {
@@ -25,8 +25,8 @@ import {
 const PAGE_SIZE = 12;
 
 export interface MediaLibraryPanelProps {
-  getList: (params: AiRichMediaListParams) => Promise<AiRichMediaListResult>;
-  onPick: (item: AiRichMediaItem) => void;
+  getList: (params: MediaListParams) => Promise<MediaListResult>;
+  onPick: (item: MediaItem) => void;
   /** 加载失败上报（面板内同时给出重试提示） */
   onError?: (error: Error) => void;
 }
@@ -42,7 +42,7 @@ export function MediaLibraryPanel({
   onPick,
   onError,
 }: MediaLibraryPanelProps) {
-  const [items, setItems] = useState<AiRichMediaItem[]>([]);
+  const [items, setItems] = useState<MediaItem[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
   const [keyword, setKeyword] = useState('');

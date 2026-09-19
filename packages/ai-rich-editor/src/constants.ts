@@ -74,7 +74,7 @@ export const PRESET_PROMPTS = [
 ] as const;
 
 /** 预览设备档位（控制 iframe 容器宽度） */
-export interface PreviewDevice {
+export interface AiRichPreviewDevice {
   key: string;
   label: string;
   width: number | string;
@@ -82,7 +82,7 @@ export interface PreviewDevice {
   height?: number;
 }
 
-export const PREVIEW_DEVICES: PreviewDevice[] = [
+export const PREVIEW_DEVICES: AiRichPreviewDevice[] = [
   { key: 'desktop', label: '桌面', width: '100%' },
   { key: 'mobile', label: '手机', width: 375, height: 812 },
 ];

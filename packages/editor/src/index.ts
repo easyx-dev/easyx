@@ -1,25 +1,23 @@
 import './styles/index.scss';
 
 import { createEditorInstance } from './core/create-editor';
-import type { EasyxEditorOptions, ThemeType } from './types';
-import type { EventHandler } from './utils/event-emitter';
+import type { EditorOptions, EditorTheme } from './types';
+import type { EditorEventHandler } from './utils/event-emitter';
 
 export type {
-  ContentType,
-  EasyxEditorOptions,
+  EditorContentType,
+  EditorImageConfig,
+  EditorOptions,
+  EditorTheme,
   MediaItem,
   MediaListParams,
   MediaListResult,
   MediaUploadConfig,
-  ThemeType,
-  UploadProgressCallback,
+  MediaUploadProgress,
 } from './types';
-export type { EventHandler } from './utils/event-emitter';
+export type { EditorEventHandler } from './utils/event-emitter';
 
-export function createEditor(
-  container: HTMLElement,
-  options: EasyxEditorOptions,
-) {
+export function createEditor(container: HTMLElement, options: EditorOptions) {
   if (!container) throw new Error('创建编辑器失败：container 参数不能为空');
   const { editor, emitter } = createEditorInstance(container, options);
 
@@ -52,7 +50,7 @@ export function createEditor(
       return editor.getJSON() as Record<string, unknown>;
     },
 
-    setTheme(theme: ThemeType): void {
+    setTheme(theme: EditorTheme): void {
       if (theme === 'dark') {
         container.classList.add('easyx-editor-dark');
       } else {
@@ -103,15 +101,15 @@ export function createEditor(
       );
     },
 
-    on(event: string, handler: EventHandler): void {
+    on(event: string, handler: EditorEventHandler): void {
       emitter.on(event, handler);
     },
 
-    off(event: string, handler: EventHandler): void {
+    off(event: string, handler: EditorEventHandler): void {
       emitter.off(event, handler);
     },
 
-    once(event: string, handler: EventHandler): void {
+    once(event: string, handler: EditorEventHandler): void {
       emitter.once(event, handler);
     },
 

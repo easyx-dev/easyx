@@ -19,7 +19,7 @@ import { useIsDark } from '../hooks/useIsDark';
 import { MediaNotConfiguredError, toError } from '../media/errors';
 import { resolveItemKind, resolveMediaKind } from '../media/routing';
 import { buildMediaSnippet } from '../media/snippet';
-import type { AiRichMediaConfig } from '../media/types';
+import type { MediaConfig } from '../media/types';
 import { canUpload, uploadMediaFile } from '../media/upload';
 import type { AiRichErrorHandler } from '../types';
 import { writeDocSync } from './doc-sync';
@@ -31,7 +31,7 @@ export interface CodeEditorProps {
   /** 用户编辑时回调；外部写入不会触发 */
   onChange?: (value: string) => void;
   /** 媒体能力（上传 / 媒体库） */
-  media?: AiRichMediaConfig;
+  media?: MediaConfig;
   /** 宿主追加允许的协议（用于「网络地址」页签校验） */
   allowedUrlSchemes?: readonly string[];
   /** 错误上报（未配置接口、上传失败、地址非法等） */

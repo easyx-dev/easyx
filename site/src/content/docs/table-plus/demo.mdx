@@ -1,0 +1,22 @@
+---
+title: Table Plus 演示
+description: Table Plus 表格增强套件的选区手柄、右键菜单、70 色色板与国际化演示
+---
+
+import IframeDemo from '../../../components/IframeDemo.tsx';
+import { getDemoSource } from '../../../components/demo-sources.ts';
+
+在真实编辑器中体验表格增强的全部能力。右键表格单元格打开上下文菜单，悬停色板项可用方向键导航。
+
+<IframeDemo slug="table-plus-demo" sourceCode={getDemoSource('table-plus-demo')} client:load />
+
+## 功能说明
+
+- **插入表格**：工具栏 Grid Picker 支持自定义行列数
+- **行列操作**：插入、删除、上移 / 下移、左移 / 右移、复制、排序
+- **单元格操作**：合并、拆分、清除内容、文字颜色、背景色、水平 / 垂直对齐
+- **选区覆盖层**：选中区域后常显边框与加行 / 加列手柄
+- **调色板**：70 色（10 色相 × 7 级明度），方向键导航
+- **表头切换**：切换标题行与标题列
+- **主题切换**：浅色 / 深色实时切换
+- **国际化**：中英文右键菜单切换

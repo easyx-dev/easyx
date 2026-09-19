@@ -1,32 +1,30 @@
 ---
 title: AI Rich Editor 演示
-description: AI Rich Editor 对话生成 HTML 片段与实时预览完整演示
+description: AI 工作台的对话生成、实时预览、代码面板与媒体插入完整演示
 ---
 
 import IframeDemo from '../../../components/IframeDemo.tsx';
 import { getDemoSource } from '../../../components/demo-sources.ts';
 
-`@easyx/ai-rich-editor` 的完整工作台演示：左侧预览、右侧对话，顶栏可打开代码编辑器。
+完整工作台演示：左侧预览、右侧对话，顶栏可打开代码编辑器。控制条上的「模型连接」可在内置回放与真实模型之间切换。
 
 <IframeDemo slug="ai-rich-editor-demo" sourceCode={getDemoSource('ai-rich-editor-demo')} client:load />
 
 ## 说明
 
-演示有两种模式，控制条上的「模型连接」可随时切换：
+- **内置回放（默认）**：文档站是纯静态站点、没有服务端，因此在浏览器侧拦截演示端点，回放一段预录的 OpenAI 标准 SSE 流。对话链路走真实实现：包内适配器消费 SSE、`createChatHook` 驱动消息渲染、流式同步到编辑器与预览
+- **真实模型**：填入任意 OpenAI Chat Completions 兼容端点（Base URL + API Key + 模型）即可直接对话；配置写在浏览器 `localStorage`，密钥不离开本机，可用「清除连接」移除
+- 连接面板提供 OpenRouter、OpenAI、DeepSeek、硅基流动、百炼、方舟、GLM、Kimi、本地 Ollama 等预设，并标注能否从浏览器直连。**多数国内提供方未开放 CORS**，直连失败时改用 OpenRouter 或自填代理地址；「测试连接」可提前暴露跨域与鉴权问题
+- 输入内容或点击推荐指令触发对话；回复中的 ```html 代码块可点击「应用到编辑器」
+- 启用「编辑器」勾选后，左栏变为 `[代码编辑器 | 预览]`，可手动改写片段
+- 演示注入了本地 `media` 配置：上传返回同源 Blob 地址、媒体库为内置示例图，因此**粘贴图片到输入框、拖文件进代码区、行号旁的「+」**都能真实跑通（无需服务端）。Blob 地址服务端取不到，故真实模型模式下图片不会作为多模态输入
+- 真实接入时把 `endpointUrl` 指向宿主的 OpenAI 兼容端点、`media` 指向宿主的上传与媒体库接口即可，组件侧无需改动
 
-- **内置回放（默认）**：文档站是纯静态站点、没有服务端，因此在浏览器侧拦截演示端点，**回放一段预录的 OpenAI 标准 SSE 流**（逐字下发）。对话链路本身走真实实现：包内适配器消费 SSE、`createChatHook` 驱动消息渲染、流式同步到编辑器与预览
-- **真实模型**：填入任意 OpenAI Chat Completions 兼容端点（Base URL + API Key + 模型）即可直接对话；配置写在浏览器 `localStorage`，密钥不会离开本机，可用「清除连接」移除
-- 连接面板提供 OpenRouter、OpenAI、DeepSeek、硅基流动、百炼、方舟、GLM、Kimi、本地 Ollama 等预设，并标注该提供方能否从浏览器直连。**多数国内提供方未开放 CORS，直连会失败**，此时改用 OpenRouter 或填写你自己的代理地址；面板内「测试连接」可提前暴露跨域与鉴权问题
-- 输入任意内容或点击推荐指令即可触发对话；回复中的 ```html 代码块可点击「应用到编辑器」
-- 启用「编辑器」勾选后，左栏变为 `[代码编辑器 | 预览]`，可手动改写生成的片段
-- 演示注入了本地 `media` 配置：上传返回同源 Blob 地址、媒体库为内置示例图，因此**粘贴图片到输入框、拖文件进代码区、行号旁的「+」**都能真实跑通（无需服务端）。注意 Blob 地址服务端取不到，因此真实模型模式下图片不会作为多模态输入
-- 真实接入时把 `endpointUrl` 指向宿主的 OpenAI 兼容端点、`media` 指向宿主的上传与媒体库接口即可，组件侧无需任何改动
+## 演示的能力
 
-## 库能力
-
-- **对话生成**：对外走标准 OpenAI Chat Completions 流式协议，数据流基于 TanStack AI headless UI，渲染侧为包内自研（消息气泡 / 输入框 / 空态推荐 / 思考过程）
+- **对话生成**：标准 OpenAI Chat Completions 流式协议，数据流基于 TanStack AI headless UI，渲染侧自研
 - **媒体插入**：对话侧粘贴 / 拖入 / 选择文件，发送时上传并把地址交给模型；代码面板侧「+」或拖入直接插入自包含片段
 - **片段产出**：fragment-only，产物在应用时刻完成样式作用域化，宿主可直接当 HTML 引入
-- **实时预览**：设备档位（桌面拉伸 / 手机固定设备框）、脚本勾选、刷新、新窗口预览
-- **代码编辑**：CodeMirror 6 按需加载，HTML 语法高亮（含内嵌 `<style>` / `<script>` 的 CSS 与 JS）、标签与属性补全、查找替换、行跳转
-- **主题联动**：容器 class / 宿主 `data-theme` / 系统偏好三级判定，代码面板配色同步跟随
+- **实时预览**：设备档位（桌面拉伸 / 手机固定设备框）、脚本开关、刷新、新窗口预览
+- **代码编辑**：CodeMirror 6 按需加载，HTML 语法高亮、标签与属性补全、查找替换、行跳转
+- **主题联动**：令牌作用域 class / 宿主 `data-theme` / 系统偏好三级判定

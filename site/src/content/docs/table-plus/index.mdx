@@ -1,24 +1,95 @@
 ---
-title: Table Plus 演示
-description: EasyX Editor Table Plus 表格增强套件完整功能演示
+title: Table Plus
+description: Tiptap 表格增强套件，提供单元格样式、选区覆盖层、节点背景色与中英文右键菜单
 ---
 
-import IframeDemo from '../../../components/IframeDemo.tsx';
-import { getDemoSource } from '../../../components/demo-sources.ts';
+import { Card, CardGrid, LinkCard } from '@astrojs/starlight/components';
 
-`@easyx/tiptap-table-plus` 为 Tiptap 编辑器提供了全功能的表格增强，包括行列操作、单元格编辑、主题切换和国际化支持。
+`@easyx/tiptap-table-plus` 是独立的 Tiptap 表格增强套件：在原生 `Table` 之上补充单元格样式、选区覆盖层、节点背景色与上下文菜单，不依赖任何 UI 框架。
 
-<IframeDemo slug="table-plus-demo" sourceCode={getDemoSource('table-plus-demo')} client:load />
+<CardGrid>
+  <LinkCard title="表格增强演示" href="/easyx/table-plus/demo/" description="右键菜单、选区手柄与 70 色色板" />
+  <LinkCard title="API 参考" href="/easyx/table-plus/api-reference/" description="配置项、命令、翻译字段与类型" />
+</CardGrid>
 
-## 功能说明
+## 特性
 
-TablePlus 提供以下能力：
+<CardGrid>
+  <Card title="选区覆盖层">
+    表格选区常显边框与加行 / 加列手柄，操作入口随选区出现。
+  </Card>
+  <Card title="单元格样式">
+    文字颜色与水平 / 垂直对齐，均为可序列化属性。
+  </Card>
+  <Card title="上下文菜单">
+    右键菜单内置行列操作、合并拆分、表头切换与颜色，可增删改。
+  </Card>
+  <Card title="70 色色板">
+    10 色相 × 7 级明度，方向键可导航，作用于文字与背景。
+  </Card>
+  <Card title="节点背景色">
+    任意块级节点可设背景色，不限于表格单元格。
+  </Card>
+  <Card title="国际化">
+    内置 `zh-CN` / `en-US`，支持局部翻译覆盖。
+  </Card>
+</CardGrid>
 
-- **插入表格**：支持自定义行列数的表格插入
-- **行列操作**：插入、删除、上移、下移、左移、右移、复制、排序
-- **单元格操作**：合并、拆分、清除内容、文字颜色、背景色
-- **调色板**：70 色（10 色相 × 7 级明度），支持方向键导航，可作用于单元格文字与背景
-- **表头切换**：切换标题行和标题列
-- **主题切换**：浅色 / 深色模式实时切换
-- **国际化**：中英文右键菜单切换
-- **构建形态**：Bundleless ESM，每个源文件独立输出，支持 Tree Shaking 与按需加载
+## 安装
+
+```bash
+pnpm add @easyx/tiptap-table-plus
+```
+
+样式以独立 CSS 文件随包提供，并由包入口自动引入，通常无需额外处理。若宿主打包器忽略依赖内的 CSS 导入，再手动引入：
+
+```ts
+import '@easyx/tiptap-table-plus/styles/table.css';
+```
+
+## 快速上手
+
+`TablePlus` 需配合 `@tiptap/extension-table` 使用，推荐开启 `resizable` 支持列宽拖拽：
+
+```ts
+import { Editor } from '@tiptap/core';
+import { TableKit } from '@tiptap/extension-table';
+import { TablePlus } from '@easyx/tiptap-table-plus';
+
+const editor = new Editor({
+  extensions: [
+    TableKit.configure({ table: { resizable: true } }),
+    TablePlus.configure({ locale: 'zh-CN', theme: 'light' }),
+  ],
+});
+```
+
+## 配置
+
+```ts
+TablePlus.configure({
+  theme: 'dark',                       // 'light' | 'dark'
+  locale: 'en-US',                     // 'zh-CN' | 'en-US'
+  translations: { deleteRow: 'Remove Row' },
+  contextMenu: (items) => items.filter(
+    (item) => !('variant' in item && item.variant === 'destructive'),
+  ),
+});
+```
+
+- **`theme`**：影响选区覆盖层与上下文菜单配色，可用 `setTablePlusTheme` 命令动态切换
+- **`locale` / `translations`**：内置语言包切换与局部覆盖
+- **`contextMenu`**：接收默认菜单项列表，返回修改后的列表
+
+完整配置项、命令与类型见 [API 参考](/easyx/table-plus/api-reference/)。
+
+## 主题
+
+样式通过 CSS 自定义属性控制，可在外部覆盖：
+
+```css
+.my-editor {
+  --easyx-tiptap-table-plus-accent: #2563eb;
+  --easyx-tiptap-table-plus-border: #e5e7eb;
+}
+```

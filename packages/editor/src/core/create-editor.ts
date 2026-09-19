@@ -42,7 +42,7 @@ import {
   createVideoMenuElement,
   populateVideoMenu,
 } from '../toolbar/create-video-menu';
-import type { EasyxEditorOptions } from '../types';
+import type { EditorOptions } from '../types';
 import { EventEmitter } from '../utils/event-emitter';
 import { routeMediaUpload } from '../utils/media-upload';
 
@@ -74,7 +74,7 @@ function getMediaNodeAnchor(
 /** 创建编辑器右下角拖拽调高手柄，返回清理函数 */
 function createResizeHandle(
   container: HTMLElement,
-  options: EasyxEditorOptions,
+  options: EditorOptions,
 ): () => void {
   const handle = document.createElement('button');
   handle.type = 'button';
@@ -160,7 +160,7 @@ function createResizeHandle(
 
 export function createEditorInstance(
   container: HTMLElement,
-  options: EasyxEditorOptions,
+  options: EditorOptions,
 ): { editor: Editor; emitter: EventEmitter } {
   container.classList.add('easyx-editor');
   if (options.defaultTheme === 'dark') {

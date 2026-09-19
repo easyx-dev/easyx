@@ -304,7 +304,7 @@
 
 /* ── 编辑器内容区 ── */
 .demo-editor-content,
-.vanilla-editor-wrapper {
+.demo-editor-wrapper {
   min-height: 150px;
   color: var(--demo-text);
   font-size: 14px;
@@ -316,41 +316,16 @@
 }
 
 /* ── 原生编辑器包装器 ── */
-.vanilla-editor-wrapper {
+.demo-editor-wrapper {
   min-height: 200px;
 }
 
-/* ── 状态面板 ── */
-.vanilla-demo-state {
-  padding: 12px;
-  background: var(--demo-surface);
-  border-top: 1px solid var(--demo-border);
-}
-
-.vanilla-demo-state-title {
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--demo-text-muted);
-  margin-bottom: 8px;
-}
-
-.vanilla-demo-state-items {
-  display: flex;
-  gap: 16px;
-  flex-wrap: wrap;
-}
-
-.vanilla-demo-state-item {
-  font-size: 12px;
-  color: var(--demo-text);
-}
-
 /* ── 输出面板 ── */
-.vanilla-demo-output {
+.demo-editor-output {
   border-top: 1px solid var(--demo-border);
 }
 
-.vanilla-demo-output-summary {
+.demo-editor-output-summary {
   padding: 8px 12px;
   font-size: 12px;
   color: var(--demo-text-muted);
@@ -358,7 +333,7 @@
   background: var(--demo-surface);
 }
 
-.vanilla-demo-output pre {
+.demo-editor-output pre {
   margin: 0;
   padding: 12px;
   font-size: 12px;
@@ -455,7 +430,7 @@
   text-decoration: line-through;
 }
 
-.height-demo-intro code,
+.editor-height-intro code,
 .demo-editor-body .ProseMirror code {
   padding: 1px 5px;
   border-radius: 4px;
@@ -687,28 +662,28 @@
 }
 
 /* ===== 高度模式 Demo ===== */
-.height-demo {
+.editor-height {
   display: flex;
   flex-direction: column;
   gap: 20px;
   padding: 16px;
 }
 
-.height-demo-intro {
+.editor-height-intro {
   margin: 0;
   font-size: 13px;
   line-height: 1.7;
   color: var(--demo-text);
 }
 
-.height-demo-case {
+.editor-height-case {
   border: 1px solid var(--demo-border);
   border-radius: 10px;
   background: var(--demo-surface);
   overflow: hidden;
 }
 
-.height-demo-case-header {
+.editor-height-case-header {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
@@ -718,21 +693,21 @@
   background: var(--demo-control-bg);
 }
 
-.height-demo-case-title {
+.editor-height-case-title {
   margin: 0;
   font-size: 14px;
   font-weight: 600;
   color: var(--demo-text);
 }
 
-.height-demo-case-desc {
+.editor-height-case-desc {
   margin: 4px 0 0;
   font-size: 12px;
   line-height: 1.6;
   color: var(--demo-text-muted);
 }
 
-.height-demo-case-code {
+.editor-height-case-code {
   flex-shrink: 0;
   max-width: 100%;
   padding: 4px 8px;
@@ -745,12 +720,12 @@
   text-overflow: ellipsis;
 }
 
-.height-demo-editor {
+.editor-height-editor {
   width: 100%;
   padding: 12px 14px;
 }
 
-.height-demo-editor .easyx-editor {
+.editor-height-editor .easyx-editor {
   width: 100%;
 }
 

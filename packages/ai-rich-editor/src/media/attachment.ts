@@ -8,16 +8,16 @@
 import { MediaNotConfiguredError } from './errors';
 import { MEDIA_KINDS, resolveMediaKind } from './routing';
 import type {
-  AiRichMediaConfig,
-  AiRichMediaItem,
-  AiRichMediaKind,
+  MediaConfig,
+  MediaItem,
+  MediaKind,
   SentAttachment,
 } from './types';
 import { canUpload } from './upload';
 
 export interface PendingAttachment {
   id: string;
-  kind: AiRichMediaKind;
+  kind: MediaKind;
   name: string;
   size?: number;
   /** 本地待上传文件（媒体库选择的条目没有） */
@@ -46,8 +46,8 @@ export function createFileAttachment(file: File): PendingAttachment {
 
 /** 由媒体库条目创建待上传附件（已有地址，不再上传） */
 export function createLibraryAttachment(
-  item: AiRichMediaItem,
-  kind: AiRichMediaKind,
+  item: MediaItem,
+  kind: MediaKind,
 ): PendingAttachment {
   attachmentSeq += 1;
   return {
@@ -87,9 +87,9 @@ export function parseSentAttachments(raw: unknown): SentAttachment[] {
     const candidate = item as Partial<SentAttachment>;
     if (typeof candidate.url !== 'string' || !candidate.url) continue;
     if (typeof candidate.name !== 'string') continue;
-    if (!MEDIA_KINDS.includes(candidate.kind as AiRichMediaKind)) continue;
+    if (!MEDIA_KINDS.includes(candidate.kind as MediaKind)) continue;
     result.push({
-      kind: candidate.kind as AiRichMediaKind,
+      kind: candidate.kind as MediaKind,
       name: candidate.name,
       size: typeof candidate.size === 'number' ? candidate.size : undefined,
       url: candidate.url,
@@ -117,7 +117,7 @@ export interface AttachmentAdmission {
  */
 export function planFileAttachments(
   files: readonly File[],
-  media: AiRichMediaConfig | undefined,
+  media: MediaConfig | undefined,
   current: readonly PendingAttachment[],
   limit: number,
 ): AttachmentAdmission {

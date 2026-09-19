@@ -13,7 +13,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { EMPTY_PREVIEW_TEXT, PREVIEW_DEVICES } from '../constants';
 import { useElementSize } from '../hooks/useElementSize';
-import type { AiRichNotify } from '../types';
+import type { AiRichNotifyHandler } from '../types';
 import { isScopeDark } from '../ui/cx';
 import { IconCode } from '../ui/icons';
 import {
@@ -40,7 +40,7 @@ interface PreviewPanelProps {
   previewHead?: string;
   /** 是否启用右键「用 AI 修改」入口 */
   editMenuEnabled?: boolean;
-  onNotify?: AiRichNotify;
+  onNotify?: AiRichNotifyHandler;
   /** 提交预览定向修改：目标区域（可多个）+ 用户指令 */
   onSubmitEdit?: (targets: PreviewTarget[], instruction: string) => void;
 }

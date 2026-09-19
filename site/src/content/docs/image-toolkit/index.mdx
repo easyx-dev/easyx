@@ -3,19 +3,48 @@ title: Image Toolkit
 description: 浏览器端图片处理套件：裁切、缩放、格式转换与无损优化全部由 wasm 引擎在客户端完成
 ---
 
-`@easyx/image-toolkit` 把图片处理全部放在浏览器：服务端零图片库、零原生依赖，能力随浏览器能力走。
-内置引擎基于 [`@imagemagick/magick-wasm`](https://github.com/dlemstra/magick-wasm)（ImageMagick 编译为 WebAssembly），运行在自建 Worker 中，不阻塞主线程。
+import { Aside, Card, CardGrid, LinkCard } from '@astrojs/starlight/components';
+
+`@easyx/image-toolkit` 把图片处理全部放在浏览器：服务端零图片库、零原生依赖。内置引擎基于 [`@imagemagick/magick-wasm`](https://github.com/dlemstra/magick-wasm)（ImageMagick 编译为 WebAssembly），运行在自建 Worker 中，不阻塞主线程。
+
+<CardGrid>
+  <LinkCard title="图片编辑演示" href="/easyx/image-toolkit/demo/" description="canvas 现场生成源图，完整体验裁切与无损优化" />
+  <LinkCard title="API 参考" href="/easyx/image-toolkit/api-reference/" description="两个入口的导出清单、引擎 API 与类型" />
+</CardGrid>
 
 ## 两个入口
 
 | 入口 | 内容 | 依赖 |
 |------|------|------|
-| `@easyx/image-toolkit` | 同构纯逻辑：魔数嗅探、格式白名单、操作归一化、缩放换算 | 零重量依赖（服务端可安全引用） |
-| `@easyx/image-toolkit/ui` | 浏览器侧：引擎客户端、React hooks、图片编辑内容区组件 | React + wasm 引擎（惰性加载），UI 自研 |
+| `@easyx/image-toolkit` | 同构纯逻辑：魔数嗅探、格式判定、操作归一化、缩放换算 | 零重量依赖（服务端可安全引用） |
+| `@easyx/image-toolkit/ui` | 浏览器侧：引擎客户端、hooks、图片编辑内容区 | React + wasm 引擎（惰性加载） |
 
-:::tip
-根入口**禁止**静态引用引擎，否则 wasm glue 会被打进服务端 bundle —— 服务端做魔数嗅探时只会引入这一层纯逻辑。
-:::
+<Aside type="tip">
+根入口**禁止**静态引用引擎，否则 wasm glue 会被打进服务端 bundle。服务端做魔数嗅探时只会引入这一层纯逻辑。
+</Aside>
+
+## 特性
+
+<CardGrid>
+  <Card title="纯客户端">
+    处理全在浏览器，服务端零图片库，能力随浏览器能力走。
+  </Card>
+  <Card title="不阻塞主线程">
+    wasm 实例化与处理都在 Worker 中，主线程只负责带进度的下载。
+  </Card>
+  <Card title="预览即所得">
+    拖动对比原图与结果，同区域对齐；参数变化后防抖自动预览。
+  </Card>
+  <Card title="自研裁切台">
+    裁切框可拖动、可拖边与角改尺寸，比例可选锁定或自由，支持键盘操作。
+  </Card>
+  <Card title="无损优先">
+    PNG / WebP / TIFF 逐像素无损；界面按格式实时提示可用策略。
+  </Card>
+  <Card title="UI 自研">
+    除 React 外不依赖任何 UI 库，表单控件基于原生元素。
+  </Card>
+</CardGrid>
 
 ## 安装
 
@@ -23,9 +52,9 @@ description: 浏览器端图片处理套件：裁切、缩放、格式转换与�
 pnpm add @easyx/image-toolkit
 ```
 
-`react` / `react-dom` 为 peer 依赖，需宿主自行安装（`./ui` 入口才需要）。界面为包内自研，除 React 外不依赖任何 UI 库。
+`react` / `react-dom` 为 peer 依赖，需宿主自行安装（仅 `./ui` 入口需要）。样式编译后内联进 JS，宿主无需单独引入。
 
-## 使用
+## 快速上手
 
 ### 纯逻辑（同构）
 
@@ -35,27 +64,21 @@ import { IMAGE_LIMITS, isProcessableFormat, sniffImage } from '@easyx/image-tool
 const meta = sniffImage(bytes); // 魔数嗅探：非图片返回 null
 ```
 
-`sniffImage` 以魔数判定类型与尺寸，**不信任客户端声明的 MIME** —— 这是阻止存储型 XSS 的第一道闸门。
+`sniffImage` 以魔数判定类型与尺寸，**不信任客户端声明的 MIME**，是阻止存储型 XSS 的第一道闸门。
 
 ### 图片编辑内容区（浏览器）
 
-```tsx
-import {
-  configureImageEngine,
-  ImageEditor,
-  type ImageEditorResult,
-} from '@easyx/image-toolkit/ui';
-import { useState } from 'react';
+包内只提供编辑内容区 `<ImageEditor>`，容器与保存动作都由宿主负责：
 
-// 可选：指向 CDN 或自有静态资源
-configureImageEngine({ wasmUrl: '/static/magick.wasm' });
+```tsx
+import { ImageEditor, type ImageEditorResult } from '@easyx/image-toolkit/ui';
+import { useState } from 'react';
 
 function CoverEditor() {
   const [preview, setPreview] = useState<ImageEditorResult | null>(null);
 
   return (
     <>
-      {/* 直接嵌入页面、抽屉或任意容器 */}
       <ImageEditor src={sourceUrl} onResultChange={setPreview} />
 
       {/* 保存 / 下载由宿主自行实现 */}
@@ -70,67 +93,19 @@ function CoverEditor() {
 }
 ```
 
-包内只提供编辑内容区，容器与保存动作都由宿主负责。内容区内部已含 `<ImageEngineGate>`，引擎加载进度、错误与重试无需宿主处理；`onResultChange` 会带上 `{ result, pending, noop, unsupported, error }`，`result` 为 `null` 表示当前设置未产生变更或尚不可保存。
+内容区内部已含 `ImageEngineGate`：引擎加载进度、错误与重试都在内部处理。`onResultChange` 返回 `{ result, pending, noop, unsupported, error }`，`result` 为 `null` 表示当前设置未产生变更或尚不可保存。
 
-### 主题
+## 主题
 
-样式走包内 SCSS + CSS 变量（`--easyx-image-toolkit-*`），编译后内联进 JS，宿主无需单独引入样式文件，覆盖变量即可定制外观。界面除 React 外不依赖任何 UI 库；表单控件基于原生元素（`range` / `radio` / `checkbox` / `number`），`color-scheme` 随主题切换，系统控件的下拉与滚动条不会与自绘外观割裂。
-
-亮暗判定优先级：
+样式走包内 SCSS + CSS 变量（`--easyx-image-toolkit-*`），覆盖变量即可定制外观。暗色按三级判定，命中即生效：
 
 1. 令牌作用域根上的 `easyx-image-toolkit-dark` class
-2. 最近的宿主 `[data-theme]` 祖先（值以 `dark` 结尾，如 `dark`、`admin-dark`）
-3. 两者都没有时跟随系统 `prefers-color-scheme`
+2. 宿主祖先的 `data-theme` 以 `dark` 结尾（如 `dark` / `admin-dark`）
+3. 宿主未声明主题时跟随 `prefers-color-scheme`
 
-编辑内容区随宿主容器渲染，`data-theme` 挂在任意祖先上都会命中；若宿主用类名等 CSS 覆盖不到的方式表达主题，用 `<ImageEditor theme="dark" />` 显式指定。
+若宿主用类名等 CSS 覆盖不到的方式表达主题，用 `<ImageEditor theme="dark" />` 显式指定。
 
-## 能力矩阵（实测）
+## 延伸阅读
 
-引擎版本：`ImageMagick 7.1.2-30 Q8 wasm32`（wasm 与 glue 必须严格同版）。
-
-| 格式 | 解码（可编辑） | 编码（可输出） | 无损优化 | 说明 |
-| --- | --- | --- | --- | --- |
-| JPEG | ✅ | ✅ | ⚠️ 近无损 | 质量 100 重编码仍有约 24% 像素字节差异（视觉不可分辨） |
-| PNG | ✅ | ✅ | ✅ 逐像素无损 | `png:compression-level=9` |
-| WebP | ✅ | ✅ | ✅ 逐像素无损 | `webp:lossless=true, method=6` |
-| TIFF | ✅ | ✅ | ✅ 逐像素无损 | LZW |
-| GIF | ✅ | ❌ | ❌ | 可读可裁；动图会被压平 |
-| AVIF / HEIC | ❌ | ❌ | ❌ | 本 wasm 构建下编解码器不可用 |
-| SVG | ❌ | ❌ | ❌ | 规避 ImageMagick XML 解析器的历史外部引用风险 |
-
-### 无损与有损的真实收益
-
-以低质量编码的 PNG 作为「劣质源」实测：PNG compression-level 9 为 −41.5%（逐像素一致），WebP lossless 为 −43.2%（逐像素一致）。
-用引擎自己高质量编码的图作源会得到接近 0 的收益 —— **收益高度取决于源文件编码质量**。
-
-指定输出 PNG 的最大颜色数时，引擎先做调色板量化（Riemersma 抖动）再编码，这正是 TinyPNG 的主力手段。
-连续色调（照片、渐变）降色会出现色带，扁平插画与图标几乎无感。
-
-:::note
-**无损优化与缩放互斥**：缩放必然重采样改变像素。选中无损优化时缩放被禁用，但允许叠加裁切（裁切只取像素子集，保留区像素不变）。
-:::
-
-## wasm 资源与宿主打包器
-
-**默认**：无需任何配置，wasm 随包发布（`dist/ui/engine/magick.wasm`，约 14 MB），内网与私有化部署开箱可用。
-
-产物中的 Worker 与 wasm 都以标准静态写法引用，宿主打包器据此把它们复制进自己的产物：
-
-```js
-new Worker(new URL('./engine/worker.js', import.meta.url), { type: 'module' });
-new URL('./engine/magick.wasm', import.meta.url);
-```
-
-从源码自定义构建时设置 `EASYX_IMAGE_TOOLKIT_REMOTE=1` 可剥离本地 wasm 副本，此时必须注入地址，否则启动时明确报错而非静默失败。
-
-:::caution
-不要对本包产物做「视为外部资源、不解析」的处理，也不要让打包器把这两个表达式改写掉，否则 Worker 与 wasm 不会被带进宿主产物。
-:::
-
-## 已知取舍
-
-- **JPEG 没有真正的无损重编码**：未暴露 jpegtran 式系数透传，只能质量 100 重编码
-- **不提供手动旋转**：EXIF 方向已由 `autoOrient()` 自动处理
-- **TIFF 不可无损优化**：引擎具备该能力，但 TIFF 不在可输出格式内，界面据此提示而非静默无反应
-- **输入上限**：超过 50 MB 或 5000 万像素的图不在浏览器内处理
-- **编码会丢元数据**：需要保留 EXIF / ICC 时不要勾选「剥离元数据」
+- [引擎与打包](/easyx/image-toolkit/engine/)：能力矩阵、无损收益、wasm 资源与宿主打包器配置、已知取舍
+- [API 参考](/easyx/image-toolkit/api-reference/)：两个入口的导出清单、引擎 API 与类型

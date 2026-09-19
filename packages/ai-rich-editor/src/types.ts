@@ -4,7 +4,7 @@
  * 对话对外协议是标准 OpenAI Chat Completions 流式接口：宿主只需提供一个
  * OpenAI 兼容端点（endpointUrl + model + requestHeaders），无需配套服务端 SDK。
  */
-import type { AiRichMediaConfig } from './media/types';
+import type { MediaConfig } from './media/types';
 import type { AiRichDocumentParser } from './parsers/types';
 
 /**
@@ -14,7 +14,7 @@ import type { AiRichDocumentParser } from './parsers/types';
  * - onNotify：给人看的文案（兜底为包内轻提示）
  * - onError：给程序看的错误实例（兜底为 console.error）
  */
-export type AiRichNotify = (
+export type AiRichNotifyHandler = (
   type: 'success' | 'warning' | 'error',
   content: string,
 ) => void;
@@ -89,7 +89,7 @@ export interface AiRichEditorProps {
    * - 未配置的类型即不可用（粘贴/选择时报错），代码面板仍可手工填网络地址
    * 函数型配置不进设置面板，故与 config 分开。
    */
-  media?: AiRichMediaConfig;
+  media?: MediaConfig;
   /**
    * 宿主注入的能力集合（函数型，与 config 分开）：目前含文档解析（Word / PDF）。
    * 不传 `tools.parseDocument` 时文档入口不出现。
@@ -105,7 +105,7 @@ export interface AiRichEditorProps {
    * 通知上报（成功 / 提醒 / 错误的可见文案）：不注入时用包内置轻提示。
    * 显示什么文案由包内决定，宿主只负责呈现。
    */
-  onNotify?: AiRichNotify;
+  onNotify?: AiRichNotifyHandler;
   /**
    * 错误上报（错误实例，供日志 / 上报 / 分支处理）：不注入时兜底 `console.error`。
    * 包内不持有错误 UI —— 错误对用户的呈现一律走 `onNotify('error', …)`。

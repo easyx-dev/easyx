@@ -1,11 +1,51 @@
 ---
 title: AI Rich Editor
-description: AI 驱动的 HTML 片段生产工作台：对话生成、所见即所得预览、片段样式自动作用域化
+description: AI 驱动的 HTML 片段工作台：对话生成、所见即所得预览、片段样式自动作用域化
 ---
 
-`@easyx/ai-rich-editor` 是 AI 驱动的「代码编辑 + 实时预览」工作台（重客户端组件）。
+import { Aside, Card, CardGrid, LinkCard } from '@astrojs/starlight/components';
 
-定位为**另一种形态的富文本**：只产出可嵌入内容字段的 HTML 片段（fragment），不输出整页文档。与 `@easyx/editor`（传统富文本）互补 —— 由对话生成自由 HTML 片段，所见即所得预览。
+`@easyx/ai-rich-editor` 是 AI 驱动的「代码编辑 + 实时预览」工作台（重客户端 React 组件）。定位为**另一种形态的富文本**：只产出可嵌入内容字段的 HTML 片段（fragment），不输出整页文档。
+
+与 [`@easyx/editor`](/easyx/editor/)（传统富文本）互补 —— 由对话生成自由 HTML 片段，所见即所得预览。
+
+<CardGrid>
+  <LinkCard title="工作台演示" href="/easyx/ai-rich-editor/demo/" description="内置回放与真实模型双模式" />
+  <LinkCard title="API 参考" href="/easyx/ai-rich-editor/api-reference/" description="Props、配置项、导出与类型" />
+</CardGrid>
+
+## 定位与边界
+
+| 项 | 约定 |
+|----|------|
+| 场景 | 定制化页面（新闻、活动、落地页等）的 HTML 内容生产 |
+| 输出 | **fragment-only**：只产出内容片段，不提供整页文档模式 |
+| 防污染 | 作用域化在**应用时刻**完成，产物自带 scope 前缀，宿主可直接当 HTML 引入 |
+| 传输 | **不持有**端点与鉴权知识 —— 经宿主提供的 OpenAI 兼容端点消费 |
+| 依赖 | peer：`react` / `react-dom`；可选 peer：`mammoth` / `unpdf`（仅 `./parsers` 入口按需加载）。**除 React 外不依赖任何 UI 库** |
+
+## 特性
+
+<CardGrid>
+  <Card title="标准 OpenAI 协议">
+    连接三件套 `endpointUrl` + `model` + `requestHeaders`，宿主后端无需配套 SDK。
+  </Card>
+  <Card title="实时预览">
+    设备档位、脚本开关、刷新与新窗口预览；可选并排代码面板。
+  </Card>
+  <Card title="片段作用域化">
+    片段内 `<style>` 选择器自动加前缀，直接嵌入宿主页面不污染全局。
+  </Card>
+  <Card title="媒体插入">
+    对话与代码面板两条路径，支持上传、网络地址与媒体库。
+  </Card>
+  <Card title="文档解析">
+    Word / PDF 交给 AI，据此生成新片段或改写现有内容。
+  </Card>
+  <Card title="版本回退">
+    每条回复即一个完整版本，点历史代码卡片即可回退。
+  </Card>
+</CardGrid>
 
 ## 安装
 
@@ -13,22 +53,22 @@ description: AI 驱动的 HTML 片段生产工作台：对话生成、所见即�
 pnpm add @easyx/ai-rich-editor
 ```
 
-`react` / `react-dom` 为 peer 依赖，需宿主自行安装；其余运行时依赖（含代码面板的 CodeMirror）随包安装。
-
-界面为包内自研，**除 React 外不依赖任何 UI 库**（弹窗、表单、气泡、输入框、分栏均为自实现）。
+`react` / `react-dom` 为 peer 依赖，需宿主自行安装；其余运行时依赖随包安装。样式编译后内联进 JS，宿主无需单独引入。
 
 ## 快速上手
 
 ```tsx
 import { AiRichEditor, DEFAULT_HTML } from '@easyx/ai-rich-editor';
+import { useState } from 'react';
 
 export function MyPage() {
   const [html, setHtml] = useState(DEFAULT_HTML);
+
   return (
     <AiRichEditor
       value={html}
       onChange={setHtml}
-      endpointUrl="/v1/chat/completions" // OpenAI Chat Completions 兼容端点
+      endpointUrl="/v1/chat/completions"
       model="gpt-4o-mini"
       requestHeaders={{ Authorization: 'Bearer sk-…' }}
     />
@@ -36,49 +76,11 @@ export function MyPage() {
 }
 ```
 
-宿主的后端只需是任意 **OpenAI Chat Completions 兼容**服务（OpenAI、DeepSeek、vLLM、Ollama、one-api/new-api 等网关皆可），**不需要配套 SDK 或服务端适配层**。
-
-## 对话协议
-
-包内把请求组装成标准 OpenAI 流式调用，并消费标准的 `data:` + `[DONE]` 响应：
-
-```jsonc
-// POST {endpointUrl}
-{
-  "model": "gpt-4o-mini",
-  "stream": true,
-  "messages": [
-    { "role": "system", "content": "<内置/自定义 system 提示词>" },
-    { "role": "user", "content": "…" }
-  ]
-}
-```
-
-```text
-# text/event-stream
-data: {"choices":[{"delta":{"content":"这"},"finish_reason":null}]}
-data: {"choices":[{"delta":{},"finish_reason":"stop"}]}
-data: [DONE]
-```
-
-- 思考内容按厂商方言尽力识别（`reasoning_content` / `reasoning` / `thinking`），有则渲染折叠的思考块
-- 图片附件在「绝对 `http(s)` 地址 + 模型多模态输入开启」时作为 `image_url` 内容块发送；其余附件仍靠消息里的文本清单传递地址
-- `config.sendImagesAsMultimodal` 可关闭图片多模态，兼容不支持数组 `content` 的纯文本网关
-- 终止以 `[DONE]` 或 `finish_reason` 为准；两者都没出现即视为流被中断并报错
-- `model` / `stream` / `messages` 由包内决定，`requestBody` 中的同名字段不会生效
-
-## 布局
-
-顶栏 + 水平分割：左（预览区，可选编辑器）｜右（AI 对话面板）。
-
-- **顶栏**：预览控件「设备档位 / 脚本勾选 / 刷新 / 新窗口预览」+ **编辑器**勾选 + 复制 + 设置 + 使用说明（面向使用者的操作指南，图标入口）
-- **左栏**：默认整区为预览卡片；开启「编辑器」后变为 `[代码编辑器 | 预览]` 内层横向分割
-- **代码编辑器**：CodeMirror 6 按需加载，HTML 语法高亮（含内嵌 `<style>` / `<script>` 的 CSS 与 JS）、标签与属性补全（`⌘/Ctrl+F` 查找替换、`⌘/Ctrl+Space` 补全、`⌘/Ctrl+Alt+G` 跳转行）
-- **右栏**：AI 对话（`Bubble` / `Sender` / `Welcome` + `Prompts` / `Think`），默认 420，min 400 / max 600
+宿主的后端只需是任意 **OpenAI Chat Completions 兼容**服务（OpenAI、DeepSeek、vLLM、Ollama、one-api / new-api 等网关皆可）。`requestBody` 可追加温度等参数；`model` / `stream` / `messages` 由包内决定，不可覆盖。详见[使用指南](/easyx/ai-rich-editor/usage/)。
 
 ## 产物：自带作用域的 HTML 片段
 
-AI 生成的片段在「应用到编辑器」（含 `autoApply`）时即完成**样式作用域化**，宿主可直接当 HTML 引入：
+「应用到编辑器」时片段内 `<style>` 的选择器会被改写为 `.{前缀} …`，前缀在实例创建时生成一次：
 
 ```html
 <div class="easyx-rich-content-<实例前缀>">
@@ -87,158 +89,24 @@ AI 生成的片段在「应用到编辑器」（含 `autoApply`）时即完成**
 </div>
 ```
 
+宿主直接当 HTML 引入即可，端侧零处理：
+
 ```tsx
 <div dangerouslySetInnerHTML={{ __html: detail.html }} />
 ```
 
-作用域化保证片段内嵌 `<style>` 只作用于该片段根，不污染宿主全局；内联 `style=""` 天然隔离。
-内置 system 提示词同步约束了源头：内联样式优先，确需 `<style>` 时禁用 `body` / `*` / `:root` / `html` 等全局选择器。
+内联样式天然隔离；内置 system 提示词同步约束源头：优先内联样式，确需 `<style>` 时禁用 `body` / `*` / `:root` / `html` 等全局选择器。
 
-## 配置
+<Aside type="danger" title="安全边界">
+预览 `iframe` 默认 `sandbox="allow-scripts allow-same-origin"`（后者用于加载同源资源）。`allow-scripts` + `allow-same-origin` 组合会使 iframe 内容与宿主同源、获得 `parent.document` 写权（OWASP 反模式）。二者不可兼得，故以**受信编辑器产物**为前提，勿把该模式用于不可信内容；脚本可在顶栏关闭。
+</Aside>
 
-配置项统一收拢到 `config` 属性，经顶栏「设置」面板编辑，保存后生效：
+<Aside type="note" title="单实例假设">
+`createChatHook` 的 options 固定在模块作用域，连接信息与结束回调经每实例 overrides 注入（多实例互不串线），但编辑器仍按**一页一个**设计。
+</Aside>
 
-| 配置项 | 说明 | 默认 |
-|--------|------|------|
-| `autoApply` | AI 回复后自动应用到编辑器 | `true` |
-| `systemPrompt` | 自定义 system 提示词 | 内置模板 |
-| `previewHead` | 预览 `<head>` 附加代码（原始 HTML） | 空 |
-| `sendImagesAsMultimodal` | 图片附件以多模态发送 | `true` |
+## 延伸阅读
 
-`config` 只放可序列化的配置；函数型注入项（`media` / `tools` / `onNotify` / `onError`）与 `allowedUrlSchemes` 一律是顶层属性。
-
-顶栏「设置」直接打开模态框：**就地渲染在编辑器容器内**（不 portal），高度随内容自适应、上限为容器的 90%，宽度上限 800px。
-
-:::caution
-`config` 为**仅初始值（非受控）**——挂载后改动 `config` 不会生效；运行期请经设置面板修改，如需持久化再用 `onConfigChange` 回写宿主。
-:::
-
-## 通知与错误
-
-两条通道分开，均为顶层属性；**错误会同时走两条** —— 一条给人看，一条给程序看：
-
-| 通道 | 承载 | 未注入时的兜底 |
-|------|------|----------------|
-| `onNotify(type, content)` | 用户可见文案：复制成功、附件数量上限、未检测到 HTML 代码块，以及**所有错误提示** | 包内置轻提示 |
-| `onError(error)` | 错误实例，供日志 / 上报 / 分支处理（不负责用户可见提示） | `console.error`（不上浮任何 UI） |
-
-```tsx
-<AiRichEditor
-  endpointUrl="/v1/chat/completions"
-  model="gpt-4o-mini"
-  onNotify={(type, content) => myToast(type, content)}
-  onError={(error) => myReporter(error)}
-/>
-```
-
-- 错误提示的文案取自 `error.message`，宿主不必自己翻译
-- `onError` 收到的始终是 `Error`，可按类分支：`error instanceof MediaNotConfiguredError` / `InvalidMediaUrlError`（均由本包导出）
-- 兜底刻意做得很轻：通知用包内轻提示，错误只打 `console.error`，**绝不弹原生 alert**
-- 会话流错误在对话区保留 `Alert`（属对话状态），同时也会走 `onNotify` / `onError`，因此会同时看到气泡区的说明与一条轻提示
-- 危险协议（`javascript:` / `data:` / `vbscript:` 等）永远被拦下，连 `allowedUrlSchemes` 也放行不了
-
-## 媒体插入
-
-媒体能力经**顶层 `media` 属性**注入。它不在 `config` 里：上传与列表都是函数，设置面板无法编辑。
-
-```tsx
-<AiRichEditor
-  endpointUrl="/v1/chat/completions"
-  model="gpt-4o-mini"
-  media={{
-    image: {
-      upload: async (file, onProgress) => ({
-        id: file.name,
-        url: await myUpload(file, onProgress),
-        name: file.name,
-        size: file.size,
-      }),
-      getList: async ({ page, pageSize, keyword }) => ({ items, total }),
-    },
-    video: { upload, getList },
-    audio: { upload, getList },
-    attachment: { upload },
-  }}
-/>
-```
-
-`AiRichMediaItem` 的字段与 `@easyx/editor` 的媒体配置一致（`id` / `url` / `name` / `size?` / `thumbnailUrl?` / `fileType?`），两包各自持有类型，可复用同一套宿主接口。
-
-两条插入路径：
-
-1. **对话**：把图片、视频、音频或任意文件**粘贴 / 拖入输入框**（或点回形针，从上传、媒体库中选）。点发送时才调用对应类型的 `upload`，拿到地址后把附件清单拼进消息交给模型，由模型决定插到哪里、如何书写标签。上传失败不发送，输入与附件保留可重试；对应类型没配置 `upload` 时，添加的那一刻就报错。
-2. **代码面板**：打开「编辑器」后，**行号左侧、跟随光标所在行**的「+」打开同一套浮层（上传 / 网络地址 / 媒体库）；也可以直接把文件拖进代码区，按落点插入。
-
-插入的是自包含片段（语义标签 + 内联样式），可直接嵌入内容字段：
-
-- 图片：`<img src alt style="max-width:100%;height:auto;">`
-- 视频：`<video src controls playsinline style="max-width:100%;"></video>`
-- 音频：`<audio src controls></audio>`
-- 附件：`<a href download>文件名（尺寸）</a>`
-
-未配置 `upload` 的类型不可上传；「媒体库」入口由 `getList` 决定是否出现，列表取自**第一个配置了 `getList` 的类型**（媒体库通常是一份共享资源，条目类型按 `fileType` 或扩展名逐个推断）。
-
-### 地址校验的信任边界
-
-| 来源 | 是否校验 |
-|------|----------|
-| 用户手输（「网络地址」页签） | 校验 |
-| AI 回复里的链接与图片 | 校验 |
-| 宿主 `upload` / `getList` 返回的地址 | **不校验**（宿主服务端产物，属可信来源） |
-
-规则是协议白名单：默认放行 `http(s)` / `mailto` / `tel` / `blob` 与相对路径，拦下 `javascript:` / `data:` 等。`blob:` 放行是因为它只能由同源脚本现场铸造，无法像 `data:` 那样从字符串直接构造。
-
-宿主可用 `allowedUrlSchemes` **追加**协议（只增不减；`javascript:` / `data:` / `vbscript:` 等危险协议写进去也会被忽略）：
-
-```tsx
-<AiRichEditor allowedUrlSchemes={['ipfs:', 'app:']} … />
-```
-
-:::note
-发给模型的消息里，附件以 `[已上传附件]` 清单形式附在用户原话之后（模型需要真实地址）；对话气泡只显示用户原话 + 附件缩略条。内置 system 提示词已约束「媒体地址只准使用清单给出的 url」。
-:::
-
-## 文档解析（Word / PDF）
-
-把 Word（`.docx`）或 PDF 交给 AI，据此生成新片段，或修改编辑器里的现有内容。能力经**顶层 `tools.parseDocument`** 注入，是一个**异步方法**：可以本地解析，也可以调用宿主自己的服务端解析接口。
-
-```tsx
-import { createDefaultDocumentParser } from '@easyx/ai-rich-editor/parsers';
-
-<AiRichEditor
-  endpointUrl="/v1/chat/completions"
-  model="gpt-4o-mini"
-  // 浏览器端默认解析器；也可替换为 `async (file) => …` 调自己的服务端接口
-  tools={{ parseDocument: createDefaultDocumentParser() }}
-/>;
-```
-
-- 传入后对话输入框出现「添加文档」入口，也可把 `.docx` / `.pdf` 粘贴或拖入；添加即解析。
-- 使用默认解析器需额外安装可选依赖 `mammoth` 与 `unpdf`；走服务端解析则无需引入 `./parsers`，二者都不进宿主产物。
-- 解析结果以 `[文档内容]` 块随消息发出：只出现该块时据文档**生成**；同时出现 `[当前片段]` 时据文档**修改**当前内容。
-
-详见[文档解析（Word / PDF）](./documents/)。
-
-## 主题
-
-亮暗判定优先级（与包内样式一致）：
-
-1. 令牌作用域上的 class `easyx-ai-rich-editor-scope-dark`
-2. 最近的宿主 `[data-theme]` 祖先（值以 `dark` 结尾，如 `dark`、`admin-dark`）
-3. 两者都没有时跟随系统 `prefers-color-scheme`
-
-代码面板的语法高亮与结构配色全部走 `--easyx-ai-rich-editor-code-*` 令牌（跟随上述判定，无需 JS）；仅 CodeMirror 内置的光标 / 选区 / 当前行 / 面板变体由包内 hook 转达暗色判定。
-
-抽屉、下拉菜单、Tooltip、轻提示等浮层渲染在 portal 中：`data-theme` 挂在 `<html>` 上时第 2 条依然命中，包内还会把触发元素所处的主题一并带到浮层根上，因此浮层不会脱主题。所有颜色经 `--easyx-ai-rich-editor-*` CSS 变量控制，可在宿主覆盖。
-
-## 安全边界
-
-预览 `iframe` 使用 `sandbox` 隔离，默认 `allow-scripts allow-same-origin`（后者用于加载同源资源），脚本可在顶栏关闭。
-
-:::danger
-`allow-scripts` + `allow-same-origin` 组合会使 iframe 内容与宿主同源、获得 `parent.document` 写权（OWASP 反模式）。当前保留 `allow-same-origin` 是为在预览内加载同源资源，二者不可兼得，故以「受信编辑器产物」为前提，**勿把该模式用于不可信内容**。
-:::
-
-## 单实例假设
-
-`createChatHook` 的 options 固定在模块作用域，连接信息（`endpointUrl` / `model` / `requestHeaders`）与结束回调经每实例 overrides 注入（多实例互不串线），但编辑器仍按**一页一个**设计。
+- [使用指南](/easyx/ai-rich-editor/usage/)：对话协议、媒体插入、通知与错误、主题与预览右键修改
+- [文档解析（Word / PDF）](/easyx/ai-rich-editor/documents/)：`tools.parseDocument` 与默认解析器
+- [API 参考](/easyx/ai-rich-editor/api-reference/)：Props、配置项、导出与类型

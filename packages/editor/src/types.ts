@@ -1,21 +1,21 @@
-export type ContentType = string;
+export type EditorContentType = string;
 
-export type ThemeType = 'light' | 'dark';
+export type EditorTheme = 'light' | 'dark';
 
 /** 图片配置：在通用媒体配置基础上增加图片专属选项 */
-export type ImageMediaUploadConfig = MediaUploadConfig & {
+export type EditorImageConfig = MediaUploadConfig & {
   /** 是否开启图片拖拽缩放，默认 true */
   resizable?: boolean;
 };
 
 /** 编辑器初始化配置 */
-export interface EasyxEditorOptions {
+export interface EditorOptions {
   placeholder?: string;
   readOnly?: boolean;
   autoFocus?: boolean;
-  defaultContent?: ContentType;
-  defaultTheme?: ThemeType;
-  image?: ImageMediaUploadConfig;
+  defaultContent?: EditorContentType;
+  defaultTheme?: EditorTheme;
+  image?: EditorImageConfig;
   video?: MediaUploadConfig;
   audio?: MediaUploadConfig;
   attachment?: MediaUploadConfig;
@@ -27,7 +27,7 @@ export interface EasyxEditorOptions {
   maxHeight?: number | string;
   /** 是否启用右下角拖拽手柄调节高度，受 minHeight / maxHeight 约束 */
   resizable?: boolean;
-  onChange?: (content: ContentType) => void;
+  onChange?: (content: EditorContentType) => void;
   onReady?: () => void;
   onFocus?: () => void;
   onBlur?: () => void;
@@ -59,13 +59,10 @@ export interface MediaListResult {
 }
 
 /** 上传进度回调 */
-export type UploadProgressCallback = (progress: number) => void;
+export type MediaUploadProgress = (progress: number) => void;
 
 /** 单个媒体类型的上传 + 列表配置 */
 export interface MediaUploadConfig {
-  upload: (
-    file: File,
-    onProgress?: UploadProgressCallback,
-  ) => Promise<MediaItem>;
+  upload: (file: File, onProgress?: MediaUploadProgress) => Promise<MediaItem>;
   getList?: (params: MediaListParams) => Promise<MediaListResult>;
 }

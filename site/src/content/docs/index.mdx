@@ -12,7 +12,12 @@ hero:
     - text: Table Plus
       link: /easyx/table-plus/
       variant: secondary
-      icon: right-arrow
+    - text: AI Rich Editor
+      link: /easyx/ai-rich-editor/
+      variant: secondary
+    - text: Image Toolkit
+      link: /easyx/image-toolkit/
+      variant: secondary
 ---
 
 import { Card, CardGrid, LinkCard } from '@astrojs/starlight/components';
@@ -24,12 +29,12 @@ EasyX 以 pnpm monorepo 维护一系列相互独立的库：每个库单独安�
 <CardGrid>
   <LinkCard
     title="@easyx/editor"
-    description="零框架依赖的 Tiptap 富文本编辑器，内置工具栏、气泡菜单、媒体上传与高度控制。"
+    description="零框架依赖的 Tiptap 富文本编辑器，内置工具栏、气泡菜单、媒体上传与表格增强。"
     href="/easyx/editor/"
   />
   <LinkCard
     title="@easyx/tiptap-table-plus"
-    description="Tiptap 表格增强套件：行列操作、单元格样式、70 色背景与中英文右键菜单。"
+    description="Tiptap 表格增强套件：选区手柄、单元格样式、70 色色板与中英文右键菜单。"
     href="/easyx/table-plus/"
   />
   <LinkCard
@@ -39,7 +44,7 @@ EasyX 以 pnpm monorepo 维护一系列相互独立的库：每个库单独安�
   />
   <LinkCard
     title="@easyx/image-toolkit"
-    description="浏览器端图片处理套件：裁切、缩放、格式转换与无损优化全部由 wasm 引擎在客户端完成。"
+    description="浏览器端图片处理套件：裁切、缩放、格式转换与无损优化全部由 wasm 引擎完成。"
     href="/easyx/image-toolkit/"
   />
 </CardGrid>

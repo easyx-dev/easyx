@@ -1,31 +1,115 @@
 ---
-title: Editor 概览
-description: EasyX Editor 核心编辑器快速导航
+title: Editor
+description: 零框架依赖的 Tiptap 富文本编辑器，内置工具栏、气泡菜单、媒体上传与表格增强
 ---
 
-import { Card, CardGrid, LinkCard } from '@astrojs/starlight/components';
+import { Card, CardGrid, LinkCard, Steps } from '@astrojs/starlight/components';
 
-通过 `createEditor` 创建的全功能编辑器，包含工具栏、气泡菜单、媒体上传和主题切换。
+`@easyx/editor` 是零框架依赖的 Tiptap 富文本编辑器：工具栏、气泡菜单、媒体浮层全部以原生 DOM 构建，可接入任何前端技术栈。
 
 <CardGrid>
-  <LinkCard title="编辑器演示" href="/easyx/editor/demo/" />
-  <LinkCard title="原生 API" href="/easyx/editor/vanilla-demo/" />
-  <LinkCard title="API 参考" href="/easyx/editor/api-reference/" />
+  <LinkCard title="全功能演示" href="/easyx/editor/demo/" description="在真实编辑器中体验全部内置能力" />
+  <LinkCard title="API 参考" href="/easyx/editor/api-reference/" description="创建参数、实例方法与事件清单" />
 </CardGrid>
 
 ## 特性
 
 <CardGrid>
   <Card title="零 UI 框架依赖">
-    工具栏、气泡菜单与选中浮层均以原生 DOM 构建，可嵌入任意前端项目。
+    工具栏、气泡菜单与选中浮层均为原生 DOM，不引入 React / Vue。
+  </Card>
+  <Card title="表格增强">
+    集成 `@easyx/tiptap-table-plus`，支持单元格样式、选区手柄、右键菜单与块级背景色。
   </Card>
   <Card title="媒体能力">
-    图片、视频、音频、附件均支持上传 / URL / 媒体库三种插入方式，粘贴与拖入的文件自动按类型路由。
+    图片、视频、音频、附件支持上传 / 网络地址 / 媒体库三种插入方式。
   </Card>
-  <Card title="高度控制">
-    height / minHeight / maxHeight / resizable 四种配置覆盖自适应、定高与拖拽调节。
+  <Card title="高度可控">
+    `height` / `minHeight` / `maxHeight` / `resizable` 覆盖自适应、定高与拖拽调节。
   </Card>
-  <Card title="暗色主题">
-    全部颜色由 CSS 自定义属性控制，setTheme() 运行时切换并同步表格主题。
+  <Card title="主题内建">
+    全部颜色由 CSS 自定义属性控制，`setTheme()` 运行时切换并同步表格主题。
+  </Card>
+  <Card title="样式内联">
+    SCSS 编译后内联进 JS，宿主无需单独引入样式文件。
   </Card>
 </CardGrid>
+
+## 安装
+
+```bash
+pnpm add @easyx/editor
+```
+
+## 快速上手
+
+<Steps>
+
+1. 准备一个空容器元素。
+
+   ```html
+   <div id="editor"></div>
+   ```
+
+2. 调用 `createEditor` 创建实例。
+
+   ```ts
+   import { createEditor } from '@easyx/editor';
+
+   const container = document.querySelector<HTMLElement>('#editor')!;
+
+   const editor = createEditor(container, {
+     placeholder: '请输入…',
+     defaultTheme: 'light',
+     height: 320,
+     resizable: true,
+     image: {
+       upload: async (file) => ({
+         id: file.name,
+         url: URL.createObjectURL(file),
+         name: file.name,
+         size: file.size,
+       }),
+     },
+     onChange: (content) => console.log(content),
+   });
+   ```
+
+3. 按需读写内容或销毁实例。
+
+   ```ts
+   editor.setHTML('<p>Hello World</p>');
+   // …
+   editor.destroy();
+   ```
+
+</Steps>
+
+> `createEditor` 返回的实例完全独立于 UI 框架，配套方法见 [API 参考](/easyx/editor/api-reference/)。
+
+## 媒体上传
+
+`image` / `video` / `audio` / `attachment` 接受同一套 `MediaUploadConfig`：`upload` 为必需，`getList` 提供后媒体下拉才出现「媒体库」页签。
+
+```ts
+interface MediaUploadConfig {
+  upload: (file: File, onProgress?: (progress: number) => void) => Promise<MediaItem>;
+  getList?: (params: MediaListParams) => Promise<MediaListResult>;
+}
+```
+
+编辑器内容区支持直接**粘贴**或**拖入**文件：仅当剪贴板 / 拖放只包含文件（无富文本）时接管，按类型路由到对应 `upload`。上传失败触发 `uploadError` 事件。
+
+## 主题
+
+通过 `setTheme()` 切换亮 / 暗主题，编辑器自动在容器上添加 / 移除 `easyx-editor-dark` 类，并同步表格主题。所有颜色由 CSS 自定义属性控制，可在外部覆盖。
+
+```ts
+editor.setTheme('dark');
+```
+
+## 延伸阅读
+
+- [高度模式](/easyx/editor/height/)：`height` / `minHeight` / `maxHeight` / `resizable` 的行为差异
+- [API 参考](/easyx/editor/api-reference/)：全部配置项、实例方法、事件与类型
+- [Table Plus](/easyx/table-plus/)：独立的表格增强套件
